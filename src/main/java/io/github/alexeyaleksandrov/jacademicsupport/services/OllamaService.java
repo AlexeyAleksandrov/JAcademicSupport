@@ -1,4 +1,4 @@
-package io.github.alexeyaleksandrov.jacademicsupprt.services;
+package io.github.alexeyaleksandrov.jacademicsupport.services;
 
 import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.ai.ollama.api.OllamaOptions;

@@ -1,4 +1,4 @@
-package io.github.alexeyaleksandrov.jacademicsupprt;
+package io.github.alexeyaleksandrov.jacademicsupport;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

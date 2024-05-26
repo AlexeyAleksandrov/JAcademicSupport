@@ -1,6 +1,6 @@
-package io.github.alexeyaleksandrov.jacademicsupprt.controllers.ollama;
+package io.github.alexeyaleksandrov.jacademicsupport.controllers.ollama;
 
-import io.github.alexeyaleksandrov.jacademicsupprt.services.OllamaService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.OllamaService;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
