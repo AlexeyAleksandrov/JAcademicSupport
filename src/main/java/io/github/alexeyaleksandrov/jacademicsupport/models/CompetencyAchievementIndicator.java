@@ -37,6 +37,6 @@ public class CompetencyAchievementIndicator {
     @ManyToOne
     @JoinColumn(name = "competency_id", referencedColumnName = "id", nullable = false)
     private Competency competencyByCompetencyId;
-    @OneToMany
+    @OneToMany(fetch = FetchType.EAGER)
     private List<Keyword> keywords;
 }

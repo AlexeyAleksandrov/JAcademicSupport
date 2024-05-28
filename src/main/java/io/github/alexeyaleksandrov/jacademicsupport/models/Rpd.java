@@ -25,10 +25,10 @@ public class Rpd {
     @Basic
     @Column(name = "year", nullable = false)
     private int year;
-    @OneToMany
+    @OneToMany(fetch = FetchType.EAGER)
     private List<CompetencyAchievementIndicator> competencyAchievementIndicators;
-    @OneToMany
+    @OneToMany(fetch = FetchType.EAGER)
     private Map<CompetencyAchievementIndicator, Keyword> keywordsForIndicatorInContextRpdMap;
-    @OneToMany
+    @OneToMany(fetch = FetchType.EAGER)
     private List<WorkSkill> recommendedWorkSkills;
 }

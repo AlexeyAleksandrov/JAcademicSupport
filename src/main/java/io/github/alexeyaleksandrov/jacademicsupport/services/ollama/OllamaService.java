@@ -1,4 +1,4 @@
-package io.github.alexeyaleksandrov.jacademicsupport.services;
+package io.github.alexeyaleksandrov.jacademicsupport.services.ollama;
 
 import org.springframework.ai.chat.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
