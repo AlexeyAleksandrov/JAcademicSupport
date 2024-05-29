@@ -66,7 +66,7 @@ public class HhService {
             vacancy.setId(vacancieNode.get("id").asInt());
             vacancy.setName(vacancieNode.get("name").asText());
             vacancy.setPublishedAt(vacancieNode.get("published_at").asText());
-
+            vacancy.setDescription(vacancieNode.get("description").asText());
             JsonNode keySkills = vacancieNode.get("key_skills");
             if(keySkills.isArray()) {
                 List<String> skillsList = new ArrayList<>();

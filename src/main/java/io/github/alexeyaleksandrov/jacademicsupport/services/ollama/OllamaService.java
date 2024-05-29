@@ -29,7 +29,8 @@ public class OllamaService
                 .withStream(false) // not streaming
                 .withMessages(List.of(
                         OllamaApi.Message.builder(OllamaApi.Message.Role.SYSTEM)
-                                .withContent("Ты ИИ-помощник, который помогает людям находить информацию. Ты отвечаешь всегда только на русском языке.")
+                                .withContent("Ты ИИ-помощник, который помогает людям находить информацию. " +
+                                        "Ты отвечаешь всегда только на русском языке.")
                                 .build(),
                         OllamaApi.Message.builder(OllamaApi.Message.Role.USER)
                                 .withContent(content)

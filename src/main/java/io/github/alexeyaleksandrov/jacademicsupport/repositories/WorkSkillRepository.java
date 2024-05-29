@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WorkSkillRepository extends JpaRepository<WorkSkill, Long> {
+    boolean existsWorkSkillByDescription(String skillName);
+    WorkSkill findByDescription(String skillName);
 }
