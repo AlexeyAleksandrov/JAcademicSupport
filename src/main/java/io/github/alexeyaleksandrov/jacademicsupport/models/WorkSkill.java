@@ -24,6 +24,6 @@ public class WorkSkill {
     @Column(name = "market_demand", nullable = true, precision = 0)
     private Double marketDemand;
     @ManyToOne
-    @JoinColumn(name = "skills_group_id", referencedColumnName = "id", nullable = false)
+    @JoinColumn(name = "skills_group_id", referencedColumnName = "id")
     private SkillsGroup skillsGroupBySkillsGroupId;
 }

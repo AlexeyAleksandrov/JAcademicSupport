@@ -1,9 +1,12 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.hh;
 
+import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.models.hh.Vacancy;
 import io.github.alexeyaleksandrov.jacademicsupport.models.hh.VacancyItem;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;
 import lombok.AllArgsConstructor;
@@ -21,6 +24,8 @@ import java.util.stream.Collectors;
 public class VacanciesController {
     private final HhService hhService;
     private final WorkSkillRepository workSkillRepository;
+    private final SkillsGroupRepository skillsGroupRepository;
+    private final VacancyEntityRepository vacancyEntityRepository;
 
     @GetMapping("/vac/list")
     private ResponseEntity<List<VacancyItem>> vacanciesList() {
@@ -35,7 +40,7 @@ public class VacanciesController {
     }
 
     @GetMapping("/vac/list/save")
-    private ResponseEntity<String> getAndSaveAllVacancies() {
+    private ResponseEntity<List<VacancyEntity>> getAndSaveAllVacancies() {
         List<VacancyItem> vacancyItemList = hhService.getAllVacancies("Java Junior Developer");
         List<Vacancy> vacancies = vacancyItemList.stream()
                 .map(vacancyItem -> hhService.getVacancyById(vacancyItem.getId()))
@@ -47,7 +52,7 @@ public class VacanciesController {
                     vacancyEntity.setHhId(vacancy.getId());     // id в HH
                     vacancyEntity.setName(vacancy.getName());
                     vacancyEntity.setDescription(vacancy.getDescription());
-                    vacancyEntity.setPublishedAt(vacancyEntity.getPublishedAt());
+                    vacancyEntity.setPublishedAt(vacancy.getPublishedAt());
 
                     List<WorkSkill> skills = new ArrayList<>();
                     // сначала ищем навыки, которые уже есть в базе
@@ -59,8 +64,11 @@ public class VacanciesController {
                     skills.addAll(vacancy.getSkills().stream()
                             .filter(s -> !workSkillRepository.existsWorkSkillByDescription(s))
                             .map(s -> {
+                                SkillsGroup skillsGroup = skillsGroupRepository.findByDescription("NO_GROUP");
                                 WorkSkill workSkill = new WorkSkill();
                                 workSkill.setDescription(s);
+                                workSkill.setSkillsGroupBySkillsGroupId(skillsGroup);
+                                workSkill.setMarketDemand(-1.0);
                                 workSkill = workSkillRepository.saveAndFlush(workSkill);    // сохраняем в базу данных
                                 return workSkill;
                             })
@@ -71,7 +79,20 @@ public class VacanciesController {
                 })
                 .toList();
 
+        // обновляем данные, если они уже есть
+        vacancyEntities.stream()
+                .filter(vacancyEntity -> vacancyEntityRepository.existsByHhId(vacancyEntity.getHhId()))
+                .peek(vacancyEntity -> {
+                    long id = vacancyEntityRepository.findByHhId(vacancyEntity.getHhId()).getId();
+                    vacancyEntity.setId(id);
+                })
+                 .forEach(vacancyEntityRepository::saveAndFlush);
 
-        return ResponseEntity.ok("Ok");
+         // сохраняем новые
+        vacancyEntities.stream()
+                .filter(vacancyEntity -> !vacancyEntityRepository.existsByHhId(vacancyEntity.getHhId()))
+                .forEach(vacancyEntityRepository::saveAndFlush);
+
+        return ResponseEntity.ok(vacancyEntities);
     }
 }
