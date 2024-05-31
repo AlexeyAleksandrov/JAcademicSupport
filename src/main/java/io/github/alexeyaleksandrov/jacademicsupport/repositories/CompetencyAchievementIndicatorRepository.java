@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface CompetencyAchievementIndicatorRepository extends JpaRepository<CompetencyAchievementIndicator, Long> {
+    CompetencyAchievementIndicator findByNumber(String number);
 }
