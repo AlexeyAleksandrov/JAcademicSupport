@@ -1,12 +1,16 @@
 package io.github.alexeyaleksandrov.jacademicsupport.services.recommendation;
 
 import io.github.alexeyaleksandrov.jacademicsupport.models.Rpd;
+import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
+import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.*;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @AllArgsConstructor
@@ -20,7 +24,8 @@ public class RecommendationService {
     private SkillsGroupRepository skillsGroupRepository;
 
 //    public Rpd getRecomendationsForRpd(Rpd inputRpd) {
-//        List<VacancyEntity> vacancyEntities = vacancyEntityRepository.findAll();    // получаем все доступные вакансии
+//        List<WorkSkill> workSkills = workSkillRepository.findAll();     // получаем все имеющиеся навыки
+//        List<SkillsGroup> skillsGroups = skillsGroupRepository.findAll();
 //
 //    }
 }

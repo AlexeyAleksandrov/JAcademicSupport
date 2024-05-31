@@ -2,17 +2,15 @@ package io.github.alexeyaleksandrov.jacademicsupport.controllers.ollama;
 
 import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
 
+import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@AllArgsConstructor
 public class ChatController {
     private final OllamaService ollamaService;
-
-    public ChatController(OllamaService ollamaService) {
-        this.ollamaService = ollamaService;
-    }
 
     @GetMapping("/ask")
     public String answer(@RequestParam(name = "text", required = true, defaultValue = "Hi") String text)

@@ -95,4 +95,9 @@ public class VacanciesController {
 
         return ResponseEntity.ok(vacancyEntities);
     }
+
+    @GetMapping("/update/workSkillsMarketDemand")
+    private ResponseEntity<List<WorkSkill>> updateWorkSkillsMarketDemand() {
+        return ResponseEntity.ok(hhService.updateWorkSkillsMarketDemand());
+    }
 }
