@@ -1,4 +1,4 @@
-package io.github.alexeyaleksandrov.jacademicsupport.models.rpd.recommendation;
+package io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

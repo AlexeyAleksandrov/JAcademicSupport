@@ -3,8 +3,8 @@ package io.github.alexeyaleksandrov.jacademicsupport.controllers.hh;
 import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
-import io.github.alexeyaleksandrov.jacademicsupport.models.hh.Vacancy;
-import io.github.alexeyaleksandrov.jacademicsupport.models.hh.VacancyItem;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.Vacancy;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.VacancyItem;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Controller
 @AllArgsConstructor
