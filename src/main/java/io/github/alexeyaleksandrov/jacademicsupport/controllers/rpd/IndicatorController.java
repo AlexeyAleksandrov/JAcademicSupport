@@ -48,6 +48,7 @@ public class IndicatorController {
     @GetMapping("/create/keywords")
     public ResponseEntity<CompetencyAchievementIndicator> createKeywordsForCompetencyAchievementIndicator(@RequestParam(name = "number") String number) {
         CompetencyAchievementIndicator indicator = indicatorRepository.findByNumber(number);
+
         StringBuilder indicatorTextBuilder = new StringBuilder();
         indicatorTextBuilder.append(indicator.getDescription());    // описание
         indicatorTextBuilder.append(". ");
@@ -84,6 +85,12 @@ public class IndicatorController {
                         .map(keywordRepository::saveAndFlush)
                         .toList()
         );  // добавляем и сохраняем новые ключевые слова
+
+        if(!indicator.getKeywords().isEmpty())
+        {
+            indicator.setKeywords(new ArrayList<>());
+            indicatorRepository.saveAndFlush(indicator);    // сбрасываем ключевые слова
+        }
 
         indicator.setKeywords(competencyKeywords);     // добавляем ключевые слова для индикатора компетенции
         indicator = indicatorRepository.saveAndFlush(indicator);     // сохраняем обновлённый индикатор компетенции
