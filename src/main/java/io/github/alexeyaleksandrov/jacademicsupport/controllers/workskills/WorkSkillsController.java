@@ -1,8 +1,10 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.workskills;
 
 import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
+import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
 import lombok.AllArgsConstructor;
@@ -10,7 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Controller
@@ -20,6 +24,7 @@ public class WorkSkillsController {
     final SkillsGroupRepository skillsGroupRepository;
     final WorkSkillRepository workSkillRepository;
     final OllamaService ollamaService;
+    final VacancyEntityRepository vacancyEntityRepository;
 
     @GetMapping("/create")
     public ResponseEntity<SkillsGroup> createSkillsGroup(@RequestParam(name = "name") String name) {
@@ -31,10 +36,8 @@ public class WorkSkillsController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<List<String>> getAllSkillsGroups(){
-        return ResponseEntity.ok(skillsGroupRepository.findAll().stream()
-                .map(SkillsGroup::getDescription)
-                .toList());
+    public ResponseEntity<List<SkillsGroup>> getAllSkillsGroups(){
+        return ResponseEntity.ok(skillsGroupRepository.findAll());
     }
 
     @GetMapping("/match/all")
@@ -66,7 +69,7 @@ public class WorkSkillsController {
         return ResponseEntity.ok(skills);
     }
 
-    @PostMapping("/update/workskill/skillsgroup/{workSkillId}/{skillsGroupId}")
+    @PostMapping("/update/workskill/{workSkillId}/skillsgroup/{skillsGroupId}")
     public ResponseEntity<WorkSkill> updateSkillsGroupForWorkSkill(@PathVariable Long workSkillId,
                                                                    @PathVariable Long skillsGroupId) {
         WorkSkill workSkill = workSkillRepository.findById(workSkillId).orElseThrow();
@@ -76,6 +79,26 @@ public class WorkSkillsController {
         return ResponseEntity.ok(workSkill);
     }
 
-    // посчитать востребованность на рынке групп технологий
-    // выдать список нвык - группа
+    @GetMapping("/workskills/all")
+    public ResponseEntity<List<WorkSkill>> getAllWorkSkills() {
+        return ResponseEntity.ok(workSkillRepository.findAll());
+    }
+
+    @PostMapping("/updateSkillsGroupsMarketDemand")
+    public ResponseEntity<List<SkillsGroup>> updateSkillsGroupsMarketDemand() {
+        List<SkillsGroup> skillsGroups = skillsGroupRepository.findAll();
+        List<VacancyEntity> vacancies = vacancyEntityRepository.findAll();
+
+        skillsGroups.forEach(skillsGroup -> {
+            List<WorkSkill> workSkills = workSkillRepository.findBySkillsGroupBySkillsGroupId(skillsGroup);     // получаем список навыков из этой группы
+                long groupDemand = vacancies.stream()
+                        .filter(vacancyEntity -> vacancyEntity.getSkills().stream()
+                                .anyMatch(workSkills::contains))
+                        .count();   // фильтруем вакансии, в которых есть нужные навыки
+                skillsGroup.setMarketDemand((double)groupDemand/(double)vacancies.size());
+                skillsGroupRepository.saveAndFlush(skillsGroup);
+            });
+
+        return ResponseEntity.ok(skillsGroups);
+    }
 }
