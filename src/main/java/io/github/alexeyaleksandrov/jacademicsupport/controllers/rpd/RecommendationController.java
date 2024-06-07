@@ -1,5 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rpd;
 
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.crud.CreateRpdDTO;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.*;
 import io.github.alexeyaleksandrov.jacademicsupport.models.*;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyAchievementIndicatorRepository;
@@ -59,7 +60,7 @@ public class RecommendationController {
     }
 
     @GetMapping("/rpd/recommendations")
-    public ResponseEntity<List<WeightingCoefficientOfCompetencyCoverageDTO>> getRecommendations(@RequestParam(name = "id") Long id) {
+    public ResponseEntity<List<CoefficientComplianceSkillsGroupWithDisciplineDTO>> getRecommendations(@RequestParam(name = "id") Long id) {
         Rpd rpd = rpdRepository.findById(id).orElseThrow();
         List<WorkSkill> recommendedSkills = new ArrayList<>();  // навыки, которые будут рекомендованы
         List<CompetencyAchievementIndicator> competencyAchievementIndicators = rpd.getCompetencyAchievementIndicators();    // индикаторы в РПД
@@ -103,14 +104,25 @@ public class RecommendationController {
                                         .count())));     // добавляем в мап группы, для которых считаем, сколько компетенций содержат данную группу
 
         // считаем весовой коэффициент покрытия компетенций
-        List<WeightingCoefficientOfCompetencyCoverageDTO> weightingCoefficientOfCompetencyCoverageDTOS = skillsGroupClosedCompetenciesCountDTOS.stream()
-                .map(skillsGroupClosedCompetenciesCountDTO ->
-                        new WeightingCoefficientOfCompetencyCoverageDTO(
-                                skillsGroupClosedCompetenciesCountDTO.getSkillsGroup(),
-                                (double)skillsGroupClosedCompetenciesCountDTO.getCount() / (double) competencyAchievementIndicators.size()))
+        List<WeightingCoefficientOfCompetencyCoverageDTO> weightingCoefficientOfCompetencyCoverageDTOS =
+                skillsGroupClosedCompetenciesCountDTOS.stream()
+                        .map(skillsGroupClosedCompetenciesCountDTO ->
+                                new WeightingCoefficientOfCompetencyCoverageDTO(
+                                    skillsGroupClosedCompetenciesCountDTO.getSkillsGroup(),
+                                    (double)skillsGroupClosedCompetenciesCountDTO.getCount() / (double) competencyAchievementIndicators.size()))
                 .sorted(Comparator.comparingDouble(WeightingCoefficientOfCompetencyCoverageDTO::getCoefficient).reversed())
                 .toList();
 
-        return ResponseEntity.ok(weightingCoefficientOfCompetencyCoverageDTOS);
+        // считаем коэффициент соответствия группы технологий дисциплине
+        List<CoefficientComplianceSkillsGroupWithDisciplineDTO> complianceSkillsGroupWithDisciplineDTOS =
+                weightingCoefficientOfCompetencyCoverageDTOS.stream()
+                        .map(coefficient ->
+                                new CoefficientComplianceSkillsGroupWithDisciplineDTO(
+                                        coefficient.getSkillsGroup(),
+                                        (coefficient.getCoefficient() + coefficient.getSkillsGroup().getMarketDemand())/2.0))
+                        .sorted(Comparator.comparingDouble(CoefficientComplianceSkillsGroupWithDisciplineDTO::getCoefficient).reversed())
+                        .toList();
+
+        return ResponseEntity.ok(complianceSkillsGroupWithDisciplineDTOS);
     }
 }
