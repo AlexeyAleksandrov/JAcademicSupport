@@ -1,9 +1,8 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rpd;
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.RpdRecommendationSkillsDTO;
-import io.github.alexeyaleksandrov.jacademicsupport.models.Rpd;
+import io.github.alexeyaleksandrov.jacademicsupport.models.*;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.CreateRpdDTO;
-import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyAchievementIndicatorRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.RpdRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
@@ -11,12 +10,12 @@ import io.github.alexeyaleksandrov.jacademicsupport.services.recommendation.Reco
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Controller
@@ -60,8 +59,41 @@ public class RecommendationController {
         return ResponseEntity.ok(rpd);
     }
 
-//    @GetMapping("/rpd/recommendations")
-//    public ResponseEntity<Rpd> getRecommendations(@RequestParam(name = "id") Long id) {
+    @GetMapping("/rpd/recommendations")
+    public ResponseEntity<Map<CompetencyAchievementIndicator, List<SkillsGroup>>> getRecommendations(@RequestParam(name = "id") Long id) {
+        Rpd rpd = rpdRepository.findById(id).orElseThrow();
+        List<WorkSkill> recommendedSkills = new ArrayList<>();  // навыки, которые будут рекомендованы
+        List<CompetencyAchievementIndicator> competencyAchievementIndicators = rpd.getCompetencyAchievementIndicators();    // индикаторы в РПД
+        Set<Competency> competencies = new HashSet<>(competencyAchievementIndicators.stream()
+                .map(CompetencyAchievementIndicator::getCompetencyByCompetencyId)
+                .toList());     // получаем список компетенций для РПД
+//        Set<Keyword> keywords = new HashSet<>();    // сет всех ключевых слов, доступных в данном РПД
+
+//        // добавляем ключевые слова из компетенций
+//        competencies.forEach(competency -> keywords.addAll(competency.getKeywords()));
+//        // добавляем ключевые слова из индикаторов
+//        competencyAchievementIndicators.forEach(indicator -> keywords.addAll(indicator.getKeywords()));
 //
-//    }
+//        // получаем список технологий, доступных для выборки
+//        Set<WorkSkill> workSkills = new HashSet<>();
+//        keywords.forEach(keyword -> workSkills.addAll(keyword.getWorkSkills()));    // добавляем все технологии, приавязанные к данным ключевым словам
+//
+//        // получаем список доступных для выборки групп технологий
+//        Set<SkillsGroup> skillsGroups = new HashSet<>();
+//        workSkills.forEach(workSkill -> skillsGroups.add(workSkill.getSkillsGroupBySkillsGroupId()));
+
+        // сопоставляем компетенции с группами навыков
+        Map<CompetencyAchievementIndicator, List<SkillsGroup>> indicatorsAndSkillsGroupsMap = new HashMap<>();
+        competencyAchievementIndicators.forEach(indicator -> {
+            Set<SkillsGroup> skillsGroups = new HashSet<>(); // список подходящих групп технологий
+            List<Keyword> keywords = indicator.getKeywords();   // ключевые слова идикатора
+            keywords.forEach(keyword -> {
+                List<WorkSkill> workSkills = keyword.getWorkSkills();   // навыки данного ключевого слова
+                workSkills.forEach(workSkill -> skillsGroups.add(workSkill.getSkillsGroupBySkillsGroupId()));   // добавляем группу технологий навыка
+            });
+            indicatorsAndSkillsGroupsMap.put(indicator, skillsGroups.stream().toList());    // добавляем сопоставление индикатора с группой навыков
+        });
+
+        return ResponseEntity.ok(indicatorsAndSkillsGroupsMap);
+    }
 }

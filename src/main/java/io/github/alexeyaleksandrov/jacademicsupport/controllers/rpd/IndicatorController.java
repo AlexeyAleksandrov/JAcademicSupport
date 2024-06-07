@@ -61,7 +61,7 @@ public class IndicatorController {
         String indicatorText =indicatorTextBuilder.toString();
         String content = "Выдели основные ключевые слова из описания профессиональной компетенции: " + indicatorText + "Исключи из ответа размытые и обобщённые словосочетания. Ответ должен быть только на русском языке. Все слова в ответе должны находиться в нормальной форме без склонений и спряжений.  В ответе не пиши словоочетание \"ключевые слова\", напиши только сами слова\"";
         String answer = ollamaService.chat(content);
-        System.out.println("answer:" + answer);
+//        System.out.println("answer:" + answer);
         List<String> keywords = Arrays.stream(answer.split(",")).toList();
         List<Keyword> keywordList = keywords.stream()
                 .map(String::trim)
@@ -97,4 +97,6 @@ public class IndicatorController {
 
         return ResponseEntity.ok(indicator);
     }
+
+
 }

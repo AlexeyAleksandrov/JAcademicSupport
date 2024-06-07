@@ -24,6 +24,6 @@ public class Competency {
     @Basic
     @Column(name = "description", nullable = false, length = -1)
     private String description;
-    @OneToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.EAGER)
     private List<Keyword> keywords;
 }
