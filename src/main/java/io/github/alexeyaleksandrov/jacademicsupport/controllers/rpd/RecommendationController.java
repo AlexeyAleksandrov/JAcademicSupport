@@ -1,8 +1,7 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rpd;
 
-import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.RpdRecommendationSkillsDTO;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.*;
 import io.github.alexeyaleksandrov.jacademicsupport.models.*;
-import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.CreateRpdDTO;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyAchievementIndicatorRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.RpdRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
@@ -60,40 +59,58 @@ public class RecommendationController {
     }
 
     @GetMapping("/rpd/recommendations")
-    public ResponseEntity<Map<CompetencyAchievementIndicator, List<SkillsGroup>>> getRecommendations(@RequestParam(name = "id") Long id) {
+    public ResponseEntity<List<WeightingCoefficientOfCompetencyCoverageDTO>> getRecommendations(@RequestParam(name = "id") Long id) {
         Rpd rpd = rpdRepository.findById(id).orElseThrow();
         List<WorkSkill> recommendedSkills = new ArrayList<>();  // навыки, которые будут рекомендованы
         List<CompetencyAchievementIndicator> competencyAchievementIndicators = rpd.getCompetencyAchievementIndicators();    // индикаторы в РПД
         Set<Competency> competencies = new HashSet<>(competencyAchievementIndicators.stream()
                 .map(CompetencyAchievementIndicator::getCompetencyByCompetencyId)
                 .toList());     // получаем список компетенций для РПД
-//        Set<Keyword> keywords = new HashSet<>();    // сет всех ключевых слов, доступных в данном РПД
+        Set<Keyword> keywords = new HashSet<>();    // сет всех ключевых слов, доступных в данном РПД
 
-//        // добавляем ключевые слова из компетенций
-//        competencies.forEach(competency -> keywords.addAll(competency.getKeywords()));
-//        // добавляем ключевые слова из индикаторов
-//        competencyAchievementIndicators.forEach(indicator -> keywords.addAll(indicator.getKeywords()));
-//
-//        // получаем список технологий, доступных для выборки
-//        Set<WorkSkill> workSkills = new HashSet<>();
-//        keywords.forEach(keyword -> workSkills.addAll(keyword.getWorkSkills()));    // добавляем все технологии, приавязанные к данным ключевым словам
-//
-//        // получаем список доступных для выборки групп технологий
-//        Set<SkillsGroup> skillsGroups = new HashSet<>();
-//        workSkills.forEach(workSkill -> skillsGroups.add(workSkill.getSkillsGroupBySkillsGroupId()));
+        // добавляем ключевые слова из компетенций
+        competencies.forEach(competency -> keywords.addAll(competency.getKeywords()));
+        // добавляем ключевые слова из индикаторов
+        competencyAchievementIndicators.forEach(indicator -> keywords.addAll(indicator.getKeywords()));
+
+        // получаем список технологий, доступных для выборки
+        Set<WorkSkill> workSkills = new HashSet<>();
+        keywords.forEach(keyword -> workSkills.addAll(keyword.getWorkSkills()));    // добавляем все технологии, приавязанные к данным ключевым словам
+
+        // получаем список доступных для выборки групп технологий
+        Set<SkillsGroup> skillsGroups = new HashSet<>();
+        workSkills.forEach(workSkill -> skillsGroups.add(workSkill.getSkillsGroupBySkillsGroupId()));
 
         // сопоставляем компетенции с группами навыков
-        Map<CompetencyAchievementIndicator, List<SkillsGroup>> indicatorsAndSkillsGroupsMap = new HashMap<>();
+        List<RpdSkillsGroupForCompetencyIndicatorDTO> indicatorsAndSkillsGroups = new ArrayList<>();
         competencyAchievementIndicators.forEach(indicator -> {
-            Set<SkillsGroup> skillsGroups = new HashSet<>(); // список подходящих групп технологий
-            List<Keyword> keywords = indicator.getKeywords();   // ключевые слова идикатора
-            keywords.forEach(keyword -> {
-                List<WorkSkill> workSkills = keyword.getWorkSkills();   // навыки данного ключевого слова
-                workSkills.forEach(workSkill -> skillsGroups.add(workSkill.getSkillsGroupBySkillsGroupId()));   // добавляем группу технологий навыка
+            Set<SkillsGroup> indicatorSkillsGroups = new HashSet<>(); // список подходящих групп технологий
+            List<Keyword> indicatorKeywords = indicator.getKeywords();   // ключевые слова идикатора
+            indicatorKeywords.forEach(keyword -> {
+                List<WorkSkill> indicatorWorkSkills = keyword.getWorkSkills();   // навыки данного ключевого слова
+                indicatorWorkSkills.forEach(workSkill -> indicatorSkillsGroups.add(workSkill.getSkillsGroupBySkillsGroupId()));   // добавляем группу технологий навыка
             });
-            indicatorsAndSkillsGroupsMap.put(indicator, skillsGroups.stream().toList());    // добавляем сопоставление индикатора с группой навыков
+            indicatorsAndSkillsGroups.add(new RpdSkillsGroupForCompetencyIndicatorDTO(indicator, indicatorSkillsGroups.stream().toList()));    // добавляем сопоставление индикатора с группой навыков
         });
 
-        return ResponseEntity.ok(indicatorsAndSkillsGroupsMap);
+        // считаем кол-во закрываемых компетенций группами технологий
+        List<SkillsGroupClosedCompetenciesCountDTO> skillsGroupClosedCompetenciesCountDTOS = new ArrayList<>();
+        skillsGroups.forEach(skillsGroup ->
+                skillsGroupClosedCompetenciesCountDTOS.add(
+                        new SkillsGroupClosedCompetenciesCountDTO(skillsGroup,
+                                (int) indicatorsAndSkillsGroups.stream()
+                                        .filter(rpdSkillsGroupForCompetencyIndicatorDTO -> rpdSkillsGroupForCompetencyIndicatorDTO.getSkillsGroups().contains(skillsGroup))
+                                        .count())));     // добавляем в мап группы, для которых считаем, сколько компетенций содержат данную группу
+
+        // считаем весовой коэффициент покрытия компетенций
+        List<WeightingCoefficientOfCompetencyCoverageDTO> weightingCoefficientOfCompetencyCoverageDTOS = skillsGroupClosedCompetenciesCountDTOS.stream()
+                .map(skillsGroupClosedCompetenciesCountDTO ->
+                        new WeightingCoefficientOfCompetencyCoverageDTO(
+                                skillsGroupClosedCompetenciesCountDTO.getSkillsGroup(),
+                                (double)skillsGroupClosedCompetenciesCountDTO.getCount() / (double) competencyAchievementIndicators.size()))
+                .sorted(Comparator.comparingDouble(WeightingCoefficientOfCompetencyCoverageDTO::getCoefficient).reversed())
+                .toList();
+
+        return ResponseEntity.ok(weightingCoefficientOfCompetencyCoverageDTOS);
     }
 }
