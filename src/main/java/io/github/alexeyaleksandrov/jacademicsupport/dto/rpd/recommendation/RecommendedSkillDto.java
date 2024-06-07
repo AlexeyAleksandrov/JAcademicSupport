@@ -12,6 +12,6 @@ import java.io.Serializable;
 @NoArgsConstructor
 @EqualsAndHashCode
 public class RecommendedSkillDto implements Serializable {
-    WorkSkillDto workSkill;
+    String description;
     Double coefficient;
 }

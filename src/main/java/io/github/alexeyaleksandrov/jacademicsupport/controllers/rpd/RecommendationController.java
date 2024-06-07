@@ -169,8 +169,9 @@ public class RecommendationController {
         rpdDto.setRecommendedSkills(recommendedSkills.stream()
                 .map(recommendedSkill -> {
                     RecommendedSkillDto recommendedSkillDto = new RecommendedSkillDto();
-                    recommendedSkillDto.setCoefficient(recommendedSkill.getCoefficient());
-                    recommendedSkillDto.setWorkSkill(new WorkSkillDto(recommendedSkill.getWorkSkill().getDescription()));
+
+                    recommendedSkillDto.setCoefficient(Math.round(recommendedSkill.getCoefficient() * 1000.0) / 1000.0);
+                    recommendedSkillDto.setDescription(recommendedSkill.getWorkSkill().getDescription());
                     return recommendedSkillDto;
                 })
                 .toList());
