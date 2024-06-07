@@ -4,6 +4,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.crud.CreateRpdDTO;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.*;
 import io.github.alexeyaleksandrov.jacademicsupport.models.*;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyAchievementIndicatorRepository;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.RecommendedSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.RpdRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.recommendation.RecommendationService;
@@ -25,6 +26,7 @@ public class RecommendationController {
     private final RpdRepository rpdRepository;
     private final CompetencyAchievementIndicatorRepository indicatorRepository;
     private final WorkSkillRepository workSkillRepository;
+    private final RecommendedSkillRepository recommendedSkillRepository;
 
     @PostMapping("/rpd/create")
     public ResponseEntity<Rpd> createRpd(@RequestBody CreateRpdDTO createRpdDTO) {
@@ -40,29 +42,29 @@ public class RecommendationController {
         return ResponseEntity.ok(rpd);
     }
 
-    @PostMapping("/rpd/recommendations")
-    public ResponseEntity<Rpd> setRecommendations(@RequestBody RpdRecommendationSkillsDTO skillsDTO) {
-        Rpd rpd = rpdRepository.findById(skillsDTO.getRpdId()).orElseThrow();
-
-        if(!rpd.getRecommendedWorkSkills().isEmpty())
-        {
-            rpd.setRecommendedWorkSkills(new ArrayList<>());
-            rpd = rpdRepository.saveAndFlush(rpd);
-        }
-
-        List<WorkSkill> skills = skillsDTO.getSkills().stream()
-                .map(skill -> workSkillRepository.findById(skill).orElseThrow())
-                .collect(Collectors.toList());
-
-        rpd.setRecommendedWorkSkills(skills);
-        rpd = rpdRepository.saveAndFlush(rpd);
-        return ResponseEntity.ok(rpd);
-    }
+//    @PostMapping("/rpd/recommendations")
+//    public ResponseEntity<Rpd> setRecommendations(@RequestBody RpdRecommendationSkillsDTO skillsDTO) {
+//        Rpd rpd = rpdRepository.findById(skillsDTO.getRpdId()).orElseThrow();
+//
+//        if(!rpd.getRecommendedWorkSkills().isEmpty())
+//        {
+//            rpd.setRecommendedWorkSkills(new ArrayList<>());
+//            rpd = rpdRepository.saveAndFlush(rpd);
+//        }
+//
+//        List<WorkSkill> skills = skillsDTO.getSkills().stream()
+//                .map(skill -> workSkillRepository.findById(skill).orElseThrow())
+//                .collect(Collectors.toList());
+//
+//        rpd.setRecommendedWorkSkills(skills);
+//        rpd = rpdRepository.saveAndFlush(rpd);
+//        return ResponseEntity.ok(rpd);
+//    }
 
     @GetMapping("/rpd/recommendations")
-    public ResponseEntity<List<CoefficientComplianceSkillsGroupWithDisciplineDTO>> getRecommendations(@RequestParam(name = "id") Long id) {
+    public ResponseEntity<RpdDto> getRecommendations(@RequestParam(name = "id") Long id) {
         Rpd rpd = rpdRepository.findById(id).orElseThrow();
-        List<WorkSkill> recommendedSkills = new ArrayList<>();  // навыки, которые будут рекомендованы
+//        List<WorkSkill> recommendedSkills = new ArrayList<>();  // навыки, которые будут рекомендованы
         List<CompetencyAchievementIndicator> competencyAchievementIndicators = rpd.getCompetencyAchievementIndicators();    // индикаторы в РПД
         Set<Competency> competencies = new HashSet<>(competencyAchievementIndicators.stream()
                 .map(CompetencyAchievementIndicator::getCompetencyByCompetencyId)
@@ -123,6 +125,56 @@ public class RecommendationController {
                         .sorted(Comparator.comparingDouble(CoefficientComplianceSkillsGroupWithDisciplineDTO::getCoefficient).reversed())
                         .toList();
 
-        return ResponseEntity.ok(complianceSkillsGroupWithDisciplineDTOS);
+        // считаем коэффициент соответствия технологии дисциплине
+        List<CoefficientWorkSkillComplianceWithDisciplineDTO> workSkillComplianceWithDisciplineDTOS = workSkills.stream()
+                .map(workSkill -> {
+                    CoefficientWorkSkillComplianceWithDisciplineDTO compliance = new CoefficientWorkSkillComplianceWithDisciplineDTO();
+                    compliance.setWorkSkill(workSkill);
+                    CoefficientComplianceSkillsGroupWithDisciplineDTO groupCoefficient = complianceSkillsGroupWithDisciplineDTOS.stream()
+                            .filter(coefficient -> coefficient.getSkillsGroup().equals(workSkill.getSkillsGroupBySkillsGroupId()))
+                            .findFirst().orElseThrow();     // получаем коэффициент соответствия группы технологий дисциплине
+                    compliance.setCoefficient((groupCoefficient.getCoefficient() + workSkill.getMarketDemand())/2.0);
+                    return compliance;
+                })
+                .sorted(Comparator.comparingDouble(CoefficientWorkSkillComplianceWithDisciplineDTO::getCoefficient).reversed())
+                .toList();
+
+        // добавляем результат в РПД
+//        Rpd finalRpd = rpd;
+        if (!rpd.getRecommendedSkills().isEmpty()) {
+            recommendedSkillRepository.deleteAll(rpd.getRecommendedSkills());
+//            rpd.setRecommendedSkills(new ArrayList<>());      // очищаем, если не пустой
+        }
+        List<RecommendedSkill> recommendedSkilslList = workSkillComplianceWithDisciplineDTOS.stream()
+                .map(compliance -> {
+                    RecommendedSkill recommendedSkill = new RecommendedSkill();
+//                    recommendedSkill.setRpd(finalRpd);
+                    recommendedSkill.setWorkSkill(compliance.getWorkSkill());
+                    recommendedSkill.setCoefficient(compliance.getCoefficient());
+                    recommendedSkill = recommendedSkillRepository.save(recommendedSkill);
+                    return recommendedSkill;
+                })
+                .toList();
+
+        List<RecommendedSkill> recommendedSkills = new ArrayList<>(recommendedSkilslList);
+//        recommendedSkilslList = recommendedSkillRepository.saveAllAndFlush(recommendedSkilslList);
+//        rpd.setKeywordsForIndicatorInContextRpdMap(new HashMap<>());
+        rpd.setRecommendedSkills(recommendedSkills);
+        rpd = rpdRepository.save(rpd);
+//        rpd = rpdRepository.findById(id).orElseThrow();
+
+        RpdDto rpdDto = new RpdDto();
+        rpdDto.setDisciplineName(rpd.getDisciplineName());
+        rpdDto.setYear(rpd.getYear());
+        rpdDto.setRecommendedSkills(recommendedSkills.stream()
+                .map(recommendedSkill -> {
+                    RecommendedSkillDto recommendedSkillDto = new RecommendedSkillDto();
+                    recommendedSkillDto.setCoefficient(recommendedSkill.getCoefficient());
+                    recommendedSkillDto.setWorkSkill(new WorkSkillDto(recommendedSkill.getWorkSkill().getDescription()));
+                    return recommendedSkillDto;
+                })
+                .toList());
+
+        return ResponseEntity.ok(rpdDto);
     }
 }

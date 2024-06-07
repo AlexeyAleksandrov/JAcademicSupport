@@ -1,13 +1,9 @@
 package io.github.alexeyaleksandrov.jacademicsupport.models;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Entity
 @Data
@@ -26,9 +22,11 @@ public class Rpd {
     @Column(name = "year", nullable = false)
     private int year;
     @ManyToMany(fetch = FetchType.EAGER)
-    private List<CompetencyAchievementIndicator> competencyAchievementIndicators;
+    private List<CompetencyAchievementIndicator> competencyAchievementIndicators = new ArrayList<>();
     @ManyToMany(fetch = FetchType.EAGER)
-    private Map<CompetencyAchievementIndicator, Keyword> keywordsForIndicatorInContextRpdMap;
-    @ManyToMany(fetch = FetchType.EAGER)
-    private List<WorkSkill> recommendedWorkSkills;
+    private Map<CompetencyAchievementIndicator, Keyword> keywordsForIndicatorInContextRpdMap = new HashMap<>();
+
+    @OneToMany(fetch = FetchType.EAGER)
+    @JoinColumn(name = "rpd_id")
+    private List<RecommendedSkill> recommendedSkills = new ArrayList<>();
 }
