@@ -58,4 +58,9 @@ public class RpdController {
         Rpd rpd = rpdService.createRpd(createRpdDTO);     // создаем РПД
         return "redirect:/rpd/create";
     }
+
+//    @GetMapping("/show")
+//    public String showAllRpd(Model model) {
+//
+//    }
 }

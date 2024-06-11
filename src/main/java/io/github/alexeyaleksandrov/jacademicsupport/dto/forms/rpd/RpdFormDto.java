@@ -17,6 +17,6 @@ import java.util.Map;
 @EqualsAndHashCode
 public class RpdFormDto {
     private String disciplineName;
-    private int year;
+    private int year = 2024;
     private List<Long> selectedIndicators = new ArrayList<>();
 }
