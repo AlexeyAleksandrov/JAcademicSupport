@@ -22,12 +22,12 @@
         <!--th:if="${user.getRole() == Role.ADMIN}" -->
         <ul id="navbar">
             <li><button class="dropbtn" onclick="location.href='/'">Главная</button></li>
-            <li th:replace="fragments/navbar::element (${'РПД'}, @{/rpd/show}, @{/rpd/add}, @{/rpd/edit}, @{/rpd/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Компетенции'}, @{/competencies/show}, @{/competencies/add}, @{/competencies/edit}, @{/competencies/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Индикаторы'}, @{/indicators/show}, @{/indicators/add}, @{/indicators/edit}, @{/indicators/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Технологии'}, @{/workskills/show}, @{/workskills/add}, @{/workskills/edit}, @{/workskills/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Группы технологий'}, @{/skillsgroups/show}, @{/skillsgroups/add}, @{/skillsgroups/edit}, @{/skillsgroups/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Ключевые слова'}, @{/keywords/show}, @{/keywords/add}, @{/keywords/edit}, @{/keywords/delete})"></li>
+            <li th:replace="fragments/navbar::element (${'РПД'}, @{/rpd/show}, @{/rpd/create}, @{/rpd/edit}, @{/rpd/delete})"></li>
+            <li th:replace="fragments/navbar::element (${'Компетенции'}, @{/competencies/show}, @{/competencies/create}, @{/competencies/edit}, @{/competencies/delete})"></li>
+            <li th:replace="fragments/navbar::element (${'Индикаторы'}, @{/indicators/show}, @{/indicators/create}, @{/indicators/edit}, @{/indicators/delete})"></li>
+            <li th:replace="fragments/navbar::element (${'Технологии'}, @{/workskills/show}, @{/workskills/create}, @{/workskills/edit}, @{/workskills/delete})"></li>
+            <li th:replace="fragments/navbar::element (${'Группы технологий'}, @{/skillsgroups/show}, @{/skillsgroups/create}, @{/skillsgroups/edit}, @{/skillsgroups/delete})"></li>
+            <li th:replace="fragments/navbar::element (${'Ключевые слова'}, @{/keywords/show}, @{/keywords/create}, @{/keywords/edit}, @{/keywords/delete})"></li>
         </ul>
     </nav>
 </div>

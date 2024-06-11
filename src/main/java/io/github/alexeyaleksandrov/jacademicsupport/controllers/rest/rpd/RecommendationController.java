@@ -7,7 +7,8 @@ import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyAchie
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.RecommendedSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.RpdRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.services.recommendation.RecommendationService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.rpd.RpdService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.rpd.recommendation.RecommendationService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -15,9 +16,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Controller
 @AllArgsConstructor
@@ -27,18 +25,11 @@ public class RecommendationController {
     private final CompetencyAchievementIndicatorRepository indicatorRepository;
     private final WorkSkillRepository workSkillRepository;
     private final RecommendedSkillRepository recommendedSkillRepository;
+    final RpdService rpdService;
 
-    @PostMapping("/rpd/create")
+    @PostMapping("/api/rpd/create")
     public ResponseEntity<Rpd> createRpd(@RequestBody CreateRpdDTO createRpdDTO) {
-        Rpd rpd = new Rpd();
-        rpd.setDisciplineName(createRpdDTO.getDiscipline_name());
-        rpd.setYear(createRpdDTO.getYear());
-        rpd.setCompetencyAchievementIndicators(
-                createRpdDTO.getCompetencyAchievementIndicators().stream()
-                        .map(indicatorRepository::findByNumber)
-                        .toList()
-        );
-        rpd = rpdRepository.saveAndFlush(rpd);
+        Rpd rpd = rpdService.createRpd(createRpdDTO);
         return ResponseEntity.ok(rpd);
     }
 

@@ -1,4 +1,4 @@
-package io.github.alexeyaleksandrov.jacademicsupport.services.recommendation;
+package io.github.alexeyaleksandrov.jacademicsupport.services.rpd.recommendation;
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.*;
 import io.github.alexeyaleksandrov.jacademicsupport.models.*;
