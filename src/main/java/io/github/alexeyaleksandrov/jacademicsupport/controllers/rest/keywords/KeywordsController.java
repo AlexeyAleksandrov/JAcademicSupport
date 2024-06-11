@@ -1,4 +1,4 @@
-package io.github.alexeyaleksandrov.jacademicsupport.controllers.keywords;
+package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.keywords;
 
 import io.github.alexeyaleksandrov.jacademicsupport.models.Keyword;
 import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;

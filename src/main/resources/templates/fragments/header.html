@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="header">
+    <p>
+        <a href="/" class="card btn" id="logo">Система управления рабочими программами дисциплин</a>
+    </p>
+<!--    &lt;!&ndash;/*@thymesVar id="is_auth" type="java.lang.Boolean"*/&ndash;&gt;-->
+    <p th:if="${!is_auth}">
+        <a class="btn btn-primary btn-lg float-end" id="sign_up_button" th:href="@{/register}">Регистрация</a>
+    </p>
+    <p th:if="${!is_auth}">
+        <a class="btn btn-primary btn-lg float-end" id="sign_in_button" th:href="@{/auth}">Войти</a>
+    </p>
+    <p th:if="${is_auth}">
+        <a class="btn btn-primary btn-lg float-end" id="sign_out_button" th:href="@{/logout}">Выйти</a>
+    </p>
+<!--    &lt;!&ndash;/*@thymesVar id="user" type="ru.transportcompany.application.models.users.User"*/&ndash;&gt;-->
+<!--    <p th:if="${is_auth}" th:text="${'Вы вошли как ' + user.getUsername()}" class="btn-lg float-end"></p>-->
+    <div class="clear"></div>
+</div>
+</body>
+</html>

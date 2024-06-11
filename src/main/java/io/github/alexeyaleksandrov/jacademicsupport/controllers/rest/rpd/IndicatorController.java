@@ -1,4 +1,4 @@
-package io.github.alexeyaleksandrov.jacademicsupport.controllers.rpd;
+package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.rpd;
 
 import io.github.alexeyaleksandrov.jacademicsupport.models.Competency;
 import io.github.alexeyaleksandrov.jacademicsupport.models.CompetencyAchievementIndicator;

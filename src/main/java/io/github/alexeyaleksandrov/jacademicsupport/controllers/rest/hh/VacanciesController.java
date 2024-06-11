@@ -1,4 +1,4 @@
-package io.github.alexeyaleksandrov.jacademicsupport.controllers.hh;
+package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.hh;
 
 import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;

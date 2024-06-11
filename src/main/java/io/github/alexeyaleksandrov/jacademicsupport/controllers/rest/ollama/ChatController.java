@@ -1,4 +1,4 @@
-package io.github.alexeyaleksandrov.jacademicsupport.controllers.ollama;
+package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.ollama;
 
 import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
 
