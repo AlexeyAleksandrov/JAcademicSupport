@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-<!--/*@thymesVar id="user" type="ru.transportcompany.application.models.users.User"*/-->
 <div th:fragment="element (btn_text, show_link, add_link, edit_link, delete_link)">
     <li>
         <div class="dropdown">
@@ -17,9 +16,6 @@
 </div>
 <div th:fragment="nav">
     <nav>
-        <!--/*@thymesVar id="user" type="ru.transportcompany.application.models.users.User"*/-->
-        <!--/*@thymesVar id="Role" type="ru.transportcompany.application.models.users.Role"*/-->
-        <!--th:if="${user.getRole() == Role.ADMIN}" -->
         <ul id="navbar">
             <li><button class="dropbtn" onclick="location.href='/'">Главная</button></li>
             <li th:replace="fragments/navbar::element (${'РПД'}, @{/rpd/show}, @{/rpd/create}, @{/rpd/edit}, @{/rpd/delete})"></li>
