@@ -10,7 +10,7 @@
     <div class="card edit_block">
         <h2 class="input_header">Создание РПД</h2>
         <div class="card-header">
-            <form name="driver" th:action="@{/rpd/create}" th:object="${rpdFormDto}" th:method="POST">
+            <form name="driver" th:action="@{'/rpd/edit/' + ${rpd.getId()}}" th:object="${editRpdFormDto}" th:method="POST">
                 <table>
                     <tr th:if="${error}">
                         <td colspan="2" class="td_error">Вы ввели некорректные данные!</td>
@@ -21,11 +21,11 @@
                     </tr>
                     <tr>
                         <td class="td_input"><label for="year">Год:</label></td>
-                        <td class="td_input"><input type="number" id="year" name="year" th:field="*{year}" th:value="*{year}"/></td>
+                        <td class="td_input"><input type="number" id="year" name="year" required min="1900" max="2100" th:field="*{year}" th:value="*{year}"/></td>
                     </tr>
                     <tr>
                         <td class="td_input"><label for="competencyAchievementIndicators">Индикаторы компетенций:</label></td>
-                        <td class="td_input"><div id="competencyAchievementIndicators" th:object="${rpdFormDto}">
+                        <td class="td_input"><div id="competencyAchievementIndicators" th:object="${editRpdFormDto}">
                             <ul>
                                 <!-- Используем th:each для перебора списка индикаторов и th:field для связывания с полем модели -->
                                 <li th:each="indicator : ${indicatorList}" style="display: inline;">
@@ -37,7 +37,7 @@
                         </div></td>
                     </tr>
                     <tr>
-                        <td class="td_input" colSpan="2"><input type="submit" class="btn btn-primary" value="Создать"></td>
+                        <td class="td_input" colSpan="2"><input type="submit" class="btn btn-primary" value="Сохранить"></td>
                     </tr>
                 </table>
             </form>
