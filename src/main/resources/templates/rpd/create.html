@@ -13,7 +13,9 @@
             <form name="driver" th:action="@{/rpd/create}" th:object="${rpdFormDto}" th:method="POST">
                 <table>
                     <tr th:if="${error}">
-                        <td colspan="2" class="td_error">Вы ввели некорректные данные!</td>
+                        <td colspan="2">
+                            <div class="alert alert-danger" role="alert">Вы ввели некорректные данные!</div>
+                        </td>
                     </tr>
                     <tr>
                         <td class="td_input"><label for="disciplineName">Название дисциплины:</label></td>

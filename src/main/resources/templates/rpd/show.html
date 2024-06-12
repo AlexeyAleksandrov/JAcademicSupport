@@ -12,6 +12,9 @@
     <div class="card input_block_big" th:object="${rpds}">
         <h2 class="input_header">Список РПД</h2>
         <div class="card-header">
+            <div th:if="${success}">
+                <div class="alert alert-success" role="alert">РПД успешно добавлена!</div>
+            </div>
             <table th:if="${#lists.size(rpds) > 0}" class="table">
                 <tr>
                     <th class="td_input">Дисциплина</th>
