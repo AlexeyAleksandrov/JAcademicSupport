@@ -8,8 +8,8 @@
             <div class="dropdown-content">
                 <a th:href="${show_link}">Просмотр</a>
                 <a th:href="${add_link}">Добавить</a>
-                <a th:href="${edit_link}">Изменить</a>
-                <a th:href="${delete_link}">Удалить</a>
+<!--                <a th:href="${edit_link}">Изменить</a>-->
+<!--                <a th:href="${delete_link}">Удалить</a>-->
             </div>
         </div>
     </li>
@@ -19,7 +19,7 @@
         <ul id="navbar">
             <li><button class="dropbtn" onclick="location.href='/'">Главная</button></li>
             <li th:replace="fragments/navbar::element (${'РПД'}, @{/rpd/show}, @{/rpd/create}, @{/rpd/edit}, @{/rpd/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Компетенции'}, @{/competencies/show}, @{/competencies/create}, @{/competencies/edit}, @{/competencies/delete})"></li>
+            <li th:replace="fragments/navbar::element (${'Компетенции'}, @{/competency/show}, @{/competency/create}, @{/competency/edit}, @{/competency/delete})"></li>
             <li th:replace="fragments/navbar::element (${'Индикаторы'}, @{/indicators/show}, @{/indicators/create}, @{/indicators/edit}, @{/indicators/delete})"></li>
             <li th:replace="fragments/navbar::element (${'Технологии'}, @{/workskills/show}, @{/workskills/create}, @{/workskills/edit}, @{/workskills/delete})"></li>
             <li th:replace="fragments/navbar::element (${'Группы технологий'}, @{/skillsgroups/show}, @{/skillsgroups/create}, @{/skillsgroups/edit}, @{/skillsgroups/delete})"></li>
