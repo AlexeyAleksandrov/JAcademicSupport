@@ -5,6 +5,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.crud.CreateRpdDTO;
 import io.github.alexeyaleksandrov.jacademicsupport.models.CompetencyAchievementIndicator;
 import io.github.alexeyaleksandrov.jacademicsupport.models.Rpd;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyAchievementIndicatorRepository;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.RpdRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.rpd.RpdService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -22,6 +23,7 @@ import java.util.List;
 @AllArgsConstructor
 public class RpdController {
     final CompetencyAchievementIndicatorRepository indicatorRepository;
+    final RpdRepository rpdRepository;
     final RpdService rpdService;
 
     @GetMapping("/create")
@@ -59,8 +61,10 @@ public class RpdController {
         return "redirect:/rpd/create";
     }
 
-//    @GetMapping("/show")
-//    public String showAllRpd(Model model) {
-//
-//    }
+    @GetMapping("/show")
+    public String showAllRpd(Model model) {
+        List<Rpd> rpds = rpdRepository.findAll();
+        model.addAttribute("rpds", rpds);
+        return "rpd/show";
+    }
 }
