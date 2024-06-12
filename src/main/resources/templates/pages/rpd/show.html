@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/head::head">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-</head>
+<head th:replace="fragments/head::head"></head>
 <body>
 <header th:replace="fragments/header::header"></header>
 <nav th:replace="fragments/navbar::nav"></nav>
 <main>
     <div class="clear"></div>
 
-    <div class="card input_block_big" th:object="${rpds}">
+    <div class="card input_block_super_big" th:object="${rpds}">
         <h2 class="input_header">Список РПД</h2>
         <div class="card-header">
             <div th:if="${appended_success}">
@@ -24,6 +22,7 @@
                     <th class="td_input">Год</th>
                     <th class="td_input">Редактирование</th>
                     <th class="td_input">Удаление</th>
+                    <th class="td_input">Рекомендации</th>
                 </tr>
                 <tr th:each="r : ${rpds}">
                     <td th:text="${r.disciplineName}" class="td_input"></td>
@@ -34,6 +33,7 @@
                             <input type="submit" class="btn btn-danger" value="Удалить">
                         </form>
                     </td>
+                    <td><a th:href="@{'/rpd/recommendations/' + ${r.id}}" class="btn btn-success">Рекомендации</a></td>
                 </tr>
             </table>
             <p th:if="${#lists.size(rpds) == 0}">Вы не добавили ни одной РПД!</p>

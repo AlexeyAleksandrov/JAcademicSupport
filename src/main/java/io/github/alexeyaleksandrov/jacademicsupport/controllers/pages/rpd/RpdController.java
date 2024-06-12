@@ -3,11 +3,14 @@ package io.github.alexeyaleksandrov.jacademicsupport.controllers.pages.rpd;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.rpd.CreateRpdFormDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.rpd.EditRpdFormDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.crud.CreateRpdDTO;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.RecommendedSkillDto;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.RpdDto;
 import io.github.alexeyaleksandrov.jacademicsupport.models.CompetencyAchievementIndicator;
 import io.github.alexeyaleksandrov.jacademicsupport.models.Rpd;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyAchievementIndicatorRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.RpdRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.rpd.RpdService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.rpd.recommendation.RecommendationService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -24,6 +27,7 @@ public class RpdController {
     final CompetencyAchievementIndicatorRepository indicatorRepository;
     final RpdRepository rpdRepository;
     final RpdService rpdService;
+    final RecommendationService recommendationService;
 
     @GetMapping("/create")
     public String showCreateRpd(Model model, @RequestParam(name = "createError", required = false, defaultValue = "false") Boolean createError) {
@@ -118,5 +122,28 @@ public class RpdController {
     public String processDeleteRpdPage( @PathVariable("id") Long id) {
         rpdRepository.deleteById(id);
         return "redirect:/rpd/show?deleted_success=true";
+    }
+
+    @GetMapping("/recommendations/{id}")
+    public String showRecommendationsPage(Model model, @PathVariable("id") Long id) {
+        Rpd rpd = rpdRepository.findById(id).orElseThrow();
+
+        rpd = recommendationService.getRecomendationsForRpd(rpd);
+
+        RpdDto rpdDto = new RpdDto();
+        rpdDto.setDisciplineName(rpd.getDisciplineName());
+        rpdDto.setYear(rpd.getYear());
+        rpdDto.setRecommendedSkills(rpd.getRecommendedSkills().stream()
+                .map(recommendedSkill -> {
+                    RecommendedSkillDto recommendedSkillDto = new RecommendedSkillDto();
+
+                    recommendedSkillDto.setCoefficient(Math.round(recommendedSkill.getCoefficient() * 1000.0) / 1000.0);
+                    recommendedSkillDto.setDescription(recommendedSkill.getWorkSkill().getDescription());
+                    return recommendedSkillDto;
+                })
+                .toList());
+
+        model.addAttribute("rpd_dto", rpdDto);
+        return "pages/rpd/recommendation";
     }
 }

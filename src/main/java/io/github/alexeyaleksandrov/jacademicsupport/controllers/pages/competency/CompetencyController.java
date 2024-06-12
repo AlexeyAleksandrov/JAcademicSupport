@@ -2,8 +2,11 @@ package io.github.alexeyaleksandrov.jacademicsupport.controllers.pages.competenc
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.competency.CreateCompetenceForm;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.competency.EditCompetenceForm;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.RecommendedSkillDto;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.RpdDto;
 import io.github.alexeyaleksandrov.jacademicsupport.models.Competency;
 import io.github.alexeyaleksandrov.jacademicsupport.models.Keyword;
+import io.github.alexeyaleksandrov.jacademicsupport.models.Rpd;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.KeywordRepository;
 import lombok.AllArgsConstructor;

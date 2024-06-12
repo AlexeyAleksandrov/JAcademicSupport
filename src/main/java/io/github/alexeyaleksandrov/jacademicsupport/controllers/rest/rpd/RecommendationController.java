@@ -12,13 +12,11 @@ import io.github.alexeyaleksandrov.jacademicsupport.services.rpd.recommendation.
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 @Controller
 @AllArgsConstructor
+@RequestMapping("/api")
 public class RecommendationController {
     private final RecommendationService recommendationService;
     private final RpdRepository rpdRepository;
@@ -27,7 +25,7 @@ public class RecommendationController {
     private final RecommendedSkillRepository recommendedSkillRepository;
     final RpdService rpdService;
 
-    @PostMapping("/api/rpd/create")
+    @PostMapping("/rpd/create")
     public ResponseEntity<Rpd> createRpd(@RequestBody CreateRpdDTO createRpdDTO) {
         Rpd rpd = rpdService.createRpd(createRpdDTO);
         return ResponseEntity.ok(rpd);
