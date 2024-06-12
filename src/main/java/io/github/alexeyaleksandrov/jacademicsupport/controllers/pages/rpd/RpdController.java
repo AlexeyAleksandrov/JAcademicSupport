@@ -26,22 +26,22 @@ public class RpdController {
     final RpdService rpdService;
 
     @GetMapping("/create")
-    public String showCreateRpdForm(Model model, @RequestParam(name = "error", required = false, defaultValue = "false") Boolean error) {
+    public String showCreateRpdForm(Model model, @RequestParam(name = "createError", required = false, defaultValue = "false") Boolean createError) {
         List<CompetencyAchievementIndicator> indicators = indicatorRepository.findAll();
         model.addAttribute("indicatorList", indicators);
         model.addAttribute("rpdFormDto", new CreateRpdFormDto());
-        model.addAttribute("error", error);
+        model.addAttribute("create_error", createError);
         return "rpd/create";
     }
 
     @PostMapping("/create")
     public String processCreateRpdForm(CreateRpdFormDto createRpdFormDto, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            return "redirect:/rpd/create?error=true";
+            return "redirect:/rpd/create?create_error=true";
         }
 
         if(createRpdFormDto.getDisciplineName().isEmpty() || createRpdFormDto.getYear() < 1900 || createRpdFormDto.getYear() > 2100 || createRpdFormDto.getSelectedIndicators().isEmpty()) {
-            return "redirect:/rpd/create?error=true";
+            return "redirect:/rpd/create?create_error=true";
         }
 
         // DTO создания РПД
@@ -53,19 +53,24 @@ public class RpdController {
                 .toList());
 
         Rpd rpd = rpdService.createRpd(createRpdDTO);     // создаем РПД
-        return "redirect:/rpd/show?success=true";
+        return "redirect:/rpd/show?appended_success=true";
     }
 
     @GetMapping("/show")
-    public String showAllRpd(Model model, @RequestParam(name = "success", required = false, defaultValue = "false") Boolean success) {
+    public String showAllRpd(Model model,
+                             @RequestParam(name = "appended_success", required = false, defaultValue = "false") Boolean appendedSuccess,
+                             @RequestParam(name = "deleted_success", required = false, defaultValue = "false") Boolean deletedSuccess) {
         List<Rpd> rpds = rpdRepository.findAll();
         model.addAttribute("rpds", rpds);
-        model.addAttribute("success", success);
+        model.addAttribute("appended_success", appendedSuccess);
+        model.addAttribute("deleted_success", deletedSuccess);
         return "rpd/show";
     }
 
     @GetMapping("/edit/{id}")
-    public String showEditRpd(Model model, @PathVariable("id") Long id, @RequestParam(name = "success", required = false, defaultValue = "false") Boolean success, @RequestParam(name = "error", required = false, defaultValue = "false") Boolean error) {
+    public String showEditRpd(Model model, @PathVariable("id") Long id,
+                              @RequestParam(name = "edit_success", required = false, defaultValue = "false") Boolean editSuccess,
+                              @RequestParam(name = "edit_error", required = false, defaultValue = "false") Boolean editError) {
         Rpd rpd = rpdRepository.findById(id).orElseThrow();
         model.addAttribute("rpd", rpd);
 
@@ -80,8 +85,8 @@ public class RpdController {
                 .map(CompetencyAchievementIndicator::getId)
                 .toList());
         model.addAttribute("editRpdFormDto", editRpdFormDto);
-        model.addAttribute("success", success);
-        model.addAttribute("error", error);
+        model.addAttribute("edit_success", editSuccess);
+        model.addAttribute("edit_error", editError);
         return "rpd/edit";
     }
 
@@ -90,11 +95,11 @@ public class RpdController {
         Rpd rpd = rpdRepository.findById(id).orElseThrow();
 
         if (bindingResult.hasErrors()) {
-            return "redirect:/rpd/edit" + rpd.getId() + "?error=true";
+            return "redirect:/rpd/edit" + rpd.getId() + "?edit_error=true";
         }
 
         if(editRpdFormDto.getDisciplineName().isEmpty() || editRpdFormDto.getYear() < 1900 || editRpdFormDto.getYear() > 2100 || editRpdFormDto.getSelectedIndicators().isEmpty()) {
-            return "redirect:/rpd/create" + rpd.getId() + "?error=true";
+            return "redirect:/rpd/create" + rpd.getId() + "?edit_error=true";
         }
 
         List<CompetencyAchievementIndicator> indicators = indicatorRepository.findAll();
@@ -106,6 +111,13 @@ public class RpdController {
                 .toList()));
 
         rpdRepository.saveAndFlush(rpd);
-        return "redirect:/rpd/edit/" + rpd.getId() + "?success=true";
+        return "redirect:/rpd/edit/" + rpd.getId() + "?edit_success=true";
+    }
+
+    @PostMapping("/delete/{id}")
+    public String showDeleteRpdPage(Model model, @PathVariable("id") Long id) {
+        rpdRepository.deleteById(id);
+        System.out.println(id);
+        return "redirect:/rpd/show?deleted_success=true";
     }
 }

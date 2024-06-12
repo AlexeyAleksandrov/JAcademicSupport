@@ -10,17 +10,14 @@
     <div class="card edit_block">
         <h2 class="input_header">Создание РПД</h2>
         <div class="card-header">
-            <div th:if="${success}">
+            <div th:if="${edit_success}">
                 <div class="alert alert-success" role="alert">Данные успешно обновлены!</div>
             </div>
-            <div th:if="${error}">
+            <div th:if="${edit_error}">
                 <div class="alert alert-danger" role="alert">Вы ввели некорректные данные!</div>
             </div>
-            <form name="driver" th:action="@{'/rpd/edit/' + ${rpd.getId()}}" th:object="${editRpdFormDto}" th:method="POST">
+            <form name="form" th:action="@{'/rpd/edit/' + ${rpd.getId()}}" th:object="${editRpdFormDto}" th:method="POST">
                 <table>
-                    <tr th:if="${error}">
-                        <td colspan="2" class="td_error">Вы ввели некорректные данные!</td>
-                    </tr>
                     <tr>
                         <td class="td_input"><label for="disciplineName">Название дисциплины:</label></td>
                         <td class="td_input"><input type="text" id="disciplineName" name="disciplineName" th:field="*{disciplineName}" th:value="*{disciplineName}"/></td>
