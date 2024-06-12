@@ -22,6 +22,7 @@
                     <th class="td_input">Описание</th>
                     <th class="td_input">Редактирование</th>
                     <th class="td_input">Удаление</th>
+                    <th class="td_input">Ключевые слова</th>
                 </tr>
                 <tr th:each="c : ${competencies}">
                     <td th:text="${c.number}" class="td_input"></td>
@@ -32,6 +33,7 @@
                             <input type="submit" class="btn btn-danger" value="Удалить">
                         </form>
                     </td>
+                    <td><a th:href="@{'/competency/keywords/' + ${c.id}}" class="btn btn-success">Подобрать</a></td>
                 </tr>
             </table>
             <p th:if="${#lists.size(competencies) == 0}">Вы не добавили ни одной компетенции!</p>

@@ -9,6 +9,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.models.Keyword;
 import io.github.alexeyaleksandrov.jacademicsupport.models.Rpd;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.KeywordRepository;
+import io.github.alexeyaleksandrov.jacademicsupport.services.rpd.competency.CompetencyService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -16,6 +17,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Controller
@@ -24,6 +26,7 @@ import java.util.List;
 public class CompetencyController {
     final CompetencyRepository competencyRepository;
     final KeywordRepository keywordRepository;
+    final CompetencyService competencyService;
 
     @GetMapping("/create")
     public String showCreateCompetency(Model model, @RequestParam(name = "createError", required = false, defaultValue = "false") Boolean createError) {
@@ -114,5 +117,12 @@ public class CompetencyController {
     public String processDeleteCompetencyPage(@PathVariable("id") Long id) {
         competencyRepository.deleteById(id);
         return "redirect:/competency/show?deleted_success=true";
+    }
+
+    @GetMapping("/keywords/{id}")
+    public String showCreateKeywordsPage(Model model, @PathVariable("id") Long id) {
+        Competency competency = competencyService.createKeywordsForCompetency(id);
+        model.addAttribute("competency", competency);
+        return "pages/competency/keywords";
     }
 }
