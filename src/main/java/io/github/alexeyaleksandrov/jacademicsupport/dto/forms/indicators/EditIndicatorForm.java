@@ -11,12 +11,12 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode
-public class EditIndicatorFrom {
+public class EditIndicatorForm {
     private String number;
     private String description;
     private String indicatorKnow;
     private String indicatorAble;
     private String indicatorPossess;
     private Long competencyId;
-    private List<Long> keywordIds;
+    private List<Long> selectedKeywords;
 }
