@@ -1,46 +1,61 @@
-package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.hh;
+package io.github.alexeyaleksandrov.jacademicsupport.services.workskills;
 
+import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.Vacancy;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.VacancyItem;
 import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
-import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.Vacancy;
-import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.VacancyItem;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
 import lombok.AllArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
-@Controller
+@Service
 @AllArgsConstructor
-public class VacanciesController {
-    private final HhService hhService;
-    private final WorkSkillRepository workSkillRepository;
-    private final SkillsGroupRepository skillsGroupRepository;
+public class WorkSkillsService {
+    final WorkSkillRepository workSkillRepository;
+    final SkillsGroupRepository skillsGroupRepository;
     private final VacancyEntityRepository vacancyEntityRepository;
+    final OllamaService ollamaService;
+    private final HhService hhService;
 
-    @GetMapping("/vac/list")
-    private ResponseEntity<List<VacancyItem>> vacanciesList() {
-        List<VacancyItem> vacancyItemList = hhService.getAllVacancies("Java Junior Developer");
-        return ResponseEntity.ok(vacancyItemList);
+    public List<WorkSkill> matchWorkSkillsToSkillsGroups() {
+        List<WorkSkill> skills = workSkillRepository.findAll();
+        List<SkillsGroup> skillsGroups = skillsGroupRepository.findAll();
+
+        String allSkillsPrompt = skillsGroups.stream()
+                .map(SkillsGroup::getDescription)
+                .toList()
+                .stream()
+                .collect(Collectors.joining(", ", "[", "]"));   // собираем данные в массив вида ["элемент1", "элемент2", "элемент3"]
+
+        // выполняем cопоставление
+        skills = skills.stream()
+                .peek(workSkill -> {
+                    String prompt = "У тебя есть профессиональный навык " + workSkill.getDescription() + ", к какой группе навыков из списка его можно отнести? Список группы навыков: " + allSkillsPrompt + ". Ответ должен содержать только название группы";
+                    String answer = ollamaService.chat(prompt);     // получаем рекомендацию от языковой модели по группе технологий
+                    SkillsGroup skillsGroup = skillsGroups.stream()
+                            .filter(group -> answer.contains(group.getDescription()))
+                            .findFirst()
+                            .orElse(skillsGroupRepository.findByDescription("NO_GROUP"));   // если не найдено задаём дефолтную группу
+                    workSkill.setSkillsGroupBySkillsGroupId(skillsGroup);   // устанавливаем группу для навыка
+                    System.out.println("Для навыка " + workSkill.getDescription() + " установлена группа " + skillsGroup.getDescription());
+                })
+                .toList();
+
+        workSkillRepository.saveAllAndFlush(skills);
+        return skills;
     }
 
-    @GetMapping("/vac/{id}")
-    private ResponseEntity<Vacancy> vacanciesList(@PathVariable(name = "id") Long id) {
-        Vacancy vacancy = hhService.getVacancyById(id);
-        return ResponseEntity.ok(vacancy);
-    }
-
-    @GetMapping("/vac/list/save")
-    private ResponseEntity<List<VacancyEntity>> getAndSaveAllVacancies() {
-        List<VacancyItem> vacancyItemList = hhService.getAllVacancies("Java Junior Developer");
+    public List<VacancyEntity> getAndSaveAllVacancies(String searchText) {
+        List<VacancyItem> vacancyItemList = hhService.getAllVacancies(searchText);
         List<Vacancy> vacancies = vacancyItemList.stream()
                 .map(vacancyItem -> hhService.getVacancyById(vacancyItem.getId()))
                 .toList();  // делаем запрос в hh по каждой вакансии и получаем полную информацию
@@ -85,18 +100,13 @@ public class VacanciesController {
                     long id = vacancyEntityRepository.findByHhId(vacancyEntity.getHhId()).getId();
                     vacancyEntity.setId(id);
                 })
-                 .forEach(vacancyEntityRepository::saveAndFlush);
+                .forEach(vacancyEntityRepository::saveAndFlush);
 
-         // сохраняем новые
+        // сохраняем новые
         vacancyEntities.stream()
                 .filter(vacancyEntity -> !vacancyEntityRepository.existsByHhId(vacancyEntity.getHhId()))
                 .forEach(vacancyEntityRepository::saveAndFlush);
 
-        return ResponseEntity.ok(vacancyEntities);
-    }
-
-    @GetMapping("/update/workSkillsMarketDemand")
-    private ResponseEntity<List<WorkSkill>> updateWorkSkillsMarketDemand() {
-        return ResponseEntity.ok(hhService.updateWorkSkillsMarketDemand());
+        return vacancyEntities;
     }
 }

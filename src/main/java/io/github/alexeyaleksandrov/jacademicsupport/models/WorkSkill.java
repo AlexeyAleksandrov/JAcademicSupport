@@ -26,4 +26,8 @@ public class WorkSkill {
     @ManyToOne
     @JoinColumn(name = "skills_group_id", referencedColumnName = "id")
     private SkillsGroup skillsGroupBySkillsGroupId;
+
+    public double getRoundedMarketDemand() {
+        return Math.round(marketDemand * 1000.0) / 1000.0;
+    }
 }

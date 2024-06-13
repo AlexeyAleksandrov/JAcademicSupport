@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @AllArgsConstructor
-public class ChatController {
+public class ChatRestController {
     private final OllamaService ollamaService;
 
     @GetMapping("/ask")

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-<div th:fragment="element (btn_text, show_link, add_link, edit_link, delete_link)">
+<div th:fragment="element2 (btn_text, show_link, add_link, edit_link, delete_link)">
     <li>
         <div class="dropdown">
             <button class="dropbtn" th:text="${btn_text}"></button>
@@ -14,16 +14,29 @@
         </div>
     </li>
 </div>
+<div th:fragment="element4 (btn_text, text1, link1, text2, link2, text3, link3, text4, link4)">
+    <li>
+        <div class="dropdown">
+            <button class="dropbtn" th:text="${btn_text}"></button>
+            <div class="dropdown-content">
+                <a th:href="${link1}" th:text="${text1}"></a>
+                <a th:href="${link2}" th:text="${text2}"></a>
+                <a th:href="${link3}" th:text="${text3}"></a>
+                <a th:href="${link4}" th:text="${text4}"></a>
+            </div>
+        </div>
+    </li>
+</div>
 <div th:fragment="nav">
     <nav>
         <ul id="navbar">
             <li><button class="dropbtn" onclick="location.href='/'">Главная</button></li>
-            <li th:replace="fragments/navbar::element (${'РПД'}, @{/rpd/show}, @{/rpd/create}, @{/rpd/edit}, @{/rpd/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Компетенции'}, @{/competency/show}, @{/competency/create}, @{/competency/edit}, @{/competency/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Индикаторы'}, @{/indicators/show}, @{/indicators/create}, @{/indicators/edit}, @{/indicators/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Технологии'}, @{/workskills/show}, @{/workskills/create}, @{/workskills/edit}, @{/workskills/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Группы технологий'}, @{/skillsgroups/show}, @{/skillsgroups/create}, @{/skillsgroups/edit}, @{/skillsgroups/delete})"></li>
-            <li th:replace="fragments/navbar::element (${'Ключевые слова'}, @{/keywords/show}, @{/keywords/create}, @{/keywords/edit}, @{/keywords/delete})"></li>
+            <li th:replace="fragments/navbar::element2 (${'РПД'}, @{/rpd/show}, @{/rpd/create}, @{/rpd/edit}, @{/rpd/delete})"></li>
+            <li th:replace="fragments/navbar::element2 (${'Компетенции'}, @{/competency/show}, @{/competency/create}, @{/competency/edit}, @{/competency/delete})"></li>
+            <li th:replace="fragments/navbar::element2 (${'Индикаторы'}, @{/indicators/show}, @{/indicators/create}, @{/indicators/edit}, @{/indicators/delete})"></li>
+            <li th:replace="fragments/navbar::element4 (${'Технологии'}, ${'Просмотр'}, @{/work-skills/show}, ${'Обновить по вакансиям'}, @{/work-skills/create}, ${'Соотнести с группами'}, @{/work-skills/math-to-skills-groups}, ${'Рассчитать востребованность'}, @{/work-skills/update-market-demand})"></li>
+            <li th:replace="fragments/navbar::element2 (${'Группы технологий'}, @{/skills-groups/show}, @{/skills-groups/create}, @{/skills-groups/edit}, @{/skills-groups/delete})"></li>
+            <li th:replace="fragments/navbar::element2 (${'Ключевые слова'}, @{/keywords/show}, @{/keywords/create}, @{/keywords/edit}, @{/keywords/delete})"></li>
         </ul>
     </nav>
 </div>

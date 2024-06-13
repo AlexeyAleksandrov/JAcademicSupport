@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @Controller
 @AllArgsConstructor
 @RequestMapping("/api")
-public class RecommendationController {
+public class RecommendationRestController {
     private final RecommendationService recommendationService;
     private final RpdRepository rpdRepository;
     private final CompetencyAchievementIndicatorRepository indicatorRepository;
