@@ -7,16 +7,16 @@
 <main>
     <div class="clear"></div>
 
-    <div class="card input_block_super_big" th:object="${competencies}">
-        <h2 class="input_header">Список компетенций</h2>
+    <div class="card input_block_super_big" th:object="${indicators}">
+        <h2 class="input_header">Список индикаторов компетенций</h2>
         <div class="card-header">
             <div th:if="${appended_success}">
-                <div class="alert alert-success" role="alert">Компетенция успешно добавлена!</div>
+                <div class="alert alert-success" role="alert">Индикатор компетенции успешно добавлен!</div>
             </div>
             <div th:if="${deleted_success}">
-                <div class="alert alert-info" role="alert">Компетенция успешно удалена!</div>
+                <div class="alert alert-info" role="alert">Индикатор компетенции успешно удалён!</div>
             </div>
-            <table th:if="${#lists.size(competencies) > 0}" class="table">
+            <table th:if="${#lists.size(indicators) > 0}" class="table">
                 <tr>
                     <th class="td_input">Номер</th>
                     <th class="td_input">Описание</th>
@@ -24,19 +24,19 @@
                     <th class="td_input">Удаление</th>
                     <th class="td_input">Ключевые слова</th>
                 </tr>
-                <tr th:each="c : ${competencies}">
-                    <td th:text="${c.number}" class="td_input"></td>
-                    <td th:text="${c.description}" class="td_input"></td>
-                    <td><a th:href="@{'/competency/edit/' + ${c.id}}" class="btn btn-primary">Редактировать</a></td>
+                <tr th:each="indicator : ${indicators}">
+                    <td th:text="${indicator.number}" class="td_input"></td>
+                    <td th:text="${indicator.description}" class="td_input"></td>
+                    <td><a th:href="@{'/indicators/edit/' + ${indicator.id}}" class="btn btn-primary">Редактировать</a></td>
                     <td>
-                        <form name="form" th:action="@{'/competency/delete/' + ${c.getId()}}" th:method="POST">
+                        <form name="form" th:action="@{'/indicators/delete/' + ${indicator.getId()}}" th:method="POST">
                             <input type="submit" class="btn btn-danger" value="Удалить">
                         </form>
                     </td>
-                    <td><a th:href="@{'/competency/keywords/' + ${c.id}}" class="btn btn-success">Подобрать</a></td>
+                    <td><a th:href="@{'/indicators/keywords/' + ${indicator.id}}" class="btn btn-success">Подобрать</a></td>
                 </tr>
             </table>
-            <p th:if="${#lists.size(competencies) == 0}">Вы не добавили ни одной компетенции!</p>
+            <p th:if="${#lists.size(indicators) == 0}">Вы не добавили ни одного индикатора компетенций!</p>
         </div>
     </div>
 </main>

@@ -1,12 +1,8 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.rpd;
 
-import io.github.alexeyaleksandrov.jacademicsupport.models.Competency;
 import io.github.alexeyaleksandrov.jacademicsupport.models.CompetencyAchievementIndicator;
-import io.github.alexeyaleksandrov.jacademicsupport.models.Keyword;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyAchievementIndicatorRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.KeywordRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.rpd.competency.IndicatorsService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,14 +11,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 @Controller
 @AllArgsConstructor
 @RequestMapping("/competency/achievement/indicator")
-public class IndicatorController {
+public class IndicatorRestController {
     private final CompetencyRepository competencyRepository;
     private final CompetencyAchievementIndicatorRepository indicatorRepository;
     private final IndicatorsService indicatorsService;

@@ -32,8 +32,9 @@ public class IndicatorController {
 
     @GetMapping("/create")
     public String showCreateIndicator(Model model, @RequestParam(name = "createError", required = false, defaultValue = "false") Boolean createError) {
-
-        model.addAttribute("indicatorForm", new CreateIndicatorFrom());
+        List<Competency> competencies = competencyRepository.findAll();
+        model.addAttribute("competencies", competencies);
+        model.addAttribute("createIndicatorFrom", new CreateIndicatorFrom());
         model.addAttribute("create_error", createError);
         return "pages/indicators/create";
     }
@@ -114,7 +115,7 @@ public class IndicatorController {
         CompetencyAchievementIndicator indicator = indicatorRepository.findById(id).orElseThrow();
 
         if (bindingResult.hasErrors()) {
-            return "redirect:/indicators/edit" + indicator.getId() + "?edit_error=true";
+            return "redirect:/indicators/edit/" + indicator.getId() + "?edit_error=true";
         }
 
         if(editIndicatorForm.getNumber().isEmpty()
@@ -122,9 +123,8 @@ public class IndicatorController {
                 || editIndicatorForm.getIndicatorKnow().isEmpty()
                 || editIndicatorForm.getIndicatorAble().isEmpty()
                 || editIndicatorForm.getIndicatorPossess().isEmpty()
-                || editIndicatorForm.getCompetencyId() == null
-                || indicatorRepository.existsByNumber(editIndicatorForm.getNumber())) {
-            return "redirect:/indicators/edit" + indicator.getId() + "?edit_error=true";
+                || editIndicatorForm.getCompetencyId() == null) {
+            return "redirect:/indicators/edit/" + indicator.getId() + "?edit_error=true";
         }
 
         indicator.setNumber(editIndicatorForm.getNumber());

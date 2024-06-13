@@ -95,11 +95,11 @@ public class CompetencyController {
         Competency competency = competencyRepository.findById(id).orElseThrow();
 
         if (bindingResult.hasErrors()) {
-            return "redirect:/competency/edit" + competency.getId() + "?edit_error=true";
+            return "redirect:/competency/edit/" + competency.getId() + "?edit_error=true";
         }
 
         if(editCompetenceForm.getNumber().isEmpty() || editCompetenceForm.getDescription().isEmpty() || competencyRepository.existsByNumber(editCompetenceForm.getNumber())) {
-            return "redirect:/competency/edit" + competency.getId() + "?edit_error=true";
+            return "redirect:/competency/edit/" + competency.getId() + "?edit_error=true";
         }
 
         competency.setNumber(editCompetenceForm.getNumber());

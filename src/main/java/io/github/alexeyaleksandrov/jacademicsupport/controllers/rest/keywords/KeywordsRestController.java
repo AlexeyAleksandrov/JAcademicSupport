@@ -1,7 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.keywords;
 
 import io.github.alexeyaleksandrov.jacademicsupport.models.Keyword;
-import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.KeywordRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
@@ -10,18 +9,16 @@ import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaServic
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/keywords")
 @AllArgsConstructor
-public class KeywordsController {
+public class KeywordsRestController {
     final KeywordRepository keywordRepository;
     final SkillsGroupRepository skillsGroupRepository;
     final WorkSkillRepository workSkillRepository;
