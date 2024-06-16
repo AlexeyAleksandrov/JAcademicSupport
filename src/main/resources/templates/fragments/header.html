@@ -3,7 +3,7 @@
 <body>
 <div th:fragment="header">
     <p>
-        <a href="/" class="card btn" id="logo">Система управления рабочими программами дисциплин</a>
+        <a href="/" class="card btn" id="logo">Автоматизированная система поддержки формирования карьеры магистра</a>
     </p>
     <p th:if="${!is_auth}">
         <a class="btn btn-primary btn-lg float-end" id="sign_up_button" th:href="@{/register}">Регистрация</a>

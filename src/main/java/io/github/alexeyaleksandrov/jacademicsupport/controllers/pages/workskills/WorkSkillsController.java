@@ -112,9 +112,9 @@ public class WorkSkillsController {
         return "redirect:/work-skills/show?deleted_success=true";
     }
 
-    @GetMapping("/math-to-skills-groups")
+    @GetMapping("/math-to-keywords")
     public String showMatchToSkillsGroups() {
-        workSkillsService.matchWorkSkillsToSkillsGroups();
+        workSkillsService.matchKeywordsToWorkSkills();
         return "redirect:/work-skills/show?matched_success=true";
     }
 

@@ -16,6 +16,9 @@
             <div th:if="${deleted_success}">
                 <div class="alert alert-info" role="alert">Группа технологий успешно удалена!</div>
             </div>
+            <div th:if="${matched_success}">
+                <div class="alert alert-info" role="alert">Технологии успешно сопоставлены с группами технологий!</div>
+            </div>
             <div th:if="${update_market_demand_success}">
                 <div class="alert alert-info" role="alert">Данные по востребованности групп технологий на рынке успешно обновлены!</div>
             </div>

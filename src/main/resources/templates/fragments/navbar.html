@@ -8,8 +8,6 @@
             <div class="dropdown-content">
                 <a th:href="${show_link}">Просмотр</a>
                 <a th:href="${add_link}">Добавить</a>
-<!--                <a th:href="${edit_link}">Изменить</a>-->
-<!--                <a th:href="${delete_link}">Удалить</a>-->
             </div>
         </div>
     </li>
@@ -49,12 +47,13 @@
             <li th:replace="fragments/navbar::element4 (${'Технологии'},
                 ${'Просмотр'}, @{/work-skills/show},
                 ${'Обновить по вакансиям'}, @{/work-skills/create},
-                ${'Соотнести с группами'}, @{/work-skills/math-to-skills-groups},
+                ${'Соотнести с ключевыми словами'}, @{/work-skills/math-to-keywords},
                 ${'Рассчитать востребованность'}, @{/work-skills/update-market-demand})"></li>
-            <li th:replace="fragments/navbar::element3 (${'Группы технологий'},
+            <li th:replace="fragments/navbar::element4 (${'Группы технологий'},
                 ${'Просмотр'}, @{/skills-groups/show},
                 ${'Добавить'}, @{/skills-groups/create},
-                ${'Обновить востребованность'}, @{/skills-groups/update-market-demand})"></li>
+                ${'Соотнести с технологиями'}, @{/skills-groups/math-to-work-skills},
+                ${'Рассчитать востребованность'}, @{/skills-groups/update-market-demand})"></li>
             <li th:replace="fragments/navbar::element2 (${'Ключевые слова'}, @{/keywords/show}, @{/keywords/create}, @{/keywords/edit}, @{/keywords/delete})"></li>
         </ul>
     </nav>

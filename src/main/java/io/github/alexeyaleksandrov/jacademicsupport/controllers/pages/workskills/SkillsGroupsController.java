@@ -60,12 +60,14 @@ public class SkillsGroupsController {
     public String showAllSkillsGroup(Model model,
                                    @RequestParam(name = "appended_success", required = false, defaultValue = "false") Boolean appendedSuccess,
                                    @RequestParam(name = "deleted_success", required = false, defaultValue = "false") Boolean deletedSuccess,
+                                     @RequestParam(name = "matched_success", required = false, defaultValue = "false") Boolean matchedSuccess,
                                    @RequestParam(name = "update_market_demand_success", required = false, defaultValue = "false") Boolean updateMarketDemandSuccess) {
         List<SkillsGroup> skillsGroups = skillsGroupRepository.findAll().stream()
                 .sorted(Comparator.comparing(SkillsGroup::getDescription))
                 .toList();
         model.addAttribute("skillsGroups", skillsGroups);
         model.addAttribute("appended_success", appendedSuccess);
+        model.addAttribute("matched_success", matchedSuccess);
         model.addAttribute("deleted_success", deletedSuccess);
         model.addAttribute("update_market_demand_success", updateMarketDemandSuccess);
         return "pages/skills-groups/show";
@@ -117,6 +119,12 @@ public class SkillsGroupsController {
     public String processDeleteWorkSkill(@PathVariable("id") Long id) {
         skillsGroupRepository.deleteById(id);
         return "redirect:/skills-groups/show?deleted_success=true";
+    }
+
+    @GetMapping("/math-to-work-skills")
+    public String showMatchToSkillsGroups() {
+        workSkillsService.matchWorkSkillsToSkillsGroups();
+        return "redirect:/skills-groups/show?matched_success=true";
     }
 
     @GetMapping("/update-market-demand")

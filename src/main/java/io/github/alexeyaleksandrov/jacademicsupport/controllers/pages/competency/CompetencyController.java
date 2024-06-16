@@ -98,7 +98,7 @@ public class CompetencyController {
             return "redirect:/competency/edit/" + competency.getId() + "?edit_error=true";
         }
 
-        if(editCompetenceForm.getNumber().isEmpty() || editCompetenceForm.getDescription().isEmpty() || competencyRepository.existsByNumber(editCompetenceForm.getNumber())) {
+        if(editCompetenceForm.getNumber().isEmpty() || editCompetenceForm.getDescription().isEmpty()) {
             return "redirect:/competency/edit/" + competency.getId() + "?edit_error=true";
         }
 

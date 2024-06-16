@@ -65,19 +65,6 @@ public class WorkSkillsRestController {
 
     @PostMapping("/updateSkillsGroupsMarketDemand")
     public ResponseEntity<List<SkillsGroup>> updateSkillsGroupsMarketDemand() {
-//        List<SkillsGroup> skillsGroups = skillsGroupRepository.findAll();
-//        List<VacancyEntity> vacancies = vacancyEntityRepository.findAll();
-//
-//        skillsGroups.forEach(skillsGroup -> {
-//            List<WorkSkill> workSkills = workSkillRepository.findBySkillsGroupBySkillsGroupId(skillsGroup);     // получаем список навыков из этой группы
-//                long groupDemand = vacancies.stream()
-//                        .filter(vacancyEntity -> vacancyEntity.getSkills().stream()
-//                                .anyMatch(workSkills::contains))
-//                        .count();   // фильтруем вакансии, в которых есть нужные навыки
-//                skillsGroup.setMarketDemand((double)groupDemand/(double)vacancies.size());
-//                skillsGroupRepository.saveAndFlush(skillsGroup);
-//            });
-
         return ResponseEntity.ok(skillsGroupsService.updateSkillsGroupsMarketDemand());
     }
 }

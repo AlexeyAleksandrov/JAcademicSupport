@@ -2,19 +2,23 @@ package io.github.alexeyaleksandrov.jacademicsupport.services.workskills;
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.Vacancy;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.VacancyItem;
+import io.github.alexeyaleksandrov.jacademicsupport.models.Keyword;
 import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.KeywordRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
 import lombok.AllArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,6 +29,7 @@ public class WorkSkillsService {
     private final VacancyEntityRepository vacancyEntityRepository;
     final OllamaService ollamaService;
     private final HhService hhService;
+    private KeywordRepository keywordRepository;
 
     public List<WorkSkill> matchWorkSkillsToSkillsGroups() {
         List<WorkSkill> skills = workSkillRepository.findAll();
@@ -52,6 +57,39 @@ public class WorkSkillsService {
 
         workSkillRepository.saveAllAndFlush(skills);
         return skills;
+    }
+
+    public List<Keyword> matchKeywordsToWorkSkills() {
+        List<Keyword> keywords = keywordRepository.findAll();
+//        List<SkillsGroup> skillsGroups = skillsGroupRepository.findAll();
+        List<WorkSkill> workSkills = workSkillRepository.findAll();
+
+        String allKeywordsPrompt = keywords.stream()
+                .map(Keyword::getKeyword)
+                .toList()
+                .stream()
+                .collect(Collectors.joining(", ", "[", "]"));   // собираем данные в массив вида ["элемент1", "элемент2", "элемент3"]
+
+        // выполняем cопоставление
+        List<Keyword> finalKeywords = keywords;
+        workSkills.forEach(workSkill -> {
+            String prompt = "У тебя есть технология \"" + workSkill.getDescription() + "\", какое словосочетание из списка для него подходит лучше всего? Список словосочетаний: " + allKeywordsPrompt + ". Ответ должен содержать только подходящее словосочетание из данного списка";
+            System.out.println(prompt);
+            String answer = ollamaService.chat(prompt);     // получаем рекомендацию от языковой модели по соответствию
+            System.out.println(answer);
+            finalKeywords.stream()
+                    .filter(k -> answer.contains(k.getKeyword()))
+                    .toList()
+                    .forEach(k -> {
+                        List<WorkSkill> workSkillList = k.getWorkSkills();
+                        workSkillList.add(workSkill);   // добавляем навык в список
+                        k.setWorkSkills(workSkillList);
+                        System.out.println("Для навыка \"" + workSkill.getDescription() + "\" сопоставлено ключевое слово \"" + k.getKeyword() + "\"");
+                    });
+        });
+
+        keywords = keywordRepository.saveAllAndFlush(keywords);
+        return keywords;
     }
 
     public List<VacancyEntity> getAndSaveAllVacancies(String searchText) {
