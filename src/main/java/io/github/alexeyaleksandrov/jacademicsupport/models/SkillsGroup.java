@@ -22,5 +22,9 @@ public class SkillsGroup {
     private String description;
     @Basic
     @Column(name = "market_demand", nullable = true, precision = 0)
-    private Double marketDemand;
+    private Double marketDemand = 0.0;
+
+    public double getRoundedMarketDemand() {
+        return Math.round(marketDemand * 1000.0) / 1000.0;
+    }
 }

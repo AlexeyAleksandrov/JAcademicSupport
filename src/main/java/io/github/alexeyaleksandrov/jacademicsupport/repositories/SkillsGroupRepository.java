@@ -6,5 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SkillsGroupRepository extends JpaRepository<SkillsGroup, Long> {
+    boolean existsByDescription(String description);
     SkillsGroup findByDescription(String name);
 }

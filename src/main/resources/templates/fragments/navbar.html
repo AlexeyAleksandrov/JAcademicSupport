@@ -14,6 +14,18 @@
         </div>
     </li>
 </div>
+<div th:fragment="element3 (btn_text, text1, link1, text2, link2, text3, link3)">
+    <li>
+        <div class="dropdown">
+            <button class="dropbtn" th:text="${btn_text}"></button>
+            <div class="dropdown-content">
+                <a th:href="${link1}" th:text="${text1}"></a>
+                <a th:href="${link2}" th:text="${text2}"></a>
+                <a th:href="${link3}" th:text="${text3}"></a>
+            </div>
+        </div>
+    </li>
+</div>
 <div th:fragment="element4 (btn_text, text1, link1, text2, link2, text3, link3, text4, link4)">
     <li>
         <div class="dropdown">
@@ -34,8 +46,15 @@
             <li th:replace="fragments/navbar::element2 (${'РПД'}, @{/rpd/show}, @{/rpd/create}, @{/rpd/edit}, @{/rpd/delete})"></li>
             <li th:replace="fragments/navbar::element2 (${'Компетенции'}, @{/competency/show}, @{/competency/create}, @{/competency/edit}, @{/competency/delete})"></li>
             <li th:replace="fragments/navbar::element2 (${'Индикаторы'}, @{/indicators/show}, @{/indicators/create}, @{/indicators/edit}, @{/indicators/delete})"></li>
-            <li th:replace="fragments/navbar::element4 (${'Технологии'}, ${'Просмотр'}, @{/work-skills/show}, ${'Обновить по вакансиям'}, @{/work-skills/create}, ${'Соотнести с группами'}, @{/work-skills/math-to-skills-groups}, ${'Рассчитать востребованность'}, @{/work-skills/update-market-demand})"></li>
-            <li th:replace="fragments/navbar::element2 (${'Группы технологий'}, @{/skills-groups/show}, @{/skills-groups/create}, @{/skills-groups/edit}, @{/skills-groups/delete})"></li>
+            <li th:replace="fragments/navbar::element4 (${'Технологии'},
+                ${'Просмотр'}, @{/work-skills/show},
+                ${'Обновить по вакансиям'}, @{/work-skills/create},
+                ${'Соотнести с группами'}, @{/work-skills/math-to-skills-groups},
+                ${'Рассчитать востребованность'}, @{/work-skills/update-market-demand})"></li>
+            <li th:replace="fragments/navbar::element3 (${'Группы технологий'},
+                ${'Просмотр'}, @{/skills-groups/show},
+                ${'Добавить'}, @{/skills-groups/create},
+                ${'Обновить востребованность'}, @{/skills-groups/update-market-demand})"></li>
             <li th:replace="fragments/navbar::element2 (${'Ключевые слова'}, @{/keywords/show}, @{/keywords/create}, @{/keywords/edit}, @{/keywords/delete})"></li>
         </ul>
     </nav>
