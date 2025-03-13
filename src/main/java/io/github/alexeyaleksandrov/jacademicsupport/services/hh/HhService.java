@@ -3,6 +3,7 @@ package io.github.alexeyaleksandrov.jacademicsupport.services.hh;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.VacancyPage;
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.Vacancy;
@@ -26,30 +27,60 @@ public class HhService {
     private final VacancyEntityRepository vacancyEntityRepository;
 
     public List<VacancyItem> getAllVacancies(String searchText) {
-        searchText = searchText.replace(" ", "%20");    // добавляем пробелы
-        String urlText = "https://api.hh.ru/vacancies?text=" + searchText + "&area=1";
-        String vacanciesJson = webClient.get(urlText);
-        return parseVacancies(vacanciesJson);
+        searchText = searchText.replace(" ", "%20");
+        List<VacancyItem> allVacancies = new ArrayList<>();
+        int page = 0;
+        int pages;
+
+        do {
+            try {
+                String urlText = "https://api.hh.ru/vacancies?text=" + searchText + "&area=1&page=" + page;
+                String vacanciesJson = webClient.get(urlText);
+                page++;
+                VacancyPage vacancyPage = parseVacancies(vacanciesJson);
+                pages = vacancyPage.getPages();
+                allVacancies.addAll(vacancyPage.getVacancies());
+                System.out.println("Page " + page + "/" + pages);
+                // добавление задержки
+                Thread.sleep(2000); // например, 2 секунды
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Thread interrupted", e);
+            }
+        } while (page < pages);
+
+        return allVacancies;
     }
+
 
     public Vacancy getVacancyById(long vacancyId) {
-        String urlText = "https://api.hh.ru/vacancies/" + vacancyId;
-        String vacancyJson = webClient.get(urlText);
-        return parseVacancy(vacancyJson);
+        try {
+            String urlText = "https://api.hh.ru/vacancies/" + vacancyId;
+            String vacancyJson = webClient.get(urlText);
+            Thread.sleep(2000); // например, 2 секунды
+            return parseVacancy(vacancyJson);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Thread interrupted", e);
+        }
     }
 
-    private List<VacancyItem> parseVacancies(String vacanciesJson) {
+
+    private VacancyPage parseVacancies(String vacanciesJson) {
         List<VacancyItem> vacancies = new ArrayList<>();
+        int pages = 0;
 
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode jsonNode = null;
         try {
             jsonNode = objectMapper.readTree(vacanciesJson);
             JsonNode items = jsonNode.get("items");
-            if(items.isArray()) {
+            pages = jsonNode.get("pages").asInt();
+
+            if (items.isArray()) {
                 for (JsonNode itemNode : items) {
                     VacancyItem vacancyItem = new VacancyItem();
-                    vacancyItem.setId(itemNode.get("id").asInt());
+                    vacancyItem.setId(itemNode.get("id").asLong());
                     vacancyItem.setName(itemNode.get("name").asText());
                     vacancyItem.setPublishedAt(itemNode.get("published_at").asText());
                     vacancies.add(vacancyItem);
@@ -60,21 +91,21 @@ public class HhService {
             throw new RuntimeException(e);
         }
 
-        return vacancies;
+        return new VacancyPage(vacancies, pages);
     }
 
     private Vacancy parseVacancy(String vacancyJson) {
         ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode vacancieNode = null;
         try {
-            vacancieNode = objectMapper.readTree(vacancyJson);
+            JsonNode vacancieNode = objectMapper.readTree(vacancyJson);
             Vacancy vacancy = new Vacancy();
-            vacancy.setId(vacancieNode.get("id").asInt());
+            vacancy.setId(vacancieNode.get("id").asLong());
             vacancy.setName(vacancieNode.get("name").asText());
             vacancy.setPublishedAt(vacancieNode.get("published_at").asText());
             vacancy.setDescription(vacancieNode.get("description").asText());
             JsonNode keySkills = vacancieNode.get("key_skills");
-            if(keySkills.isArray()) {
+
+            if (keySkills.isArray()) {
                 List<String> skillsList = new ArrayList<>();
                 for (JsonNode keySkillsNode : keySkills) {
                     skillsList.add(keySkillsNode.get("name").asText());

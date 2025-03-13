@@ -94,6 +94,8 @@ public class WorkSkillsService {
 
     public List<VacancyEntity> getAndSaveAllVacancies(String searchText) {
         List<VacancyItem> vacancyItemList = hhService.getAllVacancies(searchText);
+//        int vacanciesCount = vacancyItemList.size();
+//        int lastVacancyIndex = 0;
         List<Vacancy> vacancies = vacancyItemList.stream()
                 .map(vacancyItem -> hhService.getVacancyById(vacancyItem.getId()))
                 .toList();  // делаем запрос в hh по каждой вакансии и получаем полную информацию
