@@ -47,7 +47,7 @@ public class HhService {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Thread interrupted", e);
             }
-        } while (page < pages);
+        } while (page < pages && page < 10);   // добавляем ограничение, что мы ищем не более, чем 10 страниц
 
         return allVacancies;
     }

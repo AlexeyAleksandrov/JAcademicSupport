@@ -56,7 +56,8 @@ public class WorkSkillsController {
                                    @RequestParam(name = "matched_success", required = false, defaultValue = "false") Boolean matchedSuccess,
                                    @RequestParam(name = "update_market_demand_success", required = false, defaultValue = "false") Boolean updateMarketDemandSuccess) {
         List<WorkSkill> workSkills = workSkillRepository.findAll().stream()
-                .sorted(Comparator.comparing(WorkSkill::getDescription))
+//                .sorted(Comparator.comparing(WorkSkill::getDescription))
+                .sorted(Comparator.comparing(WorkSkill::getMarketDemand).reversed())
                 .toList();
         model.addAttribute("workSkills", workSkills);
         model.addAttribute("appended_success", appendedSuccess);
