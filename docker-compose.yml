@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Сервис базы данных PostgreSQL
+  postgres:
+    image: postgres:15 # Используем конкретную стабильную версию
+    container_name: myapp-postgres
+    environment:
+      - POSTGRES_DB=AcademicSupport # Имя базы данных, которое будет создано при первом запуске
+      - POSTGRES_USER=postgres # Пользователь БД
+      - POSTGRES_PASSWORD=1111 # Пароль пользователя БД (ЗАМЕНИТЕ на сложный!)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Постоянное хранилище для данных БД
+    ports:
+      - "5432:5432" # Пробрасываем порт БД на хост (обычно нужно только для отладки, для production лучше убрать)
+    networks:
+      - myapp-network
+    restart: unless-stopped # Контейнер автоматически перезапустится при сбое
+
+  # Сервис вашего Spring Boot приложения
+  app:
+    build: . # Собираем образ из Dockerfile в текущей директории
+    container_name: myapp-backend
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/AcademicSupport
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=1111
+      - SPRING_JPA_HIBERNATE_DDL-AUTO=update # Или 'validate' для продакшена
+    ports:
+      - "8080:8080" # Пробрасываем порт приложения на хост
+    depends_on:
+      - postgres # Приложение запустится только после успешного старта БД
+    networks:
+      - myapp-network
+    restart: unless-stopped
+
+# Определяем именованный том для хранения данных PostgreSQL
+volumes:
+  postgres_data:
+
+# Определяем сеть для изоляции коммуникации между контейнерами
+networks:
+  myapp-network:
+    driver: bridge
