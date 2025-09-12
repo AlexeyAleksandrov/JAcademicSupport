@@ -7,7 +7,7 @@ WORKDIR /app
 # Копируем скомпилированный JAR-файл из целевой директории в контейнер
 # Предполагается, что ваш Maven-проект собирается в jar с именем 'app.jar'
 # (Замените 'your-app-name-0.0.1-SNAPSHOT.jar' на актуальное имя вашего jar-файла)
-COPY target/*.jar app.jar
+COPY target/JAcademicSupport-0.0.1-SNAPSHOT.jar app.jar
 
 # Открываем порт, на котором работает ваше Spring Boot приложение (часто 8080)
 EXPOSE 8080
