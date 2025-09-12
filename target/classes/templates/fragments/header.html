@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="header">
+    <p>
+        <a href="/" class="card btn" id="logo">Автоматизированная система поддержки формирования карьеры магистра</a>
+    </p>
+    <p th:if="${!is_auth}">
+        <a class="btn btn-primary btn-lg float-end" id="sign_up_button" th:href="@{/register}">Регистрация</a>
+    </p>
+    <p th:if="${!is_auth}">
+        <a class="btn btn-primary btn-lg float-end" id="sign_in_button" th:href="@{/auth}">Войти</a>
+    </p>
+    <p th:if="${is_auth}">
+        <a class="btn btn-primary btn-lg float-end" id="sign_out_button" th:href="@{/logout}">Выйти</a>
+    </p>
+    <div class="clear"></div>
+</div>
+</body>
+</html>
