@@ -7,6 +7,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.VacancyItem;
 import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.workskills.WorkSkillsService;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,5 +42,15 @@ public class VacanciesRestController {
     @GetMapping("/update/workSkillsMarketDemand")
     private ResponseEntity<List<WorkSkill>> updateWorkSkillsMarketDemand() {
         return ResponseEntity.ok(hhService.updateWorkSkillsMarketDemand());
+    }
+
+    @GetMapping("/vac/by-saved-searches")
+    public ResponseEntity<List<VacancyEntity>> getVacanciesBySavedSearches() {
+        try {
+            List<VacancyEntity> vacancies = workSkillsService.getAllVacanciesBySavedSearches();
+            return ResponseEntity.ok(vacancies);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

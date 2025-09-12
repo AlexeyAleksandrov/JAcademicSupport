@@ -2,14 +2,8 @@ package io.github.alexeyaleksandrov.jacademicsupport.services.workskills;
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.Vacancy;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.VacancyItem;
-import io.github.alexeyaleksandrov.jacademicsupport.models.Keyword;
-import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
-import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
-import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.KeywordRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
+import io.github.alexeyaleksandrov.jacademicsupport.models.*;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.*;
 import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
 import lombok.AllArgsConstructor;
@@ -30,6 +24,7 @@ public class WorkSkillsService {
     final OllamaService ollamaService;
     private final HhService hhService;
     private KeywordRepository keywordRepository;
+    private final SavedSearchRepository searchRepository;
 
     public List<WorkSkill> matchWorkSkillsToSkillsGroups() {
         List<WorkSkill> skills = workSkillRepository.findAll();
@@ -93,6 +88,7 @@ public class WorkSkillsService {
     }
 
     public List<VacancyEntity> getAndSaveAllVacancies(String searchText) {
+        System.out.println("Search: " + searchText);
         List<VacancyItem> vacancyItemList = hhService.getAllVacancies(searchText);
 //        int vacanciesCount = vacancyItemList.size();
 //        int lastVacancyIndex = 0;
@@ -148,5 +144,17 @@ public class WorkSkillsService {
                 .forEach(vacancyEntityRepository::saveAndFlush);
 
         return vacancyEntities;
+    }
+
+    public List<VacancyEntity> getAllVacanciesBySavedSearches() {
+        List<SavedSearch> savedSearches = searchRepository.findAll();
+        List<VacancyEntity> allVacancies = new ArrayList<>();
+
+        for (SavedSearch search : savedSearches) {
+            List<VacancyEntity> vacancies = getAndSaveAllVacancies(search.getSearchQuery());
+            allVacancies.addAll(vacancies);
+        }
+
+        return allVacancies;
     }
 }

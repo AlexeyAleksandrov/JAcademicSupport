@@ -8,6 +8,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.Vacancy;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.VacancyItem;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.SavedSearchRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.webclient.WebClient;
