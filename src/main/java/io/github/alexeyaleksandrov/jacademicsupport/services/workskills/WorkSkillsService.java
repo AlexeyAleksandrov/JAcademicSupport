@@ -92,9 +92,22 @@ public class WorkSkillsService {
         List<VacancyItem> vacancyItemList = hhService.getAllVacancies(searchText);
 //        int vacanciesCount = vacancyItemList.size();
 //        int lastVacancyIndex = 0;
-        List<Vacancy> vacancies = vacancyItemList.stream()
+
+        // исключаем те вакансии, которые уже сохранены
+        List<VacancyItem> vacancyItemListNew = vacancyItemList.stream()
+                .filter(vacancyItem -> !vacancyEntityRepository.existsByHhId(vacancyItem.getId()))
+                .toList();
+
+        System.out.println("Всего найдено вакансий: " + vacancyItemList.size() + ". Найдено новых вакансий: " + vacancyItemListNew.size());
+
+        List<Vacancy> vacancies = vacancyItemListNew.stream()
                 .map(vacancyItem -> hhService.getVacancyById(vacancyItem.getId()))
                 .toList();  // делаем запрос в hh по каждой вакансии и получаем полную информацию
+
+        // так было, когда мы не исключали существующие вакансии
+//        List<Vacancy> vacancies = vacancyItemList.stream()
+//                .map(vacancyItem -> hhService.getVacancyById(vacancyItem.getId()))
+//                .toList();  // делаем запрос в hh по каждой вакансии и получаем полную информацию
 
         List<VacancyEntity> vacancyEntities = vacancies.stream()
                 .map(vacancy -> {
@@ -138,17 +151,18 @@ public class WorkSkillsService {
                 })
                 .forEach(vacancyEntityRepository::saveAndFlush);
 
-        // сохраняем новые
-        vacancyEntities.stream()
-                .filter(vacancyEntity -> !vacancyEntityRepository.existsByHhId(vacancyEntity.getHhId()))
-                .forEach(vacancyEntityRepository::saveAndFlush);
-
         // отображаем новые
         List<VacancyEntity> vacancyEntitiesNew = vacancyEntities.stream()
                 .filter(vacancyEntity -> !vacancyEntityRepository.existsByHhId(vacancyEntity.getHhId()))
                 .toList();
 
         System.out.println("Новых вакансий: " + vacancyEntitiesNew.size());
+
+        // сохраняем новые
+        vacancyEntitiesNew.forEach(vacancyEntityRepository::saveAndFlush);
+//        vacancyEntities.stream()
+//                .filter(vacancyEntity -> !vacancyEntityRepository.existsByHhId(vacancyEntity.getHhId()))
+//                .forEach(vacancyEntityRepository::saveAndFlush);
 
         return vacancyEntitiesNew;
     }
