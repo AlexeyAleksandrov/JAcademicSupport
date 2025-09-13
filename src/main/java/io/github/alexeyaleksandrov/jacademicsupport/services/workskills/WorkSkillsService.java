@@ -143,6 +143,14 @@ public class WorkSkillsService {
                 .filter(vacancyEntity -> !vacancyEntityRepository.existsByHhId(vacancyEntity.getHhId()))
                 .forEach(vacancyEntityRepository::saveAndFlush);
 
+        // отображаем новые
+        System.out.println("Новых вакансий:" + vacancyEntities.stream()
+                .filter(vacancyEntity -> !vacancyEntityRepository.existsByHhId(vacancyEntity.getHhId()))
+                .toList().size());
+        vacancyEntities.stream()
+                .filter(vacancyEntity -> !vacancyEntityRepository.existsByHhId(vacancyEntity.getHhId()))
+                .forEach(System.out::println);
+
         return vacancyEntities;
     }
 
