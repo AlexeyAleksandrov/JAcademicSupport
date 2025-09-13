@@ -23,7 +23,7 @@ public class ScheduledVacService {
     // Cron-выражение "0 0 12 * * ?" означает "каждый день в 12:00".
     // Выражение "0 0 12 * * ?" означает "каждый день в 12:00 по UTC".
     // Для московского времени (UTC+3) используйте "0 0 15 * * ?"
-    @Scheduled(cron = "0 20 13 * * ?", zone = "Europe/Moscow")
+    @Scheduled(cron = "0 25 13 * * ?", zone = "Europe/Moscow")
     public void triggerSavedSearches() {
         try {
             var result = vacanciesRestController.getVacanciesBySavedSearches();
