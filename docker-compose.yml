@@ -1,7 +1,7 @@
 services:
   # Сервис базы данных PostgreSQL
   postgres:
-    image: postgres:15 # Используем конкретную стабильную версию
+    image: postgres:17  # ✅ Используем конкретную мажорную версию 17
     container_name: myapp-postgres
     environment:
       - POSTGRES_DB=AcademicSupport # Имя базы данных, которое будет создано при первом запуске
