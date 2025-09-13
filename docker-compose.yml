@@ -32,6 +32,26 @@ services:
       - myapp-network
     restart: unless-stopped
 
+    # Новая служба - планировщик
+    scheduler:
+      image: alpine:3.18
+      container_name: myapp-scheduler
+      volumes:
+        - ./scripts/cron-job.sh:/app/scripts/cron-job.sh
+        - /etc/timezone:/etc/timezone:ro
+        - /etc/localtime:/etc/localtime:ro
+      environment:
+        - TZ=Europe/Moscow
+      command: >
+        sh -c "
+        apk add --no-cache tzdata &&
+        echo '30 14 * * * /app/scripts/cron-job.sh' > /etc/crontabs/root &&
+        crond -l 2 -f"
+      depends_on:
+        - app
+      networks:
+        - myapp-network
+
 # Определяем именованный том для хранения данных PostgreSQL
 volumes:
   postgres_data:
