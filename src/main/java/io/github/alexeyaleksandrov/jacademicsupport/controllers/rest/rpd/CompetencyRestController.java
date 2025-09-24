@@ -1,5 +1,8 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.rpd;
 
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.competency.CompetencyDto;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.competency.CreateCompetencyRequest;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.competency.UpdateCompetencyRequest;
 import io.github.alexeyaleksandrov.jacademicsupport.models.Competency;
 import io.github.alexeyaleksandrov.jacademicsupport.models.Keyword;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyRepository;
@@ -119,44 +122,5 @@ public class CompetencyRestController {
                     return ResponseEntity.ok(CompetencyDto.fromEntity(updated));
                 })
                 .orElse(ResponseEntity.notFound().build()); // добавляем и сохраняем новые ключевые слова
-    }
-
-    @Data
-    private static class CompetencyDto {
-        private Long id;
-        private String number;
-        private String description;
-        private List<String> keywords;
-
-        public static CompetencyDto fromEntity(Competency competency) {
-            CompetencyDto dto = new CompetencyDto();
-            dto.setId(competency.getId());
-            dto.setNumber(competency.getNumber());
-            dto.setDescription(competency.getDescription());
-            if (competency.getKeywords() != null) {
-                dto.setKeywords(competency.getKeywords().stream()
-                        .map(Keyword::getKeyword)
-                        .collect(Collectors.toList()));
-            }
-            return dto;
-        }
-    }
-
-    @Data
-    private static class CreateCompetencyRequest {
-        @NotBlank(message = "Number is required")
-        private String number;
-        
-        @NotBlank(message = "Description is required")
-        private String description;
-    }
-
-    @Data
-    private static class UpdateCompetencyRequest {
-        @NotBlank(message = "Number is required")
-        private String number;
-        
-        @NotBlank(message = "Description is required")
-        private String description;
     }
 }
