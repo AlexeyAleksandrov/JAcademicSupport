@@ -8,6 +8,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.services.vacancies.VacancySe
 import io.github.alexeyaleksandrov.jacademicsupport.services.workskills.WorkSkillService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,9 +25,17 @@ public class VacancyController {
     private final WorkSkillService workSkillService;
 
     @GetMapping
-    public ResponseEntity<List<VacancyEntity>> getAllVacancies() {
-        List<VacancyEntity> vacancies = vacancyService.findAll();
-        return ResponseEntity.ok(vacancies);
+    public ResponseEntity<List<VacancyEntity>> getAllVacancies(
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "50") int limit) {
+        Page<VacancyEntity> vacanciesPage = vacancyService.findAllPaginated(offset, limit);
+        return ResponseEntity.ok(vacanciesPage.getContent());
+    }
+
+    @GetMapping("/count")
+    public ResponseEntity<Long> getVacanciesCount() {
+        long count = vacancyService.count();
+        return ResponseEntity.ok(count);
     }
 
     @GetMapping("/{id}")

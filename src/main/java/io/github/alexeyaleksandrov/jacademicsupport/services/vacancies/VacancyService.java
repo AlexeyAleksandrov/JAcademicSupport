@@ -3,6 +3,9 @@ package io.github.alexeyaleksandrov.jacademicsupport.services.vacancies;
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -36,5 +39,14 @@ public class VacancyService {
 
     public boolean existsById(Long id) {
         return vacancyRepository.existsById(id);
+    }
+
+    public Page<VacancyEntity> findAllPaginated(int offset, int limit) {
+        Pageable pageable = PageRequest.of(offset, limit);
+        return vacancyRepository.findAll(pageable);
+    }
+
+    public long count() {
+        return vacancyRepository.count();
     }
 }
