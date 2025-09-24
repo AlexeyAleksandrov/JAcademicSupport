@@ -34,4 +34,5 @@ build/
 
 # Оставьте, чтобы git игнорировал изменения в папке target, но не файл JAcademicSupport-0.0.1-SNAPSHOT.jar
 /target/*
+target
 #!.target/JAcademicSupport-0.0.1-SNAPSHOT.jar
