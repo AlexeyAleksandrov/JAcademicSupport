@@ -15,5 +15,8 @@ COPY scripts/cron-job.sh /app/scripts/cron-job.sh
 # Открываем порт, на котором работает ваше Spring Boot приложение (часто 8080)
 EXPOSE 8080
 
+# Добавляем переменную окружения для активации профиля prod
+ENV SPRING_PROFILES_ACTIVE=prod
+
 # Команда для запуска приложения при старте контейнера
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
