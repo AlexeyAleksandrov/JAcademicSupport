@@ -1,12 +1,8 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.pages.workskills;
 
-import io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.workskills.WorkSkillsRestController;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.workskills.CreateSkillsGroupFormDto;
-import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.workskills.CreateWorkSkillFormDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.workskills.EditSkillsGroupFormDto;
-import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.workskills.EditWorkSkillFormDto;
 import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
-import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;

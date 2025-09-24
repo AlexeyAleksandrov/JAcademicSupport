@@ -1,4 +1,4 @@
-package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest;
+package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.expert;
 
 import io.github.alexeyaleksandrov.jacademicsupport.models.ExpertOpinionEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.services.ExpertOpinionService;
