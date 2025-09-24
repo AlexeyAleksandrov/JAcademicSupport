@@ -1,14 +1,11 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.rpd;
 
-import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.rpd.CreateRpdFormDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.rpd.EditRpdFormDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.crud.CreateRpdDTO;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.*;
 import io.github.alexeyaleksandrov.jacademicsupport.models.*;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyAchievementIndicatorRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.RecommendedSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.RpdRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.rpd.RpdService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.rpd.recommendation.RecommendationService;
 import lombok.AllArgsConstructor;
@@ -21,12 +18,10 @@ import java.util.List;
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/rpd")
-public class RecommendationRestController {
+public class RpdRestController {
     private final RecommendationService recommendationService;
     private final RpdRepository rpdRepository;
     private final CompetencyAchievementIndicatorRepository indicatorRepository;
-    private final WorkSkillRepository workSkillRepository;
-    private final RecommendedSkillRepository recommendedSkillRepository;
     final RpdService rpdService;
 
     @PostMapping
