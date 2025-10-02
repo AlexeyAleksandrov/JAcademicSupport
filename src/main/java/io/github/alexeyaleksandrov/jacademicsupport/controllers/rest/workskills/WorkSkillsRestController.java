@@ -7,7 +7,9 @@ import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.workskills.WorkSkillsService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,8 +35,13 @@ public class WorkSkillsRestController {
     }
 
     @PostMapping
-    public ResponseEntity<WorkSkillResponseDto> createWorkSkill(@RequestBody WorkSkillDto workSkillDto) {
-        return ResponseEntity.ok(workSkillsService.createWorkSkill(workSkillDto));
+    public ResponseEntity<?> createWorkSkill(@RequestBody WorkSkillDto workSkillDto) {
+        try {
+            WorkSkillResponseDto responseDto = workSkillsService.createWorkSkill(workSkillDto);
+            return ResponseEntity.ok(responseDto);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
     }
 
     @PutMapping("/{id}")

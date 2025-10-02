@@ -51,7 +51,7 @@ public class WorkSkillsService {
     }
 
     // Create a new WorkSkill from DTO
-    public WorkSkillResponseDto createWorkSkill(WorkSkillDto workSkillDto) {
+    public WorkSkillResponseDto createWorkSkill(WorkSkillDto workSkillDto) throws EntityNotFoundException {
         WorkSkill workSkill = convertToEntity(workSkillDto);
         WorkSkill savedSkill = workSkillRepository.save(workSkill);
         return convertToResponseDto(savedSkill);
