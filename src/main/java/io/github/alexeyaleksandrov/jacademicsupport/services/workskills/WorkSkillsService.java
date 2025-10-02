@@ -2,6 +2,10 @@ package io.github.alexeyaleksandrov.jacademicsupport.services.workskills;
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.Vacancy;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.VacancyItem;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.workskills.WorkSkillDto;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.workskills.WorkSkillResponseDto;
+import io.github.alexeyaleksandrov.jacademicsupport.exceptions.EntityNotFoundException;
+import javax.persistence.EntityNotFoundException;
 import io.github.alexeyaleksandrov.jacademicsupport.models.*;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.*;
 import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;
@@ -26,6 +30,72 @@ public class WorkSkillsService {
     private final HhService hhService;
     private KeywordRepository keywordRepository;
     private final SavedSearchRepository searchRepository;
+
+    // Convert WorkSkill entity to WorkSkillResponseDto
+    public WorkSkillResponseDto convertToResponseDto(WorkSkill workSkill) {
+        return new WorkSkillResponseDto(
+                workSkill.getId(),
+                workSkill.getDescription(),
+                workSkill.getSkillsGroupBySkillsGroupId() != null ? workSkill.getSkillsGroupBySkillsGroupId().getId() : null
+        );
+    }
+
+    // Convert WorkSkillDto to WorkSkill entity
+    public WorkSkill convertToEntity(WorkSkillDto workSkillDto) {
+        WorkSkill workSkill = new WorkSkill();
+        workSkill.setDescription(workSkillDto.getDescription());
+        
+        if (workSkillDto.getSkillsGroupId() != null) {
+            SkillsGroup skillsGroup = skillsGroupRepository.findById(workSkillDto.getSkillsGroupId())
+                    .orElseThrow(() -> new EntityNotFoundException("SkillsGroup not found"));
+            workSkill.setSkillsGroupBySkillsGroupId(skillsGroup);
+        }
+        
+        return workSkill;
+    }
+
+    // Create a new WorkSkill from DTO
+    public WorkSkillResponseDto createWorkSkill(WorkSkillDto workSkillDto) {
+        WorkSkill workSkill = convertToEntity(workSkillDto);
+        WorkSkill savedSkill = workSkillRepository.save(workSkill);
+        return convertToResponseDto(savedSkill);
+    }
+
+    // Update an existing WorkSkill from DTO
+    public WorkSkillResponseDto updateWorkSkill(Long id, WorkSkillDto workSkillDto) {
+        WorkSkill existingSkill = workSkillRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("WorkSkill not found"));
+        
+        existingSkill.setDescription(workSkillDto.getDescription());
+        
+        if (workSkillDto.getSkillsGroupId() != null) {
+            SkillsGroup skillsGroup = skillsGroupRepository.findById(workSkillDto.getSkillsGroupId())
+                    .orElseThrow(() -> new EntityNotFoundException("SkillsGroup not found"));
+            existingSkill.setSkillsGroupBySkillsGroupId(skillsGroup);
+        }
+        
+        WorkSkill updatedSkill = workSkillRepository.save(existingSkill);
+        return convertToResponseDto(updatedSkill);
+    }
+
+    // Get all WorkSkills as DTOs
+    public List<WorkSkillResponseDto> getAllWorkSkills() {
+        return workSkillRepository.findAll().stream()
+                .map(this::convertToResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    // Get a single WorkSkill by ID as DTO
+    public WorkSkillResponseDto getWorkSkillById(Long id) {
+        WorkSkill workSkill = workSkillRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("WorkSkill not found"));
+        return convertToResponseDto(workSkill);
+    }
+
+    // Delete a WorkSkill by ID
+    public void deleteWorkSkill(Long id) {
+        workSkillRepository.deleteById(id);
+    }
 
     public List<WorkSkill> matchWorkSkillsToSkillsGroups() {
         List<WorkSkill> skills = workSkillRepository.findAll();

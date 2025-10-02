@@ -1,5 +1,7 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.workskills;
 
+import io.github.alexeyaleksandrov.jacademicsupport.dto.workskills.WorkSkillDto;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.workskills.WorkSkillResponseDto;
 import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
@@ -10,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/work-skills")
@@ -20,48 +23,39 @@ public class WorkSkillsRestController {
     final SkillsGroupRepository skillsGroupRepository;
 
     @GetMapping
-    public ResponseEntity<List<WorkSkill>> getAllWorkSkills() {
-        return ResponseEntity.ok(workSkillRepository.findAll());
+    public ResponseEntity<List<WorkSkillResponseDto>> getAllWorkSkills() {
+        return ResponseEntity.ok(workSkillsService.getAllWorkSkills());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<WorkSkill> getWorkSkillById(@PathVariable Long id) {
-        return workSkillRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<WorkSkillResponseDto> getWorkSkillById(@PathVariable Long id) {
+        return ResponseEntity.ok(workSkillsService.getWorkSkillById(id));
     }
 
     @PostMapping
-    public ResponseEntity<WorkSkill> createWorkSkill(@RequestBody WorkSkill workSkill) {
-        WorkSkill savedSkill = workSkillRepository.save(workSkill);
-        return ResponseEntity.ok(savedSkill);
+    public ResponseEntity<WorkSkillResponseDto> createWorkSkill(@RequestBody WorkSkillDto workSkillDto) {
+        return ResponseEntity.ok(workSkillsService.createWorkSkill(workSkillDto));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<WorkSkill> updateWorkSkill(
+    public ResponseEntity<WorkSkillResponseDto> updateWorkSkill(
             @PathVariable Long id,
-            @RequestBody WorkSkill workSkillDetails) {
-        return workSkillRepository.findById(id)
-                .map(existingSkill -> {
-                    workSkillDetails.setId(id);
-                    return ResponseEntity.ok(workSkillRepository.save(workSkillDetails));
-                })
-                .orElse(ResponseEntity.notFound().build());
+            @RequestBody WorkSkillDto workSkillDto) {
+        return ResponseEntity.ok(workSkillsService.updateWorkSkill(id, workSkillDto));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteWorkSkill(@PathVariable Long id) {
-        return workSkillRepository.findById(id)
-                .map(workSkill -> {
-                    workSkillRepository.delete(workSkill);
-                    return ResponseEntity.ok().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        workSkillsService.deleteWorkSkill(id);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/match-to-groups")
-    public ResponseEntity<List<WorkSkill>> matchSkillsToGroups() {
-        List<WorkSkill> skills = workSkillsService.matchWorkSkillsToSkillsGroups();
+    public ResponseEntity<List<WorkSkillResponseDto>> matchSkillsToGroups() {
+        List<WorkSkill> workSkills = workSkillsService.matchWorkSkillsToSkillsGroups();
+        List<WorkSkillResponseDto> skills = workSkills.stream()
+                .map(this::convertToWorkSkillResponseDto)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(skills);
     }
 
@@ -72,13 +66,23 @@ public class WorkSkillsRestController {
      * @return the updated work skill
      */
     @PutMapping("/{workSkillId}/skills-group/{skillsGroupId}")
-    public ResponseEntity<WorkSkill> updateSkillsGroupForWorkSkill(
+    public ResponseEntity<WorkSkillResponseDto> updateSkillsGroupForWorkSkill(
             @PathVariable Long workSkillId,
             @PathVariable Long skillsGroupId) {
         WorkSkill workSkill = workSkillRepository.findById(workSkillId).orElseThrow();
         SkillsGroup skillsGroup = skillsGroupRepository.findById(skillsGroupId).orElseThrow();
         workSkill.setSkillsGroupBySkillsGroupId(skillsGroup);
         workSkill = workSkillRepository.saveAndFlush(workSkill);
-        return ResponseEntity.ok(workSkill);
+        return ResponseEntity.ok(convertToWorkSkillResponseDto(workSkill));
+    }
+
+    private WorkSkillResponseDto convertToWorkSkillResponseDto(WorkSkill workSkill) {
+        WorkSkillResponseDto dto = new WorkSkillResponseDto();
+        dto.setId(workSkill.getId());
+        dto.setDescription(workSkill.getDescription());
+        if (workSkill.getSkillsGroupBySkillsGroupId() != null) {
+            dto.setSkillsGroupId(workSkill.getSkillsGroupBySkillsGroupId().getId());
+        }
+        return dto;
     }
 }
