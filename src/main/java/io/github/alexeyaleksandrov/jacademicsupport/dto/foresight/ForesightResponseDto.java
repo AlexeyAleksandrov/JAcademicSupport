@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ForesightResponseDto {
     private Long id;
-    private String foresightName;
+    private Long workSkillId;  // ID of referenced WorkSkill
     private String sourceName;
     private String sourceUrl;
 }

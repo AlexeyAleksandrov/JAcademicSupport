@@ -1,6 +1,7 @@
 package io.github.alexeyaleksandrov.jacademicsupport.models;
 
 import jakarta.persistence.*;
+import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 
 @Entity
 @Table(name = "foresight")
@@ -9,8 +10,9 @@ public class ForesightEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "foresight_name", nullable = false)
-    private String foresightName;
+    @ManyToOne
+    @JoinColumn(name = "work_skill_id", nullable = false)
+    private WorkSkill workSkill;
 
     @Column(name = "source_name")
     private String sourceName;
@@ -29,12 +31,12 @@ public class ForesightEntity {
         this.id = id;
     }
 
-    public String getForesightName() {
-        return foresightName;
+    public WorkSkill getWorkSkill() {
+        return workSkill;
     }
 
-    public void setForesightName(String foresightName) {
-        this.foresightName = foresightName;
+    public void setWorkSkill(WorkSkill workSkill) {
+        this.workSkill = workSkill;
     }
 
     public String getSourceName() {

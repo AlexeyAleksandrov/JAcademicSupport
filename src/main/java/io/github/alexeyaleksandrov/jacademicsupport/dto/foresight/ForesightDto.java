@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ForesightDto {
-    private String foresightName;
+    private Long workSkillId;  // ID of referenced WorkSkill
     private String sourceName;
     private String sourceUrl;
 }
