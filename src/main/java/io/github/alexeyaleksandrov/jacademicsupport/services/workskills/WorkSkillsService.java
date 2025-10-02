@@ -10,13 +10,10 @@ import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.Scanner;
 import java.util.stream.Collectors;
 
 @Service
@@ -106,7 +103,7 @@ public class WorkSkillsService {
                 .stream()
                 .collect(Collectors.joining(", ", "[", "]"));   // собираем данные в массив вида ["элемент1", "элемент2", "элемент3"]
 
-        // выполняем cопоставление
+        // выполняем сопоставление
         skills = skills.stream()
                 .peek(workSkill -> {
                     String prompt = "У тебя есть профессиональный навык " + workSkill.getDescription() + ", к какой группе навыков из списка его можно отнести? Список группы навыков: " + allSkillsPrompt + ". Ответ должен содержать только название группы";
@@ -135,7 +132,7 @@ public class WorkSkillsService {
                 .stream()
                 .collect(Collectors.joining(", ", "[", "]"));   // собираем данные в массив вида ["элемент1", "элемент2", "элемент3"]
 
-        // выполняем cопоставление
+        // выполняем сопоставление
         List<Keyword> finalKeywords = keywords;
         workSkills.forEach(workSkill -> {
             String prompt = "У тебя есть технология \"" + workSkill.getDescription() + "\", какое словосочетание из списка для него подходит лучше всего? Список словосочетаний: " + allKeywordsPrompt + ". Ответ должен содержать только подходящее словосочетание из данного списка";
