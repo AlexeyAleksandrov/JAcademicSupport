@@ -26,13 +26,21 @@ public class WorkSkillsRestController {
     final SkillsGroupRepository skillsGroupRepository;
 
     @GetMapping
-    public ResponseEntity<List<WorkSkillResponseDto>> getAllWorkSkills() {
-        return ResponseEntity.ok(workSkillsService.getAllWorkSkills());
+    public ResponseEntity<?> getAllWorkSkills() {
+        try {
+            return ResponseEntity.ok(workSkillsService.getAllWorkSkills());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<WorkSkillResponseDto> getWorkSkillById(@PathVariable Long id) {
-        return ResponseEntity.ok(workSkillsService.getWorkSkillById(id));
+    public ResponseEntity<?> getWorkSkillById(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(workSkillsService.getWorkSkillById(id));
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
     }
 
     @PostMapping
@@ -48,25 +56,40 @@ public class WorkSkillsRestController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<WorkSkillResponseDto> updateWorkSkill(
+    public ResponseEntity<?> updateWorkSkill(
             @PathVariable Long id,
             @RequestBody WorkSkillDto workSkillDto) {
-        return ResponseEntity.ok(workSkillsService.updateWorkSkill(id, workSkillDto));
+        try {
+            WorkSkillResponseDto responseDto = workSkillsService.updateWorkSkill(id, workSkillDto);
+            return ResponseEntity.ok(responseDto);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (EntityExistsException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteWorkSkill(@PathVariable Long id) {
-        workSkillsService.deleteWorkSkill(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> deleteWorkSkill(@PathVariable Long id) {
+        try {
+            workSkillsService.deleteWorkSkill(id);
+            return ResponseEntity.ok().build();
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
     }
 
     @PostMapping("/match-to-groups")
-    public ResponseEntity<List<WorkSkillResponseDto>> matchSkillsToGroups() {
-        List<WorkSkill> workSkills = workSkillsService.matchWorkSkillsToSkillsGroups();
-        List<WorkSkillResponseDto> skills = workSkills.stream()
-                .map(this::convertToWorkSkillResponseDto)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(skills);
+    public ResponseEntity<?> matchSkillsToGroups() {
+        try {
+            List<WorkSkill> workSkills = workSkillsService.matchWorkSkillsToSkillsGroups();
+            List<WorkSkillResponseDto> skills = workSkills.stream()
+                    .map(this::convertToWorkSkillResponseDto)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(skills);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
     }
 
     /**
@@ -76,14 +99,15 @@ public class WorkSkillsRestController {
      * @return the updated work skill
      */
     @PutMapping("/{workSkillId}/skills-group/{skillsGroupId}")
-    public ResponseEntity<WorkSkillResponseDto> updateSkillsGroupForWorkSkill(
+    public ResponseEntity<?> updateSkillsGroupForWorkSkill(
             @PathVariable Long workSkillId,
             @PathVariable Long skillsGroupId) {
-        WorkSkill workSkill = workSkillRepository.findById(workSkillId).orElseThrow();
-        SkillsGroup skillsGroup = skillsGroupRepository.findById(skillsGroupId).orElseThrow();
-        workSkill.setSkillsGroupBySkillsGroupId(skillsGroup);
-        workSkill = workSkillRepository.saveAndFlush(workSkill);
-        return ResponseEntity.ok(convertToWorkSkillResponseDto(workSkill));
+        try {
+            WorkSkillResponseDto responseDto = workSkillsService.updateSkillsGroup(workSkillId, skillsGroupId);
+            return ResponseEntity.ok(responseDto);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
     }
 
     private WorkSkillResponseDto convertToWorkSkillResponseDto(WorkSkill workSkill) {

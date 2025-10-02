@@ -62,9 +62,15 @@ public class WorkSkillsService {
     }
 
     // Update an existing WorkSkill from DTO
-    public WorkSkillResponseDto updateWorkSkill(Long id, WorkSkillDto workSkillDto) {
+    public WorkSkillResponseDto updateWorkSkill(Long id, WorkSkillDto workSkillDto) throws EntityNotFoundException, EntityExistsException {
         WorkSkill existingSkill = workSkillRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("WorkSkill not found"));
+        
+        // Check if another skill has the same description
+        if (!existingSkill.getDescription().equals(workSkillDto.getDescription()) && 
+            workSkillRepository.existsByDescription(workSkillDto.getDescription())) {
+            throw new EntityExistsException("WorkSkill with this description already exists");
+        }
         
         existingSkill.setDescription(workSkillDto.getDescription());
         
@@ -76,6 +82,17 @@ public class WorkSkillsService {
         
         WorkSkill updatedSkill = workSkillRepository.save(existingSkill);
         return convertToResponseDto(updatedSkill);
+    }
+
+    // Update skills group for an existing WorkSkill
+    public WorkSkillResponseDto updateSkillsGroup(Long workSkillId, Long skillsGroupId) throws EntityNotFoundException {
+        WorkSkill workSkill = workSkillRepository.findById(workSkillId)
+                .orElseThrow(() -> new EntityNotFoundException("WorkSkill not found"));
+        SkillsGroup skillsGroup = skillsGroupRepository.findById(skillsGroupId)
+                .orElseThrow(() -> new EntityNotFoundException("SkillsGroup not found"));
+        workSkill.setSkillsGroupBySkillsGroupId(skillsGroup);
+        workSkill = workSkillRepository.saveAndFlush(workSkill);
+        return convertToResponseDto(workSkill);
     }
 
     // Get all WorkSkills as DTOs
