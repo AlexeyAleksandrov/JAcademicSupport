@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/foresights")
@@ -27,7 +28,7 @@ public class ForesightController {
         List<ForesightResponseDto> dtos = entities.stream()
                 .map(e -> new ForesightResponseDto(
                         e.getId(),
-                        e.getWorkSkill().getId(),
+                        e.getWorkSkill() != null ? e.getWorkSkill().getId() : null,
                         e.getSourceName(),
                         e.getSourceUrl()))
                 .toList();
@@ -36,19 +37,25 @@ public class ForesightController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ForesightResponseDto> getForesightById(@PathVariable Long id) {
-        ForesightEntity entity = foresightService.findById(id);
-        if (entity == null) {
+        Optional<ForesightEntity> entity = foresightService.findById(id);
+        if (entity.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        ForesightEntity e = entity.get();
         return ResponseEntity.ok(new ForesightResponseDto(
-                entity.getId(),
-                entity.getWorkSkill().getId(),
-                entity.getSourceName(),
-                entity.getSourceUrl()));
+                e.getId(),
+                e.getWorkSkill() != null ? e.getWorkSkill().getId() : null,
+                e.getSourceName(),
+                e.getSourceUrl()));
     }
 
     @PostMapping
     public ResponseEntity<ForesightResponseDto> createForesight(@RequestBody ForesightDto dto) {
+        // Check for duplicate
+        if (foresightService.existsByWorkSkillIdAndSourceUrl(dto.getWorkSkillId(), dto.getSourceUrl())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+
         WorkSkill workSkill = workSkillService.findById(dto.getWorkSkillId()).orElse(null);
         if (workSkill == null) {
             return ResponseEntity.badRequest().build();
@@ -70,12 +77,26 @@ public class ForesightController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ForesightResponseDto> updateForesight(@PathVariable Long id, @RequestBody ForesightDto dto) {
-        ForesightEntity existing = foresightService.findById(id);
-        if (existing == null) {
+        Optional<ForesightEntity> existingOpt = foresightService.findById(id);
+        if (existingOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        ForesightEntity existing = existingOpt.get();
 
-        if (existing.getWorkSkill().getId() != dto.getWorkSkillId()) {
+        // Check for duplicate (excluding current item) with null safety
+        boolean duplicateExists = foresightService.existsByWorkSkillIdAndSourceUrl(dto.getWorkSkillId(), dto.getSourceUrl());
+        boolean isSameEntity = existing.getWorkSkill() != null &&
+                                existing.getWorkSkill().getId() == dto.getWorkSkillId() &&
+                                existing.getSourceUrl().equals(dto.getSourceUrl());
+        
+        if (duplicateExists && !isSameEntity) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+
+        // Update workSkill with null safety
+        if (existing.getWorkSkill() == null || 
+            existing.getWorkSkill().getId() != dto.getWorkSkillId()) {
+            
             WorkSkill workSkill = workSkillService.findById(dto.getWorkSkillId()).orElse(null);
             if (workSkill == null) {
                 return ResponseEntity.badRequest().build();
@@ -96,7 +117,7 @@ public class ForesightController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ForesightResponseDto> deleteForesight(@PathVariable Long id) {
-        ForesightEntity entity = foresightService.findById(id);
+        ForesightEntity entity = foresightService.findById(id).orElse(null);
         if (entity == null) {
             return ResponseEntity.notFound().build();
         }
