@@ -19,4 +19,6 @@ public interface WorkSkillRepository extends JpaRepository<WorkSkill, Long> {
 
     // Найти навыки с востребованностью выше указанного значения
     List<WorkSkill> findByMarketDemandGreaterThanEqual(Double minMarketDemand);
+
+    boolean existsByDescription(String description);
 }

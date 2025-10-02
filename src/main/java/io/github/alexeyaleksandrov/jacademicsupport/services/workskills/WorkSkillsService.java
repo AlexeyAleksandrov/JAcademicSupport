@@ -8,6 +8,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.models.*;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.*;
 import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
+import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -51,7 +52,10 @@ public class WorkSkillsService {
     }
 
     // Create a new WorkSkill from DTO
-    public WorkSkillResponseDto createWorkSkill(WorkSkillDto workSkillDto) throws EntityNotFoundException {
+    public WorkSkillResponseDto createWorkSkill(WorkSkillDto workSkillDto) throws EntityNotFoundException, EntityExistsException {
+        if (workSkillRepository.existsByDescription(workSkillDto.getDescription())) {
+            throw new EntityExistsException("WorkSkill with this description already exists");
+        }
         WorkSkill workSkill = convertToEntity(workSkillDto);
         WorkSkill savedSkill = workSkillRepository.save(workSkill);
         return convertToResponseDto(savedSkill);
