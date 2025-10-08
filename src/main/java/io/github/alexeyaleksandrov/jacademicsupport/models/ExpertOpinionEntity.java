@@ -21,6 +21,9 @@ public class ExpertOpinionEntity {
     @JoinColumn(name = "work_skill_id")
     private WorkSkill workSkill;
 
+    @Column(name = "skill_importance", nullable = false, columnDefinition = "double precision default 0.0")
+    private double skillImportance; // New field: importance of the skill, between 0 and 1
+
     public ExpertOpinionEntity() {
     }
 
@@ -54,5 +57,13 @@ public class ExpertOpinionEntity {
 
     public void setWorkSkill(WorkSkill workSkill) {
         this.workSkill = workSkill;
+    }
+
+    public double getSkillImportance() {
+        return skillImportance;
+    }
+
+    public void setSkillImportance(double skillImportance) {
+        this.skillImportance = skillImportance;
     }
 }
