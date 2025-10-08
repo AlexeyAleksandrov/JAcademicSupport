@@ -7,6 +7,9 @@ import io.github.alexeyaleksandrov.jacademicsupport.repositories.RpdRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Optional;
+
 @Service
 @AllArgsConstructor
 public class RpdService {
@@ -24,5 +27,17 @@ public class RpdService {
         );
         rpd = rpdRepository.saveAndFlush(rpd);
         return rpd;
+    }
+
+    public List<Rpd> findAll() {
+        return rpdRepository.findAll();
+    }
+
+    public Optional<Rpd> findById(Long id) {
+        return rpdRepository.findById(id);
+    }
+
+    public boolean existsById(Long id) {
+        return rpdRepository.existsById(id);
     }
 }
