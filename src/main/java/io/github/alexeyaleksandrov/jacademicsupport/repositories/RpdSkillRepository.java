@@ -4,6 +4,8 @@ import io.github.alexeyaleksandrov.jacademicsupport.models.Rpd;
 import io.github.alexeyaleksandrov.jacademicsupport.models.RpdSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -37,4 +39,12 @@ public interface RpdSkillRepository extends JpaRepository<RpdSkill, Long> {
     // Найти навыки для РПД с временем в диапазоне
     List<RpdSkill> findByRpdAndTimeBetween(Rpd rpd, Integer minTime, Integer maxTime);
     List<RpdSkill> findByRpdIdAndTimeBetween(Long rpdId, Integer minTime, Integer maxTime);
+    
+    // Получить общее количество часов для конкретного WorkSkill
+    @Query("SELECT COALESCE(SUM(rs.time), 0) FROM RpdSkill rs WHERE rs.workSkill.id = :workSkillId")
+    Long getTotalTimeByWorkSkillId(@Param("workSkillId") Long workSkillId);
+    
+    // Получить общее количество часов для всех RpdSkill
+    @Query("SELECT COALESCE(SUM(rs.time), 0) FROM RpdSkill rs")
+    Long getTotalTime();
 }
