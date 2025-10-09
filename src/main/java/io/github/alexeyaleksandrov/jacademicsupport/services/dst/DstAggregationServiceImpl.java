@@ -26,6 +26,7 @@ public class DstAggregationServiceImpl implements DstAggregationService {
     @Override
     public DstAggregationResponseDto calculateDstAggregation(Long workSkillId) {
         // Проверяем существование WorkSkill
+        System.out.println("Проверяем существование WorkSkill");
         Optional<WorkSkill> workSkillOpt = workSkillRepository.findById(workSkillId);
         if (workSkillOpt.isEmpty()) {
             throw new IllegalArgumentException("WorkSkill с ID " + workSkillId + " не найден");
@@ -34,15 +35,19 @@ public class DstAggregationServiceImpl implements DstAggregationService {
         WorkSkill workSkill = workSkillOpt.get();
         
         // 1. Расчет покрытия в РПД (процент часов данного навыка от общего количества часов)
+        System.out.println("1. Расчет покрытия в РПД (процент часов данного навыка от общего количества часов)");
         double rpdCoveragePercentage = calculateRpdCoveragePercentage(workSkillId);
         
         // 2. Получение востребованности на рынке
+        System.out.println("2. Получение востребованности на рынке");
         double marketDemand = workSkill.getRoundedMarketDemand();
         
         // 3. Расчет процента экспертов, которые выразили мнение по данному навыку
+        System.out.println("3. Расчет процента экспертов, которые выразили мнение по данному навыку");
         double expertOpinionPercentage = calculateExpertOpinionPercentage(workSkillId);
         
         // 4. Расчет процента источников прогнозов, которые рекомендуют данный навык
+        System.out.println("4. Расчет процента источников прогнозов, которые рекомендуют данный навык");
         double foresightPercentage = calculateForesightPercentage(workSkillId);
         
         return new DstAggregationResponseDto(
