@@ -18,7 +18,7 @@ public class CorsConfig {
         config.addAllowedOrigin("http://localhost:3000");
 
         // Также можно разрешить все origins (НЕ рекомендуется для production)
-        // config.addAllowedOrigin("*");
+         config.addAllowedOrigin("*");
 
         // Разрешенные методы
         config.addAllowedMethod("GET");
