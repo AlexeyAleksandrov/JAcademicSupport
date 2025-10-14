@@ -68,11 +68,17 @@ public class SkillsGroupRestController {
         return ResponseEntity.noContent().build();
     }
 
-//    @PostMapping("/match")
-//    public ResponseEntity<List<WorkSkill>> matchSkillsToGroups() {
-//        List<WorkSkill> skills = workSkillsService.matchWorkSkillsToSkillsGroups();
-//        return ResponseEntity.ok(skills);
-//    }
+    @PostMapping("/match-to-work-skills")
+    public ResponseEntity<List<WorkSkill>> matchSkillsToGroups() {
+        List<WorkSkill> skills = workSkillsService.matchWorkSkillsToSkillsGroups();
+        return ResponseEntity.ok(skills);
+    }
+
+    @PutMapping("/update-market-demand")
+    public ResponseEntity<List<SkillsGroup>> updateSkillsGroupsMarketDemand() {
+        List<SkillsGroup> updatedGroups = skillsGroupsService.updateSkillsGroupsMarketDemand();
+        return ResponseEntity.ok(updatedGroups);
+    }
 
 //    @PutMapping("/work-skills/{workSkillId}/skills-group/{skillsGroupId}")
 //    public ResponseEntity<WorkSkill> updateSkillsGroupForWorkSkill(@PathVariable Long workSkillId,
@@ -87,10 +93,5 @@ public class SkillsGroupRestController {
 //    @GetMapping("/work-skills")
 //    public ResponseEntity<List<WorkSkill>> getAllWorkSkills() {
 //        return ResponseEntity.ok(workSkillRepository.findAll());
-//    }
-
-//    @PutMapping("/market-demand")
-//    public ResponseEntity<List<SkillsGroup>> updateSkillsGroupsMarketDemand() {
-//        return ResponseEntity.ok(skillsGroupsService.updateSkillsGroupsMarketDemand());
 //    }
 }
