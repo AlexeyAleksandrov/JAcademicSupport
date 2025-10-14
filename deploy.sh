@@ -8,8 +8,6 @@ echo "1. Stopping existing containers..."
 docker compose down
 
 echo "2. Pulling latest code from GitHub..."
-git fetch origin
-git reset --hard origin/master
 git pull origin master
 
 echo "3. Building and starting new containers..."
