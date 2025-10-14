@@ -66,6 +66,16 @@ public class CompetencyRestController {
                 .map(competency -> {
                     competency.setNumber(request.getNumber());
                     competency.setDescription(request.getDescription());
+                    
+                    // Update keywords if provided
+                    if (request.getKeywordIds() != null) {
+                        List<Keyword> keywords = request.getKeywordIds().stream()
+                                .map(keywordId -> keywordRepository.findById(keywordId)
+                                        .orElseThrow(() -> new RuntimeException("Keyword not found with id: " + keywordId)))
+                                .collect(Collectors.toList());
+                        competency.setKeywords(keywords);
+                    }
+                    
                     Competency updatedCompetency = competencyRepository.save(competency);
                     return ResponseEntity.ok(CompetencyDto.fromEntity(updatedCompetency));
                 })

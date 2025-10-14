@@ -3,6 +3,8 @@ package io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.competency;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class UpdateCompetencyRequest {
     @NotBlank(message = "Number is required")
@@ -10,4 +12,6 @@ public class UpdateCompetencyRequest {
     
     @NotBlank(message = "Description is required")
     private String description;
+    
+    private List<Long> keywordIds;
 }
