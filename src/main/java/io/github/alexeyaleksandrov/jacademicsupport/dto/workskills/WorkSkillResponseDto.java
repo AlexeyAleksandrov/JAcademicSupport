@@ -10,5 +10,6 @@ import lombok.NoArgsConstructor;
 public class WorkSkillResponseDto {
     private Long id;
     private String description;
+    private Double marketDemand;
     private Long skillsGroupId; // ID of the associated skills group
 }

@@ -33,6 +33,7 @@ public class WorkSkillsService {
         return new WorkSkillResponseDto(
                 workSkill.getId(),
                 workSkill.getDescription(),
+                workSkill.getMarketDemand(),
                 workSkill.getSkillsGroupBySkillsGroupId() != null ? workSkill.getSkillsGroupBySkillsGroupId().getId() : null
         );
     }
