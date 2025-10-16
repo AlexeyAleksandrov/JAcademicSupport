@@ -2,9 +2,9 @@ package io.github.alexeyaleksandrov.jacademicsupport.services.vacancies;
 
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
+import io.github.alexeyaleksandrov.jacademicsupport.utils.OffsetBasedPageRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -42,7 +42,7 @@ public class VacancyService {
     }
 
     public Page<VacancyEntity> findAllPaginated(int offset, int limit) {
-        Pageable pageable = PageRequest.of(offset, limit);
+        Pageable pageable = new OffsetBasedPageRequest(offset, limit);
         return vacancyRepository.findAll(pageable);
     }
 
