@@ -169,4 +169,16 @@ public class CompetencyAchievementIndicatorService {
         }
         return dto;
     }
+    
+    public boolean competencyExists(String competencyNumber) {
+        return competencyRepository.findByNumber(competencyNumber) != null;
+    }
+    
+    public boolean indicatorExists(String number) {
+        return repository.existsByNumber(number);
+    }
+    
+    public boolean indicatorExistsById(Long id) {
+        return repository.existsById(id);
+    }
 }
