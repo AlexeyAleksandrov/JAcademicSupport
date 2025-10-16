@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -49,11 +50,12 @@ public class RpdRestController {
                     CompetencyAchievementIndicator::getCompetencyByCompetencyId
                 ));
         
-        // Convert to DTO structure
+        // Convert to DTO structure with sorting
         List<CompetencyWithIndicatorsDto> competencies = indicatorsByCompetency.entrySet().stream()
             .map(entry -> {
                 Competency competency = entry.getKey();
                 List<IndicatorDto> indicators = entry.getValue().stream()
+                    .sorted(Comparator.comparing(CompetencyAchievementIndicator::getNumber))
                     .map(indicator -> new IndicatorDto(
                         indicator.getId(),
                         indicator.getNumber(),
@@ -71,6 +73,7 @@ public class RpdRestController {
                     indicators
                 );
             })
+            .sorted(Comparator.comparing(CompetencyWithIndicatorsDto::getNumber))
             .toList();
         
         RpdDetailResponseDto response = new RpdDetailResponseDto(
