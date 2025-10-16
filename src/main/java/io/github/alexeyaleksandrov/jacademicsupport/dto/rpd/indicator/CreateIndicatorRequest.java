@@ -20,6 +20,5 @@ public class CreateIndicatorRequest {
     @NotBlank(message = "Indicator possess is required")
     private String indicatorPossess;
     
-    @NotBlank(message = "Competency number is required")
     private String competencyNumber;
 }

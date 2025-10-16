@@ -1,59 +1,42 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.rpd;
 
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.indicator.CreateIndicatorRequest;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.indicator.IndicatorDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.indicator.UpdateIndicatorRequest;
 import io.github.alexeyaleksandrov.jacademicsupport.services.competency.CompetencyAchievementIndicatorService;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
-import jakarta.validation.Valid;
 
 import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.Optional;
-
-import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.indicator.CreateIndicatorRequest;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("api/competencies/{competencyNumber}/indicators")
-public class IndicatorRestController {
+@RequestMapping("api/indicators")
+public class IndicatorController {
     private final CompetencyAchievementIndicatorService service;
 
     @PostMapping
-    public ResponseEntity<IndicatorDto> createCompetencyAchievementIndicator(
-            @PathVariable("competencyNumber") String competencyNumber,
-            @Valid @RequestBody CreateIndicatorRequest createRequest) {
-        
-        // Check if competency exists
-        if (!service.competencyExists(competencyNumber)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Competency not found");
-        }
-                
-        // Check if indicator with this number already exists
-        if (service.indicatorExists(createRequest.getNumber())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Indicator with this number already exists");
-        }
-        
-        var savedIndicator = service.createIndicator(competencyNumber, createRequest);
+    public ResponseEntity<IndicatorDto> createIndicator(@Valid @RequestBody CreateIndicatorRequest createRequest) {
+        var savedIndicator = service.createIndicatorWithoutCompetency(createRequest);
         
         return ResponseEntity
-                .created(URI.create("/api/competencies/" + competencyNumber + "/indicators/" + savedIndicator.getId()))
+                .created(URI.create("/api/indicators/" + savedIndicator.getId()))
                 .body(service.convertToDto(savedIndicator));
     }
 
     @PostMapping("/{number}/keywords")
-    public ResponseEntity<IndicatorDto> createKeywordsForCompetencyAchievementIndicator(@PathVariable("number") String number) {
+    public ResponseEntity<IndicatorDto> createKeywordsForIndicator(@PathVariable("number") String number) {
         var indicator = service.createKeywordsForIndicator(number);
         return ResponseEntity.ok(service.convertToDto(indicator));
     }
 
     @GetMapping
-    public ResponseEntity<List<IndicatorDto>> getAllIndicators(@PathVariable("competencyNumber") String competencyNumber) {
-        List<IndicatorDto> indicatorDtos = service.findAllByCompetencyNumber(competencyNumber).stream()
+    public ResponseEntity<List<IndicatorDto>> getAllIndicators() {
+        List<IndicatorDto> indicatorDtos = service.findAll().stream()
                 .map(service::convertToDto)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(indicatorDtos);
@@ -89,18 +72,12 @@ public class IndicatorRestController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteIndicatorById(@PathVariable Long id) {
-        if (!service.indicatorExistsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Indicator not found");
-        }
         service.deleteIndicatorById(id);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/number/{number}")
     public ResponseEntity<Void> deleteIndicatorByNumber(@PathVariable("number") String number) {
-        if (!service.indicatorExists(number)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Indicator not found");
-        }
         service.deleteIndicatorByNumber(number);
         return ResponseEntity.noContent().build();
     }
