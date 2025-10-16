@@ -42,8 +42,7 @@ public class VacancyService {
     }
 
     public Page<VacancyEntity> findAllPaginated(int offset, int limit) {
-        int page = offset / limit;
-        Pageable pageable = PageRequest.of(page, limit);
+        Pageable pageable = PageRequest.of(offset, limit);
         return vacancyRepository.findAll(pageable);
     }
 
