@@ -1,20 +1,28 @@
 #!/bin/bash
-set -e  # Остановить выполнение при любой ошибке
+set -e  # Останавливать при любой ошибке
 
 echo "=== Starting deployment ==="
 date
 
-echo "1. Stopping existing containers..."
+# Добавляем проверки
+echo "1. Checking Docker access..."
+docker ps > /dev/null
+
+echo "2. Stopping existing containers..."
 docker compose down
 
-echo "2. Pulling latest code from GitHub..."
-git pull origin master
+echo "3. Pulling latest code from GitHub..."
+git fetch origin
+git reset --hard origin/master
 
-echo "3. Building and starting new containers..."
+echo "4. Building and starting new containers..."
 docker compose up -d --build
 
-echo "4. Checking container status..."
-docker compose ps
+echo "5. Checking container status..."
+if ! docker compose ps | grep -q "Up"; then
+    echo "❌ ERROR: No containers are running!"
+    exit 1
+fi
 
 echo "=== Deployment completed successfully! ==="
 date

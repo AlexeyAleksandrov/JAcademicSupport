@@ -7,21 +7,41 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Deploy to VPS
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.VPS_HOST }}
-        username: ${{ secrets.VPS_USER }}
-        key: ${{ secrets.VPS_SSH_KEY }}
-        script: |
-          echo "=== Connecting to VPS ==="
-          cd /home/JAcademicSupport/
-          ls -la
-          echo "=== Running deploy script ==="
-          ./deploy.sh
-          echo "=== Deployment finished ==="
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "=== Connecting to VPS ==="
+            cd /home/JAcademicSupport/
+            
+            echo "=== Setting execute permissions ==="
+            chmod +x deploy.sh
+            echo "Permissions after chmod:"
+            ls -la deploy.sh | cut -d ' ' -f 1
+            
+            echo "=== Checking if deploy.sh is executable ==="
+            if [ ! -x deploy.sh ]; then
+              echo "❌ ERROR: deploy.sh is not executable after chmod!"
+              exit 1
+            fi
+            
+            echo "✅ deploy.sh is executable, proceeding..."
+            
+            echo "=== Running deploy script ==="
+            # Запускаем скрипт и явно проверяем код возврата
+            if ./deploy.sh; then
+              echo "✅ deploy.sh completed successfully"
+            else
+              echo "❌ deploy.sh failed with exit code $?"
+              exit 1
+            fi
+            
+            echo "=== Deployment completed successfully ==="
