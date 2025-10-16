@@ -2,6 +2,7 @@ package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.rpd;
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.forms.rpd.EditRpdFormDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.crud.CreateRpdDTO;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.detail.*;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.rpd.recommendation.*;
 import io.github.alexeyaleksandrov.jacademicsupport.models.*;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyAchievementIndicatorRepository;
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @AllArgsConstructor
@@ -36,9 +39,48 @@ public class RpdRestController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Rpd> getRpdById(@PathVariable Long id) {
+    public ResponseEntity<RpdDetailResponseDto> getRpdById(@PathVariable Long id) {
         Rpd rpd = rpdRepository.findById(id).orElseThrow();
-        return ResponseEntity.ok(rpd);
+        
+        // Group indicators by their competency
+        Map<Competency, List<CompetencyAchievementIndicator>> indicatorsByCompetency = 
+            rpd.getCompetencyAchievementIndicators().stream()
+                .collect(Collectors.groupingBy(
+                    CompetencyAchievementIndicator::getCompetencyByCompetencyId
+                ));
+        
+        // Convert to DTO structure
+        List<CompetencyWithIndicatorsDto> competencies = indicatorsByCompetency.entrySet().stream()
+            .map(entry -> {
+                Competency competency = entry.getKey();
+                List<IndicatorDto> indicators = entry.getValue().stream()
+                    .map(indicator -> new IndicatorDto(
+                        indicator.getId(),
+                        indicator.getNumber(),
+                        indicator.getDescription(),
+                        indicator.getIndicatorKnow(),
+                        indicator.getIndicatorAble(),
+                        indicator.getIndicatorPossess()
+                    ))
+                    .toList();
+                
+                return new CompetencyWithIndicatorsDto(
+                    competency.getId(),
+                    competency.getNumber(),
+                    competency.getDescription(),
+                    indicators
+                );
+            })
+            .toList();
+        
+        RpdDetailResponseDto response = new RpdDetailResponseDto(
+            rpd.getId(),
+            rpd.getDisciplineName(),
+            rpd.getYear(),
+            competencies
+        );
+        
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
