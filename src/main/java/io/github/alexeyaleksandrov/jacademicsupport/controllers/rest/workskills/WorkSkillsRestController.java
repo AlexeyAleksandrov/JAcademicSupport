@@ -21,9 +21,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/work-skills")
 @AllArgsConstructor
 public class WorkSkillsRestController {
-    private final WorkSkillRepository workSkillRepository;
     private final WorkSkillsService workSkillsService;
-    final SkillsGroupRepository skillsGroupRepository;
 
     @GetMapping
     public ResponseEntity<List<WorkSkillResponseDto>> getAllWorkSkills() {

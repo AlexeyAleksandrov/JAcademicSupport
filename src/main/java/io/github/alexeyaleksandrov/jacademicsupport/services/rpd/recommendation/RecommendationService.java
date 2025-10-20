@@ -12,14 +12,29 @@ import java.util.*;
 @AllArgsConstructor
 public class RecommendationService {
     private RpdRepository rpdRepository;
-    private CompetencyRepository competencyRepository;
-    private CompetencyAchievementIndicatorRepository competencyAchievementIndicatorRepository;
-    private KeywordRepository keywordRepository;
-    private VacancyEntityRepository vacancyEntityRepository;
-    private WorkSkillRepository workSkillRepository;
-    private SkillsGroupRepository skillsGroupRepository;
     private final RecommendedSkillRepository recommendedSkillRepository;
 
+    /**
+     * Формирует рекомендации по технологиям (навыкам) для рабочей программы дисциплины (РПД).
+     * 
+     * Метод анализирует индикаторы достижения компетенций РПД и на их основе рассчитывает коэффициенты
+     * соответствия различных технологий данной дисциплине. Алгоритм работы:
+     * 
+     * 1. Извлекает компетенции и их индикаторы из РПД
+     * 2. Собирает все ключевые слова, связанные с компетенциями и индикаторами
+     * 3. Получает навыки (WorkSkill) и группы навыков (SkillsGroup), связанные с ключевыми словами
+     * 4. Сопоставляет индикаторы достижения компетенций с группами навыков
+     * 5. Рассчитывает количество индикаторов, покрываемых каждой группой навыков
+     * 6. Вычисляет весовой коэффициент покрытия компетенций для каждой группы навыков
+     * 7. Рассчитывает коэффициент соответствия группы навыков дисциплине на основе покрытия компетенций и рыночного спроса
+     * 8. Вычисляет коэффициент соответствия каждой технологии дисциплине с учетом коэффициента её группы и рыночного спроса
+     * 9. Сохраняет рекомендованные навыки в РПД, отсортированные по убыванию коэффициента соответствия
+     * 
+     * Перед сохранением новых рекомендаций метод удаляет все существующие рекомендации для данной РПД.
+     * 
+     * @param rpd Рабочая программа дисциплины, для которой необходимо сформировать рекомендации
+     * @return Обновленная РПД с сохраненными рекомендованными навыками
+     */
     public Rpd getRecomendationsForRpd(Rpd rpd) {
 //        List<WorkSkill> recommendedSkills = new ArrayList<>();  // навыки, которые будут рекомендованы
         List<CompetencyAchievementIndicator> competencyAchievementIndicators = rpd.getCompetencyAchievementIndicators();    // индикаторы в РПД
