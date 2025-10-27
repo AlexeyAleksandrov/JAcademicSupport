@@ -20,6 +20,19 @@ Add the following secrets:
 - **Value:** Your Base64-encoded GigaChat authorization token
 - **Description:** Authorization token for GigaChat API OAuth authentication
 
+#### 3. JWT Authentication Secrets (Required for User Auth)
+- **Name:** `JWT_SECRET`
+- **Value:** Strong random secret key (minimum 256 bits / 32 characters)
+- **Description:** Secret key for JWT token signing and validation
+- **Example:** `MySecretKeyForJWTTokenGenerationThatIsAtLeast256BitsLongForHS256Algorithm`
+- **⚠️ IMPORTANT:** Generate a strong random key for production!
+
+- **Name:** `JWT_EXPIRATION`
+- **Value:** Token expiration time in milliseconds
+- **Description:** How long JWT tokens remain valid
+- **Default:** `86400000` (24 hours)
+- **Optional:** Can be omitted to use default value
+
 ### How to Get GigaChat Token
 
 1. Go to [Sber AI Studio](https://developers.sber.ru/studio/workspaces)
@@ -35,26 +48,29 @@ When you push to the `master` branch:
 
 1. **GitHub Actions** triggers the deployment workflow
 2. **Secrets are passed** from GitHub to the VPS via SSH
+   - `GIGACHAT_API_TOKEN` → GigaChat authentication
+   - `JWT_SECRET` → JWT token signing
+   - `JWT_EXPIRATION` → JWT token lifetime
 3. **Environment variables** are exported in the deployment script
 4. **Docker Compose** receives the environment variables
-5. **Spring Boot** application reads them via `${GIGACHAT_API_TOKEN}`
+5. **Spring Boot** application reads them via `${GIGACHAT_API_TOKEN}`, `${JWT_SECRET}`, `${JWT_EXPIRATION}`
 
 ### Architecture
 
 ```
-GitHub Secrets (GIGACHAT_API_TOKEN)
+GitHub Secrets (GIGACHAT_API_TOKEN, JWT_SECRET, JWT_EXPIRATION)
     ↓
 GitHub Actions Workflow (.github/workflows/deploy.yml)
     ↓
 SSH to VPS with environment variables
     ↓
-deploy.sh script (exports GIGACHAT_API_TOKEN)
+deploy.sh script (exports all environment variables)
     ↓
 docker-compose.yml (passes to container)
     ↓
-Spring Boot application.properties (${GIGACHAT_API_TOKEN})
+Spring Boot application.properties (${GIGACHAT_API_TOKEN}, ${JWT_SECRET}, ${JWT_EXPIRATION})
     ↓
-GigaChatService (uses for OAuth authentication)
+Services (GigaChatService for LLM, JwtTokenProvider for authentication)
 ```
 
 ## Local Development

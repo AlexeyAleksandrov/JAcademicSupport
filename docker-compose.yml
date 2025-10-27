@@ -1,7 +1,7 @@
 services:
   # Сервис базы данных PostgreSQL
   postgres:
-    image: postgres:17  # ✅ Используем конкретную мажорную версию 17
+    image: postgres:17  # Используем конкретную мажорную версию 17
     container_name: myapp-postgres
     environment:
       - POSTGRES_DB=AcademicSupport # Имя базы данных, которое будет создано при первом запуске
@@ -27,6 +27,8 @@ services:
       - GIGACHAT_API_TOKEN=${GIGACHAT_API_TOKEN}
       - GIGACHAT_MODEL=${GIGACHAT_MODEL:-GigaChat}
       - GIGACHAT_SCOPE=${GIGACHAT_SCOPE:-GIGACHAT_API_PERS}
+      - JWT_SECRET=${JWT_SECRET:-MySecretKeyForJWTTokenGenerationThatIsAtLeast256BitsLongForHS256Algorithm}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
     ports:
       - "8080:8080" # Пробрасываем порт приложения на хост
     depends_on:

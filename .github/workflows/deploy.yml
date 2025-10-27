@@ -16,17 +16,21 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           GIGACHAT_TOKEN: ${{ secrets.GIGACHAT_API_TOKEN }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRATION_TIME: ${{ secrets.JWT_EXPIRATION }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GIGACHAT_TOKEN
+          envs: GIGACHAT_TOKEN,JWT_SECRET_KEY,JWT_EXPIRATION_TIME
           script: |
             echo "=== Connecting to VPS ==="
             cd /home/JAcademicSupport/
             
             echo "=== Setting up environment variables ==="
             export GIGACHAT_API_TOKEN="$GIGACHAT_TOKEN"
+            export JWT_SECRET="$JWT_SECRET_KEY"
+            export JWT_EXPIRATION="$JWT_EXPIRATION_TIME"
             
             echo "=== Setting execute permissions ==="
             chmod +x deploy.sh
@@ -35,18 +39,18 @@ jobs:
             
             echo "=== Checking if deploy.sh is executable ==="
             if [ ! -x deploy.sh ]; then
-              echo "❌ ERROR: deploy.sh is not executable after chmod!"
+              echo " ERROR: deploy.sh is not executable after chmod!"
               exit 1
             fi
             
-            echo "✅ deploy.sh is executable, proceeding..."
+            echo " deploy.sh is executable, proceeding..."
             
             echo "=== Running deploy script ==="
-            # Запускаем скрипт и явно проверяем код возврата
+            # 
             if ./deploy.sh; then
-              echo "✅ deploy.sh completed successfully"
+              echo " deploy.sh completed successfully"
             else
-              echo "❌ deploy.sh failed with exit code $?"
+              echo " deploy.sh failed with exit code $?"
               exit 1
             fi
             

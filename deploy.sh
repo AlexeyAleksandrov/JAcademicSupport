@@ -18,6 +18,8 @@ git reset --hard origin/master
 echo "4. Building and starting new containers..."
 # Pass environment variables to docker-compose
 export GIGACHAT_API_TOKEN="${GIGACHAT_API_TOKEN}"
+export JWT_SECRET="${JWT_SECRET}"
+export JWT_EXPIRATION="${JWT_EXPIRATION}"
 docker compose up -d --build
 
 echo "5. Checking container status..."
