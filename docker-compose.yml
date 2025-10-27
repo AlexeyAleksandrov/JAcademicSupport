@@ -18,7 +18,7 @@ services:
   # Сервис вашего Spring Boot приложения
   app:
     build: . # Собираем образ из Dockerfile в текущей директории
-    container_name: myapp-backend
+    container_name: backend
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/AcademicSupport
       - SPRING_DATASOURCE_USERNAME=postgres
@@ -35,6 +35,7 @@ services:
       - postgres # Приложение запустится только после успешного старта БД
     networks:
       - myapp-network
+      - app-network
     restart: unless-stopped
 
   # Новая служба - планировщик
@@ -65,3 +66,5 @@ volumes:
 networks:
   myapp-network:
     driver: bridge
+  app-network:
+    external: true
