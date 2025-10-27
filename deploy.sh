@@ -9,7 +9,13 @@ echo "1. Checking Docker access..."
 docker ps > /dev/null
 
 echo "2. Creating external network if not exists..."
-docker network create app-network 2>/dev/null || echo "Network app-network already exists"
+# Проверяем, существует ли сеть
+if ! docker network ls | grep -q app-network; then
+    echo "Creating app-network..."
+    docker network create app-network
+else
+    echo "Network app-network already exists"
+fi
 
 echo "3. Stopping existing containers..."
 docker compose down
