@@ -1,5 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.services.ollama;
 
+import io.github.alexeyaleksandrov.jacademicsupport.services.llm.LlmService;
 import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.ai.ollama.api.OllamaOptions;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,7 +11,7 @@ import java.util.List;
 
 @Service
 @Profile("local")
-public class OllamaService
+public class OllamaService implements LlmService
 {
     @Value("${spring.ai.ollama.chat.options.model}")
     private String model;
@@ -21,6 +22,7 @@ public class OllamaService
         this.ollamaApi = ollamaApi;
     }
 
+    @Override
     public String chat(String content) {
         // Sync request
         var request = OllamaApi.ChatRequest.builder(model)
@@ -39,5 +41,10 @@ public class OllamaService
         OllamaApi.ChatResponse response = ollamaApi.chat(request);
 
         return response.message().content();
+    }
+
+    @Override
+    public String getProviderName() {
+        return "ollama";
     }
 }

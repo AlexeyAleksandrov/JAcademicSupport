@@ -7,7 +7,9 @@ import io.github.alexeyaleksandrov.jacademicsupport.models.Competency;
 import io.github.alexeyaleksandrov.jacademicsupport.models.Keyword;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CompetencyRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.KeywordRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.llm.LlmService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.llm.LlmServiceFactory;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.ErrorResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -25,7 +28,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class CompetencyRestController {
     private final CompetencyRepository competencyRepository;
-    private final OllamaService ollamaService;
+    private final LlmServiceFactory llmServiceFactory;
     private final KeywordRepository keywordRepository;
 
     @GetMapping
@@ -93,44 +96,92 @@ public class CompetencyRestController {
     }
 
     @PostMapping("/{id}/keywords/generate")
-    public ResponseEntity<CompetencyDto> generateKeywordsForCompetency(@PathVariable Long id) {
-        return competencyRepository.findById(id)
+    public ResponseEntity<?> generateKeywordsForCompetency(
+            @PathVariable Long id,
+            @RequestParam(name = "model", defaultValue = "ollama") String modelProvider) {
+
+        Optional<ResponseEntity<?>> result = competencyRepository.findById(id)
                 .map(competency -> {
-                    String content = "Выдели основные ключевые слова из описания профессиональной компетенции: " + 
-                            competency.getDescription() + 
-                            " Исключи из ответа размытые и обобщённые словосочетания. Ответ должен быть только на русском языке. " +
-                            "Все слова в ответе должны находиться в нормальной форме без склонений и спряжений. " +
-                            "В ответе не пиши словоочетание \"ключевые слова\", напиши только сами слова через запятую.";
-                    
-                    String answer = ollamaService.chat(content);
-                    List<Keyword> keywordList = Arrays.stream(answer.split(","))
-                            .map(String::trim)
-                            .filter(k -> !k.isEmpty())
-                            .map(k -> {
-                                Keyword keyword = new Keyword();
-                                keyword.setKeyword(k);
-                                return keyword;
-                            })
-                            .collect(Collectors.toList());  // выделяем ключевые слова
+                    try {
+                        // Get the appropriate LLM service based on the model parameter
+                        LlmService llmService = llmServiceFactory.getService(modelProvider);
+                        
+                        String content = "Выдели основные ключевые слова из описания профессиональной компетенции: " + 
+                                competency.getDescription() + 
+                                " Исключи из ответа размытые и обобщённые словосочетания. Ответ должен быть только на русском языке. " +
+                                "Все слова в ответе должны находиться в нормальной форме без склонений и спряжений. " +
+                                "В ответе не пиши словосочетание \"ключевые слова\", напиши только сами слова через запятую.";
+                        
+                        String answer = llmService.chat(content);
+                        List<Keyword> keywordList = Arrays.stream(answer.split(","))
+                                .map(String::trim)
+                                .filter(k -> !k.isEmpty())
+                                .map(k -> {
+                                    Keyword keyword = new Keyword();
+                                    keyword.setKeyword(k);
+                                    return keyword;
+                                })
+                                .toList();  // выделяем ключевые слова
 
-                    List<Keyword> existingKeywords = keywordList.stream()
-                            .filter(k -> keywordRepository.existsByKeyword(k.getKeyword()))
-                            .map(k -> keywordRepository.findByKeyword(k.getKeyword()))
-                            .collect(Collectors.toList());  // если ключевые слова уже есть в БД, добавляем их из БД
+                        List<Keyword> existingKeywords = keywordList.stream()
+                                .filter(k -> keywordRepository.existsByKeyword(k.getKeyword()))
+                                .map(k -> keywordRepository.findByKeyword(k.getKeyword()))
+                                .toList();  // если ключевые слова уже есть в БД, добавляем их из БД
 
-                    // ключевые слова, которые войдут для данной компетенции
-                    List<Keyword> newKeywords = keywordList.stream()
-                            .filter(k -> !keywordRepository.existsByKeyword(k.getKeyword()))
-                            .map(keywordRepository::save)
-                            .collect(Collectors.toList());
+                        // ключевые слова, которые войдут для данной компетенции
+                        List<Keyword> newKeywords = keywordList.stream()
+                                .filter(k -> !keywordRepository.existsByKeyword(k.getKeyword()))
+                                .map(keywordRepository::save)
+                                .toList();
 
-                    List<Keyword> allKeywords = new java.util.ArrayList<>(existingKeywords);
-                    allKeywords.addAll(newKeywords);
-                    competency.setKeywords(allKeywords);    // если ключевые слова уже есть в БД, добавляем их из БД
-                    
-                    Competency updated = competencyRepository.save(competency);
-                    return ResponseEntity.ok(CompetencyDto.fromEntity(updated));
-                })
-                .orElse(ResponseEntity.notFound().build()); // добавляем и сохраняем новые ключевые слова
+                        List<Keyword> allKeywords = new java.util.ArrayList<>(existingKeywords);
+                        allKeywords.addAll(newKeywords);
+                        competency.setKeywords(allKeywords);    // если ключевые слова уже есть в БД, добавляем их из БД
+                        
+                        Competency updated = competencyRepository.save(competency);
+                        return ResponseEntity.ok((Object) CompetencyDto.fromEntity(updated));
+                        
+                    } catch (IllegalArgumentException e) {
+                        // Unsupported LLM provider
+                        ErrorResponse error = new ErrorResponse(
+                            HttpStatus.BAD_REQUEST.value(),
+                            "Неподдерживаемый LLM провайдер",
+                            "Провайдер '" + modelProvider + "' не поддерживается. Доступные: ollama, gigachat"
+                        );
+                        return ResponseEntity
+                                .status(HttpStatus.BAD_REQUEST)
+                                .body(error);
+                                
+                    } catch (RuntimeException e) {
+                        // Check if it's an authentication error
+                        String errorMessage = e.getMessage();
+                        if (errorMessage != null && (
+                                errorMessage.contains("401") || 
+                                errorMessage.contains("Unauthorized") ||
+                                errorMessage.contains("authentication") ||
+                                errorMessage.contains("Authorization error"))) {
+                            
+                            ErrorResponse error = new ErrorResponse(
+                                HttpStatus.UNAUTHORIZED.value(),
+                                "Ошибка авторизации LLM сервиса",
+                                "Не удалось авторизоваться в " + modelProvider + ". Проверьте токен доступа: " + errorMessage
+                            );
+                            return ResponseEntity
+                                    .status(HttpStatus.UNAUTHORIZED)
+                                    .body(error);
+                        }
+                        
+                        // Other runtime errors
+                        ErrorResponse error = new ErrorResponse(
+                            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                            "Ошибка при обращении к LLM сервису",
+                            "Провайдер: " + modelProvider + ". Детали: " + errorMessage
+                        );
+                        return ResponseEntity
+                                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body(error);
+                    }
+                });
+        return result.orElse(ResponseEntity.notFound().build());
     }
 }

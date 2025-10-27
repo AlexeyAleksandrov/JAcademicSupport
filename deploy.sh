@@ -16,6 +16,8 @@ git fetch origin
 git reset --hard origin/master
 
 echo "4. Building and starting new containers..."
+# Pass environment variables to docker-compose
+export GIGACHAT_API_TOKEN="${GIGACHAT_API_TOKEN}"
 docker compose up -d --build
 
 echo "5. Checking container status..."

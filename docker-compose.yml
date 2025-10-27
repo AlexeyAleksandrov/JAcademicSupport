@@ -24,6 +24,9 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=1111
       - SPRING_JPA_HIBERNATE_DDL-AUTO=update # Или 'validate' для продакшена
+      - GIGACHAT_API_TOKEN=${GIGACHAT_API_TOKEN}
+      - GIGACHAT_MODEL=${GIGACHAT_MODEL:-GigaChat}
+      - GIGACHAT_SCOPE=${GIGACHAT_SCOPE:-GIGACHAT_API_PERS}
     ports:
       - "8080:8080" # Пробрасываем порт приложения на хост
     depends_on:
