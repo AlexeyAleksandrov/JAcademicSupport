@@ -177,8 +177,10 @@ public class GigaChatService implements LlmService {
                         "content", content
                     )
                 ),
-                "temperature", 0.9,
-                "max_tokens", 2048
+                "temperature", 0.01,
+                "top_p", 0.01,
+                "max_tokens", 2048,
+                "profanity_check", true
             );
             
             String requestBodyJson = objectMapper.writeValueAsString(requestBody);
