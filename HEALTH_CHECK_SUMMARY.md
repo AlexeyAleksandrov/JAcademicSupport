@@ -212,3 +212,111 @@ docker compose up -d
 **Готово к использованию!** 🚀
 
 Следующий коммит автоматически получит все эти улучшения.
+
+## 🔧 Последние исправления (31.10.2025)
+
+### Проблема: Дублирование сообщений прогресса
+
+**Симптом:**
+```
+📋 Starting application...
+📋 Starting application...
+Initializing JPA repositories...
+📋 Starting application...
+Initializing JPA repositories...
+Connecting to database...
+```
+
+**Причина:** Функция `get_startup_progress()` выводила ВСЕ найденные сообщения вместо одного актуального.
+
+**Исправление:**
+```bash
+# Теперь возвращает ТОЛЬКО последнее достигнутое состояние
+get_startup_progress() {
+    # Проверяем в обратном порядке - от последних шагов к первым
+    if echo "$logs" | grep -q "Tomcat started on port"; then
+        echo "Tomcat started, finalizing..."
+        return  # Возврат сразу после первого найденного
+    fi
+    # ... остальные проверки
+}
+```
+
+### Проблема: Health endpoint не отвечает при первом деплое
+
+**Причина:** SecurityConfig изменения еще не задеплоены на VPS, `/actuator/health/**` блокируется Spring Security.
+
+**Исправление:** Улучшена fallback логика:
+1. Пробуем `/actuator/health/readiness`
+2. Пробуем `/actuator/health`
+3. Если 401/403 → проверяем порт 8080 с netcat
+4. Если netcat недоступен → проверяем root endpoint `/` с wget
+5. Любой HTTP ответ (200/401/403) = приложение работает
+
+### Ожидаемый вывод после исправлений:
+
+```bash
+⏳ Waiting for application to start... (30s elapsed)
+📋 Initializing JPA repositories...
+⏳ Waiting for application to start... (60s elapsed)
+📋 JPA initialization complete...
+⏳ Waiting for application to start... (90s elapsed)
+📋 Starting Tomcat server...
+✓ Spring Boot application started (112s elapsed)
+
+Verifying health endpoint...
+⏳ Waiting for health endpoint to become available... (attempt 1/10)
+⚠️  Actuator endpoint returns 401/403 (blocked by Spring Security)
+    This is expected if SecurityConfig changes haven't been deployed yet
+    Falling back to port availability check...
+✓ Application is responding on port 8080 (received HTTP response)
+
+✅ SUCCESS: Application is healthy!
+
+=== Health Check Summary ===
+Total startup time: 118s (1m 58s)
+Status: HEALTHY (via fallback check)
+```
+
+### После следующего деплоя (с SecurityConfig исправлениями):
+
+```bash
+✓ Spring Boot application started (115s elapsed)
+
+Verifying health endpoint...
+✅ SUCCESS: Application is healthy!
+
+=== Health Check Summary ===
+Total startup time: 120s (2m 0s)
+Status: HEALTHY
+```
+
+## 📝 Финальный коммит
+
+```bash
+git add .
+git commit -m "fix: duplicate progress messages and improve fallback health check
+
+ISSUES FIXED:
+- Duplicate progress messages (get_startup_progress outputting all matches)
+- Health endpoint fallback not working properly
+- Unclear error messages during fallback
+
+CHANGES:
+- get_startup_progress() now returns only latest state (if-return pattern)
+- Improved check_health() with detailed fallback logging
+- Added alternative fallback via wget to root endpoint
+- Better detection of 401/403 errors (check both responses)
+- More informative output during fallback checks
+
+BEHAVIOR:
+- First deploy with old SecurityConfig: uses fallback (port check)
+- Second deploy with new SecurityConfig: uses health endpoint
+- Both scenarios now work correctly without false failures"
+
+git push origin master
+```
+
+---
+
+**Критично:** Этот коммит исправляет дублирование и улучшает fallback, но health endpoint заработает полностью только после деплоя изменений SecurityConfig.

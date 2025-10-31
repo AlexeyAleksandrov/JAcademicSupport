@@ -51,7 +51,7 @@ check_health() {
         return 0
     fi
     
-    # Если readiness недоступен (401/403 - Security блокирует), пробуем базовый health
+    # Если readiness недоступен, пробуем базовый health
     local health_response=$(docker exec "$CONTAINER_NAME" wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health 2>&1)
     
     if echo "$health_response" | grep -q "200 OK"; then
@@ -59,15 +59,34 @@ check_health() {
     fi
     
     # Отладочная информация при неудаче
+    # Проверяем оба ответа на наличие 401/403
+    local has_auth_error=false
+    
     if echo "$readiness_response" | grep -qE "(401|403)"; then
+        has_auth_error=true
+    fi
+    
+    if echo "$health_response" | grep -qE "(401|403)"; then
+        has_auth_error=true
+    fi
+    
+    if [ "$has_auth_error" = true ]; then
         echo "⚠️  Actuator endpoint returns 401/403 (blocked by Spring Security)"
         echo "    This is expected if SecurityConfig changes haven't been deployed yet"
         echo "    Falling back to port availability check..."
         
-        # Fallback: проверяем что порт 8080 отвечает хоть на что-то
-        if docker exec "$CONTAINER_NAME" nc -z localhost 8080 2>/dev/null; then
+        # Fallback: проверяем что порт 8080 отвечает
+        if docker exec "$CONTAINER_NAME" sh -c "command -v nc >/dev/null 2>&1" && \
+           docker exec "$CONTAINER_NAME" nc -z localhost 8080 2>/dev/null; then
             echo "✓ Port 8080 is responding (health endpoint blocked but app is running)"
             return 0
+        else
+            echo "⚠️  netcat check failed, trying wget to root endpoint..."
+            # Альтернативный fallback - проверяем что хоть что-то отвечает
+            if docker exec "$CONTAINER_NAME" wget --no-verbose --tries=1 --spider http://localhost:8080/ 2>&1 | grep -qE "(200|401|403)"; then
+                echo "✓ Application is responding on port 8080 (received HTTP response)"
+                return 0
+            fi
         fi
     fi
     
@@ -88,25 +107,41 @@ check_spring_started() {
 get_startup_progress() {
     local logs=$(get_app_logs)
     
-    if echo "$logs" | grep -q "Starting JAcademicSupprtApplication"; then
-        echo "Starting application..."
-    fi
+    # Возвращаем ТОЛЬКО самое актуальное состояние (последнее достигнутое)
+    # Проверяем в обратном порядке - от последних шагов к первым
     
-    if echo "$logs" | grep -q "Bootstrapping Spring Data JPA repositories"; then
-        echo "Initializing JPA repositories..."
-    fi
-    
-    if echo "$logs" | grep -q "HikariPool.*Starting"; then
-        echo "Connecting to database..."
-    fi
-    
-    if echo "$logs" | grep -q "Initialized JPA EntityManagerFactory"; then
-        echo "JPA initialization complete..."
+    if echo "$logs" | grep -q "Tomcat started on port"; then
+        echo "Tomcat started, finalizing..."
+        return
     fi
     
     if echo "$logs" | grep -q "Starting service.*Tomcat"; then
         echo "Starting Tomcat server..."
+        return
     fi
+    
+    if echo "$logs" | grep -q "Initialized JPA EntityManagerFactory"; then
+        echo "JPA initialization complete..."
+        return
+    fi
+    
+    if echo "$logs" | grep -q "HikariPool.*Starting\|HikariPool.*Start completed"; then
+        echo "Connecting to database..."
+        return
+    fi
+    
+    if echo "$logs" | grep -q "Bootstrapping Spring Data JPA repositories"; then
+        echo "Initializing JPA repositories..."
+        return
+    fi
+    
+    if echo "$logs" | grep -q "Starting JAcademicSupprtApplication"; then
+        echo "Starting application..."
+        return
+    fi
+    
+    # Если ничего не найдено, возвращаем пустую строку
+    echo ""
 }
 
 # Function to check for fatal errors
