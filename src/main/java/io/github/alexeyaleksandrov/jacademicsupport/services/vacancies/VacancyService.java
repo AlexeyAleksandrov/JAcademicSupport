@@ -67,6 +67,45 @@ public class VacancyService {
         return vacancyRepository.count();
     }
 
+    /**
+     * Process skills for a newly added vacancy using GigaChat.
+     * This method is designed to be called when a single new vacancy is added to the system.
+     * It loads the system prompt and processes the vacancy's skills through GigaChat.
+     * 
+     * @param vacancy The vacancy entity to process
+     * @throws RuntimeException if the system prompt cannot be loaded or processing fails
+     */
+    @Transactional
+    public void processNewVacancySkills(VacancyEntity vacancy) {
+        if (vacancy == null) {
+            log.warn("Attempted to process null vacancy");
+            return;
+        }
+        
+        if (vacancy.getSkills() == null || vacancy.getSkills().isEmpty()) {
+            log.debug("Vacancy ID: {} has no skills to process", vacancy.getId());
+            return;
+        }
+        
+        try {
+            // Load system prompt from resources
+            String systemPrompt = resourceFileReader.readResourceFile("prompts/vacancies_work_skill_extract_system_prompt.txt");
+            log.info("Processing skills for new vacancy ID: {}, Name: {}", vacancy.getId(), vacancy.getName());
+            
+            // Process the vacancy's skills
+            processVacancySkills(vacancy, systemPrompt);
+            
+            log.info("Successfully processed skills for vacancy ID: {}", vacancy.getId());
+            
+        } catch (IOException e) {
+            log.error("Failed to read system prompt file for vacancy ID: {}", vacancy.getId(), e);
+            // Don't throw exception - allow vacancy to be saved even if skill processing fails
+        } catch (Exception e) {
+            log.error("Error during skill processing for vacancy ID: {}", vacancy.getId(), e);
+            // Don't throw exception - allow vacancy to be saved even if skill processing fails
+        }
+    }
+
     @Transactional
     public void processVacancySkillsWithGigaChat() {
         try {

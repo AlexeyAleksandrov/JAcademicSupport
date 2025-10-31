@@ -8,6 +8,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.models.*;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.*;
 import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.vacancies.VacancyService;
 import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
@@ -28,6 +29,7 @@ public class WorkSkillsService {
     private final HhService hhService;
     private KeywordRepository keywordRepository;
     private final SavedSearchRepository searchRepository;
+    private final VacancyService vacancyService;
 
     // Convert WorkSkill entity to WorkSkillResponseDto
     public WorkSkillResponseDto convertToResponseDto(WorkSkill workSkill) {
@@ -251,9 +253,18 @@ public class WorkSkillsService {
 
         // сохраняем новые
         vacancyEntitiesNew.forEach(vacancyEntityRepository::saveAndFlush);
-//        vacancyEntities.stream()
-//                .filter(vacancyEntity -> !vacancyEntityRepository.existsByHhId(vacancyEntity.getHhId()))
-//                .forEach(vacancyEntityRepository::saveAndFlush);
+
+        // Automatically process skills for newly added vacancies through GigaChat
+        System.out.println("Обработка навыков через GigaChat для новых вакансий...");
+        for (VacancyEntity newVacancy : vacancyEntitiesNew) {
+            try {
+                vacancyService.processNewVacancySkills(newVacancy);
+            } catch (Exception e) {
+                System.err.println("Ошибка обработки навыков для вакансии ID: " + newVacancy.getId() + " - " + e.getMessage());
+                // Continue processing other vacancies even if one fails
+            }
+        }
+        System.out.println("Завершена обработка навыков через GigaChat");
 
         return vacancyEntitiesNew;
     }
