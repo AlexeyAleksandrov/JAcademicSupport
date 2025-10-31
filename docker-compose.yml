@@ -17,7 +17,15 @@ services:
 
   # Сервис вашего Spring Boot приложения
   app:
-    build: . # Собираем образ из Dockerfile в текущей директории
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Включаем BuildKit для оптимизации
+      cache_from:
+        - jacademicsupport-app:latest
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: jacademicsupport-app:latest
     container_name: backend
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/AcademicSupport

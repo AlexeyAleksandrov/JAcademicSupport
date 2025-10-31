@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.idea
+*.iml
+.vscode
+*.swp
+*.swo
+*~
+
+# Build artifacts
+target/
+*.class
+*.jar
+*.war
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+
+# Documentation
+*.md
+!README.md
+
+# Database backups
+db/
+
+# Scripts (except those needed in container)
+scripts/
+!scripts/cron-job.sh
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files (not needed in build context)
+docker-compose.yml
+Dockerfile
+.dockerignore
