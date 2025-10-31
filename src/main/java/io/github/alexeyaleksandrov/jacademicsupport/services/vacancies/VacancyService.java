@@ -74,11 +74,10 @@ public class VacancyService {
             String systemPrompt = resourceFileReader.readResourceFile("prompts/vacancies_work_skill_extract_system_prompt.txt");
             log.info("System prompt loaded successfully");
             
-            // Get first 5 vacancies that have at least one skill
+            // Get all vacancies that have at least one skill
             List<VacancyEntity> allVacancies = vacancyRepository.findAll();
             List<VacancyEntity> vacanciesToProcess = allVacancies.stream()
                     .filter(v -> v.getSkills() != null && !v.getSkills().isEmpty())
-                    .limit(5)
                     .toList();
             
             log.info("Found {} vacancies to process", vacanciesToProcess.size());
