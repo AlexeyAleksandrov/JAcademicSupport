@@ -153,6 +153,19 @@ public class GigaChatService implements LlmService {
     
     @Override
     public String chat(String content) {
+        // Use default system prompt and model for backward compatibility
+        return chat(content, null, null);
+    }
+    
+    /**
+     * Sends a chat request to GigaChat API with custom system prompt and model.
+     * 
+     * @param content User message content
+     * @param systemPrompt Custom system prompt (null for default)
+     * @param modelName Model name to use (null for default from config)
+     * @return AI response content
+     */
+    public String chat(String content, String systemPrompt, String modelName) {
         try {
             // Get valid access token
             String accessToken = getAccessToken();
@@ -163,14 +176,20 @@ public class GigaChatService implements LlmService {
             headers.set("Accept", "application/json");
             headers.setBearerAuth(accessToken);
             
+            // Use provided values or defaults
+            String effectiveModel = (modelName != null && !modelName.isEmpty()) ? modelName : model;
+            String effectiveSystemPrompt = (systemPrompt != null && !systemPrompt.isEmpty()) 
+                ? systemPrompt 
+                : "Ты ИИ-помощник, который помогает людям находить информацию. " +
+                  "Ты отвечаешь всегда только на русском языке.";
+            
             // Prepare request body
             Map<String, Object> requestBody = Map.of(
-                "model", model,
+                "model", effectiveModel,
                 "messages", List.of(
                     Map.of(
                         "role", "system",
-                        "content", "Ты ИИ-помощник, который помогает людям находить информацию. " +
-                                  "Ты отвечаешь всегда только на русском языке."
+                        "content", effectiveSystemPrompt
                     ),
                     Map.of(
                         "role", "user",
