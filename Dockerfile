@@ -24,6 +24,9 @@ RUN --mount=type=cache,target=/root/.m2 mvn clean package -DskipTests -B
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
+# Устанавливаем wget для healthcheck
+RUN apk add --no-cache wget
+
 # Копируем только собранный jar
 COPY --from=build /app/target/JAcademicSupport-0.0.1-SNAPSHOT.jar app.jar
 COPY scripts/cron-job.sh /app/scripts/cron-job.sh
