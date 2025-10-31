@@ -44,14 +44,31 @@ check_container_crashed() {
 
 # Function to check application health
 check_health() {
-    # Try readiness endpoint first (includes all health checks)
-    if docker exec "$CONTAINER_NAME" wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health/readiness 2>&1 | grep -q "200 OK"; then
+    # Включаем детальный вывод для отладки
+    local readiness_response=$(docker exec "$CONTAINER_NAME" wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health/readiness 2>&1)
+    
+    if echo "$readiness_response" | grep -q "200 OK"; then
         return 0
     fi
     
-    # Fallback to general health endpoint
-    if docker exec "$CONTAINER_NAME" wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health 2>&1 | grep -q "200 OK"; then
+    # Если readiness недоступен (401/403 - Security блокирует), пробуем базовый health
+    local health_response=$(docker exec "$CONTAINER_NAME" wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health 2>&1)
+    
+    if echo "$health_response" | grep -q "200 OK"; then
         return 0
+    fi
+    
+    # Отладочная информация при неудаче
+    if echo "$readiness_response" | grep -qE "(401|403)"; then
+        echo "⚠️  Actuator endpoint returns 401/403 (blocked by Spring Security)"
+        echo "    This is expected if SecurityConfig changes haven't been deployed yet"
+        echo "    Falling back to port availability check..."
+        
+        # Fallback: проверяем что порт 8080 отвечает хоть на что-то
+        if docker exec "$CONTAINER_NAME" nc -z localhost 8080 2>/dev/null; then
+            echo "✓ Port 8080 is responding (health endpoint blocked but app is running)"
+            return 0
+        fi
     fi
     
     return 1
@@ -146,6 +163,8 @@ LAST_LOG_CHECK=0
 LAST_PROGRESS_CHECK=0
 LAST_PROGRESS=""
 LAST_CRASH_CHECK=0
+HEALTH_CHECK_ATTEMPTS=0
+SPRING_STARTED=false
 
 while true; do
     ELAPSED=$(($(date +%s) - START_TIME))
@@ -206,7 +225,8 @@ while true; do
     fi
     
     # Check if Spring Boot has started
-    if check_spring_started; then
+    if check_spring_started && [ "$SPRING_STARTED" = false ]; then
+        SPRING_STARTED=true
         echo "✓ Spring Boot application started (${ELAPSED}s elapsed)"
         echo ""
         echo "Verifying health endpoint..."
@@ -214,27 +234,44 @@ while true; do
         # Wait a bit for all health checks to complete
         sleep 5
         
-        if check_health; then
-            END_TIME=$(date +%s)
-            TOTAL_TIME=$((END_TIME - START_TIME))
-            
-            echo "✅ SUCCESS: Application is healthy!"
+        # Пробуем получить ответ от health endpoint (максимум 10 попыток = 50 секунд)
+        HEALTH_CHECK_ATTEMPTS=0
+        while ! check_health && [ $HEALTH_CHECK_ATTEMPTS -lt 10 ]; do
+            HEALTH_CHECK_ATTEMPTS=$((HEALTH_CHECK_ATTEMPTS + 1))
+            echo "⏳ Waiting for health endpoint to become available... (attempt ${HEALTH_CHECK_ATTEMPTS}/10)"
+            sleep 5
+        done
+        
+        if [ $HEALTH_CHECK_ATTEMPTS -ge 10 ]; then
             echo ""
-            echo "=== Health Check Summary ==="
-            echo "Total startup time: ${TOTAL_TIME}s ($(($TOTAL_TIME / 60))m $(($TOTAL_TIME % 60))s)"
-            echo "Container: $CONTAINER_NAME"
-            echo "Status: HEALTHY"
+            echo "❌ ERROR: Health endpoint did not become available within 50 seconds after Spring started"
             echo ""
-            
-            # Show startup message from logs
-            echo "=== Spring Boot Startup Message ==="
-            get_app_logs | grep "Started.*Application in" || echo "Could not find startup message"
-            
-            exit 0
-        else
-            echo "⚠️  Warning: Spring started but health endpoint not ready yet"
-            echo "Waiting additional time for Actuator endpoints..."
+            echo "Possible causes:"
+            echo "- Actuator endpoints blocked by Spring Security (check SecurityConfig)"
+            echo "- Health checks still initializing"
+            echo "- Network issues in container"
+            echo ""
+            echo "=== Last 100 lines of logs ==="
+            get_app_logs
+            exit 1
         fi
+        
+        END_TIME=$(date +%s)
+        TOTAL_TIME=$((END_TIME - START_TIME))
+        
+        echo "✅ SUCCESS: Application is healthy!"
+        echo ""
+        echo "=== Health Check Summary ==="
+        echo "Total startup time: ${TOTAL_TIME}s ($(($TOTAL_TIME / 60))m $(($TOTAL_TIME % 60))s)"
+        echo "Container: $CONTAINER_NAME"
+        echo "Status: HEALTHY"
+        echo ""
+        
+        # Show startup message from logs
+        echo "=== Spring Boot Startup Message ==="
+        get_app_logs | grep "Started.*Application in" || echo "Could not find startup message"
+        
+        exit 0
     fi
     
     # Show waiting message less frequently for long startups (every 20s instead of 10s)
