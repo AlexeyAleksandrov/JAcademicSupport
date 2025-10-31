@@ -123,6 +123,26 @@ public class VacancyController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    /**
+     * Process vacancy skills using GigaChat AI to normalize and extract proper skill names.
+     * This endpoint processes the first 5 vacancies that have at least one skill.
+     * For each skill in these vacancies, it sends the description to GigaChat with a custom
+     * system prompt to extract and normalize skill names, then replaces old skills with the
+     * normalized ones.
+     * 
+     * @return ResponseEntity with success message
+     */
+    @PostMapping("/process-skills")
+    public ResponseEntity<String> processVacancySkills() {
+        try {
+            vacancyService.processVacancySkillsWithGigaChat();
+            return ResponseEntity.ok("Successfully processed vacancy skills with GigaChat");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error processing vacancy skills: " + e.getMessage());
+        }
+    }
+
     private VacancyEntity convertToEntity(VacancyDto dto) {
         VacancyEntity vacancy = new VacancyEntity();
         vacancy.setHhId(dto.getHhId());
