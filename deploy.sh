@@ -80,8 +80,21 @@ fi
 echo "8. Performing health check..."
 chmod +x scripts/health-check.sh
 
-# Запускаем health check с timeout 120 секунд
-if ./scripts/health-check.sh backend 120; then
+# Определяем таймаут в зависимости от наличия backup
+# Таймауты увеличены для медленного VPS (средний запуск 80-90s)
+if docker images "$BACKUP_IMAGE" -q | grep -q .; then
+    HEALTH_CHECK_TIMEOUT=420  # 7 минут для обычного деплоя
+    HAS_BACKUP=true
+else
+    HEALTH_CHECK_TIMEOUT=600  # 10 минут для первого деплоя (Hibernate инициализация + медленный VPS)
+    HAS_BACKUP=false
+    echo "⚠️  First deployment detected - using extended timeout (${HEALTH_CHECK_TIMEOUT}s / $((HEALTH_CHECK_TIMEOUT / 60)) minutes)"
+fi
+
+echo "⏱️  Health check timeout: ${HEALTH_CHECK_TIMEOUT}s ($((HEALTH_CHECK_TIMEOUT / 60)) minutes)"
+
+# Запускаем health check с адаптивным timeout
+if ./scripts/health-check.sh backend $HEALTH_CHECK_TIMEOUT; then
     echo "✅ Health check passed!"
 else
     echo "❌ ERROR: Health check failed!"
@@ -92,27 +105,34 @@ else
     echo "- Database connection issues"
     echo "- Circular dependency injection"
     echo "- Configuration errors"
+    echo "- Out of memory on VPS"
     echo ""
     
-    # Если есть бэкап, предлагаем откат
-    if docker images "$BACKUP_IMAGE" -q | grep -q .; then
+    # Пытаемся откатиться только если есть backup
+    if [ "$HAS_BACKUP" = true ]; then
         echo "⚠️  Rolling back to previous version..."
         docker compose down
         docker tag "$BACKUP_IMAGE" jacademicsupport-app:latest
         docker compose up -d
         
         echo "Verifying rollback..."
-        sleep 5
-        if ./scripts/health-check.sh backend 60; then
+        sleep 10  # Даём больше времени на старт после отката
+        # Откат обычно быстрее, используем 5 минут
+        if ./scripts/health-check.sh backend 300; then
             echo "✅ Rollback successful - previous version is running"
             echo "⚠️  Please fix the issues and redeploy"
             exit 1
         else
             echo "❌ Rollback also failed - manual intervention required"
+            docker compose logs --tail=100
             exit 1
         fi
     else
-        echo "No backup available for rollback"
+        echo "⚠️  No backup available - this is the first deployment"
+        echo "❌ Manual intervention required"
+        echo ""
+        echo "=== Recent logs ==="
+        docker compose logs --tail=100
         exit 1
     fi
 fi
