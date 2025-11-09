@@ -8,6 +8,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.models.*;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.*;
 import io.github.alexeyaleksandrov.jacademicsupport.services.hh.HhService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.ollama.OllamaService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.gigachat.GigaChatService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.vacancies.VacancyService;
 import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityNotFoundException;
@@ -26,6 +27,7 @@ public class WorkSkillsService {
     final SkillsGroupRepository skillsGroupRepository;
     private final VacancyEntityRepository vacancyEntityRepository;
     final OllamaService ollamaService;
+    final GigaChatService gigaChatService;
     private final HhService hhService;
     private KeywordRepository keywordRepository;
     private final SavedSearchRepository searchRepository;
@@ -119,7 +121,7 @@ public class WorkSkillsService {
         workSkillRepository.deleteById(id);
     }
 
-    public List<WorkSkill> matchWorkSkillsToSkillsGroups() {
+    public List<WorkSkill> matchWorkSkillsToSkillsGroups(String llmProvider) {
         List<WorkSkill> skills = workSkillRepository.findAll();
         List<SkillsGroup> skillsGroups = skillsGroupRepository.findAll();
 
@@ -133,7 +135,18 @@ public class WorkSkillsService {
         skills = skills.stream()
                 .peek(workSkill -> {
                     String prompt = "У тебя есть профессиональный навык " + workSkill.getDescription() + ", к какой группе навыков из списка его можно отнести? Список группы навыков: " + allSkillsPrompt + ". Ответ должен содержать только название группы";
-                    String answer = ollamaService.chat(prompt);     // получаем рекомендацию от языковой модели по группе технологий
+                    
+                    // Выбираем LLM провайдера на основе параметра
+                    String answer;
+                    if ("ollama".equalsIgnoreCase(llmProvider)) {
+                        answer = ollamaService.chat(prompt);
+                        System.out.println("Используется Ollama для навыка: " + workSkill.getDescription());
+                    } else {
+                        // По умолчанию используем GigaChat
+                        answer = gigaChatService.chat(prompt);
+                        System.out.println("Используется GigaChat для навыка: " + workSkill.getDescription());
+                    }
+                    
                     SkillsGroup skillsGroup = skillsGroups.stream()
                             .filter(group -> answer.contains(group.getDescription()))
                             .findFirst()

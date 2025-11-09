@@ -78,9 +78,10 @@ public class WorkSkillsRestController {
     }
 
     @PostMapping("/match-to-groups")
-    public ResponseEntity<List<WorkSkillResponseDto>> matchSkillsToGroups() {
+    public ResponseEntity<List<WorkSkillResponseDto>> matchSkillsToGroups(
+            @RequestParam(value = "llmProvider", defaultValue = "gigachat") String llmProvider) {
         try {
-            List<WorkSkill> workSkills = workSkillsService.matchWorkSkillsToSkillsGroups();
+            List<WorkSkill> workSkills = workSkillsService.matchWorkSkillsToSkillsGroups(llmProvider);
             List<WorkSkillResponseDto> skills = workSkills.stream()
                     .map(this::convertToWorkSkillResponseDto)
                     .collect(Collectors.toList());
