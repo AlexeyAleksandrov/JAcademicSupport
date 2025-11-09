@@ -69,8 +69,9 @@ public class SkillsGroupRestController {
     }
 
     @PostMapping("/match-to-work-skills")
-    public ResponseEntity<List<WorkSkill>> matchSkillsToGroups() {
-        List<WorkSkill> skills = workSkillsService.matchWorkSkillsToSkillsGroups();
+    public ResponseEntity<List<WorkSkill>> matchSkillsToGroups(
+            @RequestParam(value = "llmProvider", defaultValue = "gigachat") String llmProvider) {
+        List<WorkSkill> skills = workSkillsService.matchWorkSkillsToSkillsGroups(llmProvider);
         return ResponseEntity.ok(skills);
     }
 
