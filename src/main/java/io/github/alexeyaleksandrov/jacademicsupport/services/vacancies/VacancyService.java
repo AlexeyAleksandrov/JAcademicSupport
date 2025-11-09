@@ -106,6 +106,58 @@ public class VacancyService {
         }
     }
 
+    /**
+     * Extract skills from text for a newly added vacancy that has NO skills.
+     * This method is designed to be called when a single new vacancy without skills is added to the system.
+     * It loads the text extraction system prompt and extracts skills from the vacancy's description.
+     * 
+     * @param vacancy The vacancy entity to process (must have no skills but have description)
+     */
+    @Transactional
+    public void processNewVacancyWithoutSkills(VacancyEntity vacancy) {
+        if (vacancy == null) {
+            log.warn("Attempted to process null vacancy");
+            return;
+        }
+        
+        if (vacancy.getSkills() != null && !vacancy.getSkills().isEmpty()) {
+            log.debug("Vacancy ID: {} already has skills, skipping text extraction", vacancy.getId());
+            return;
+        }
+        
+        if (vacancy.getDescription() == null || vacancy.getDescription().trim().isEmpty()) {
+            log.debug("Vacancy ID: {} has no description to extract skills from", vacancy.getId());
+            return;
+        }
+        
+        try {
+            // Load text extraction system prompt from resources
+            String systemPrompt = resourceFileReader.readResourceFile("prompts/vacancies_text_work_skill_extract_system_prompt.txt");
+            log.info("Extracting skills from text for new vacancy ID: {}, Name: {}", vacancy.getId(), vacancy.getName());
+            
+            // Extract skills from the vacancy's description text
+            extractSkillsFromText(vacancy, systemPrompt);
+            
+            log.info("Successfully extracted skills from text for vacancy ID: {}", vacancy.getId());
+            
+        } catch (IOException e) {
+            log.error("Failed to read text extraction system prompt file for vacancy ID: {}", vacancy.getId(), e);
+            // Don't throw exception - allow vacancy to be saved even if skill extraction fails
+        } catch (RuntimeException e) {
+            // Check if this is a 402 Payment Required error
+            if (e.getMessage() != null && 
+                (e.getMessage().contains("402") || 
+                 e.getMessage().contains("Payment Required") ||
+                 e.getMessage().contains("PAYMENT_REQUIRED"))) {
+                log.error("GigaChat tokens exhausted (402) while processing vacancy ID: {}. Skipping this vacancy.", vacancy.getId());
+                // Don't throw - just skip this vacancy and continue with others
+                return;
+            }
+            log.error("Error during skill extraction from text for vacancy ID: {}", vacancy.getId(), e);
+            // Don't throw exception - allow vacancy to be saved even if skill extraction fails
+        }
+    }
+
     @Transactional
     public void processVacancySkillsWithGigaChat() {
         try {

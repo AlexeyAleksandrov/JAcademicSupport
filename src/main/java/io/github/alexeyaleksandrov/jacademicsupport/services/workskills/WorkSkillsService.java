@@ -258,7 +258,14 @@ public class WorkSkillsService {
         System.out.println("Обработка навыков через GigaChat для новых вакансий...");
         for (VacancyEntity newVacancy : vacancyEntitiesNew) {
             try {
-                vacancyService.processNewVacancySkills(newVacancy);
+                // Check if vacancy has skills or not
+                if (newVacancy.getSkills() != null && !newVacancy.getSkills().isEmpty()) {
+                    // Vacancy has skills - normalize them
+                    vacancyService.processNewVacancySkills(newVacancy);
+                } else {
+                    // Vacancy has NO skills - extract from description text
+                    vacancyService.processNewVacancyWithoutSkills(newVacancy);
+                }
             } catch (Exception e) {
                 System.err.println("Ошибка обработки навыков для вакансии ID: " + newVacancy.getId() + " - " + e.getMessage());
                 // Continue processing other vacancies even if one fails
