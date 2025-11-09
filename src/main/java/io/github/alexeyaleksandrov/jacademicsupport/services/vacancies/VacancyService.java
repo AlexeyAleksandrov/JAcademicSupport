@@ -159,17 +159,38 @@ public class VacancyService {
             
             log.info("Found {} vacancies without skills to process", vacanciesToProcess.size());
             
+            int processedCount = 0;
             for (VacancyEntity vacancy : vacanciesToProcess) {
-                log.info("Extracting skills from vacancy ID: {}, Name: {}", vacancy.getId(), vacancy.getName());
-                extractSkillsFromText(vacancy, systemPrompt);
+                try {
+                    log.info("Extracting skills from vacancy ID: {}, Name: {}", vacancy.getId(), vacancy.getName());
+                    extractSkillsFromText(vacancy, systemPrompt);
+                    processedCount++;
+                } catch (RuntimeException e) {
+                    // Check if this is a 402 Payment Required error
+                    if (e.getMessage() != null && 
+                        (e.getMessage().contains("402") || 
+                         e.getMessage().contains("Payment Required") ||
+                         e.getMessage().contains("PAYMENT_REQUIRED"))) {
+                        log.error("GigaChat tokens exhausted (402 Payment Required). Stopping processing to avoid unnecessary API calls.");
+                        log.info("Successfully processed {} out of {} vacancies before token exhaustion", 
+                                processedCount, vacanciesToProcess.size());
+                        throw new RuntimeException("GigaChat API tokens exhausted. Please top up your balance and try again.", e);
+                    }
+                    // For other errors, log and continue
+                    log.error("Error processing vacancy ID: {}, continuing with next vacancy", vacancy.getId(), e);
+                }
             }
             
-            log.info("Successfully extracted skills from {} vacancies", vacanciesToProcess.size());
+            log.info("Successfully extracted skills from {} vacancies", processedCount);
             
         } catch (IOException e) {
             log.error("Failed to read text extraction system prompt file", e);
             throw new RuntimeException("Failed to load system prompt for text skill extraction", e);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            // Re-throw payment required errors and other critical errors
+            if (e.getMessage() != null && e.getMessage().contains("tokens exhausted")) {
+                throw e;
+            }
             log.error("Error during vacancy text skill extraction", e);
             throw new RuntimeException("Failed to extract skills from vacancy text with GigaChat", e);
         }
@@ -178,6 +199,8 @@ public class VacancyService {
     /**
      * Extracts skills from a single vacancy's description text using GigaChat.
      * Sends the full description to GigaChat and creates WorkSkill entities from the response.
+     * 
+     * @throws RuntimeException if 402 Payment Required error occurs (tokens exhausted)
      */
     private void extractSkillsFromText(VacancyEntity vacancy, String systemPrompt) {
         String description = vacancy.getDescription();
@@ -218,9 +241,16 @@ public class VacancyService {
             
             log.info("Successfully extracted and saved {} skills for vacancy ID: {}", newSkills.size(), vacancy.getId());
             
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Failed to extract skills from text for vacancy ID: {}", vacancy.getId(), e);
-            // Don't throw - continue with other vacancies
+            // Check if this is a payment required error - if so, propagate it up to stop all processing
+            if (e.getMessage() != null && 
+                (e.getMessage().contains("402") || 
+                 e.getMessage().contains("Payment Required") ||
+                 e.getMessage().contains("PAYMENT_REQUIRED"))) {
+                throw e; // Propagate 402 errors to stop processing
+            }
+            // For other errors, just log and return (don't stop processing other vacancies)
         }
     }
     
