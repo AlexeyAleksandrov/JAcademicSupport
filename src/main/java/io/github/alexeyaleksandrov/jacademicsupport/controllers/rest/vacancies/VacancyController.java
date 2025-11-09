@@ -143,6 +143,26 @@ public class VacancyController {
         }
     }
 
+    /**
+     * Extract skills from vacancy description text using GigaChat AI.
+     * This endpoint processes all vacancies that have NO skills by analyzing their description text.
+     * For each vacancy without skills, it sends the full description to GigaChat with a custom
+     * system prompt designed for text analysis, extracts professional skills mentioned in the text,
+     * and creates WorkSkill entities for the vacancy.
+     * 
+     * @return ResponseEntity with success message
+     */
+    @PostMapping("/extract-skills-from-text")
+    public ResponseEntity<String> extractSkillsFromText() {
+        try {
+            vacancyService.extractSkillsFromVacancyText();
+            return ResponseEntity.ok("Successfully extracted skills from vacancy descriptions with GigaChat");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error extracting skills from vacancy text: " + e.getMessage());
+        }
+    }
+
     private VacancyEntity convertToEntity(VacancyDto dto) {
         VacancyEntity vacancy = new VacancyEntity();
         vacancy.setHhId(dto.getHhId());

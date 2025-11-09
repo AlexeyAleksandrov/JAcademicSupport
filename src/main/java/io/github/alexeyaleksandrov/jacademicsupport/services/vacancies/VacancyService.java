@@ -138,6 +138,93 @@ public class VacancyService {
     }
     
     /**
+     * Extract skills from vacancy description text using GigaChat.
+     * This method processes vacancies that have NO skills by analyzing their description text
+     * and extracting professional skills mentioned in the text.
+     * Uses a different system prompt specifically designed for text analysis.
+     */
+    @Transactional
+    public void extractSkillsFromVacancyText() {
+        try {
+            // Load system prompt for text extraction from resources
+            String systemPrompt = resourceFileReader.readResourceFile("prompts/vacancies_text_work_skill_extract_system_prompt.txt");
+            log.info("Text extraction system prompt loaded successfully");
+            
+            // Get all vacancies that have NO skills
+            List<VacancyEntity> allVacancies = vacancyRepository.findAll();
+            List<VacancyEntity> vacanciesToProcess = allVacancies.stream()
+                    .filter(v -> v.getSkills() == null || v.getSkills().isEmpty())
+                    .filter(v -> v.getDescription() != null && !v.getDescription().trim().isEmpty())
+                    .toList();
+            
+            log.info("Found {} vacancies without skills to process", vacanciesToProcess.size());
+            
+            for (VacancyEntity vacancy : vacanciesToProcess) {
+                log.info("Extracting skills from vacancy ID: {}, Name: {}", vacancy.getId(), vacancy.getName());
+                extractSkillsFromText(vacancy, systemPrompt);
+            }
+            
+            log.info("Successfully extracted skills from {} vacancies", vacanciesToProcess.size());
+            
+        } catch (IOException e) {
+            log.error("Failed to read text extraction system prompt file", e);
+            throw new RuntimeException("Failed to load system prompt for text skill extraction", e);
+        } catch (Exception e) {
+            log.error("Error during vacancy text skill extraction", e);
+            throw new RuntimeException("Failed to extract skills from vacancy text with GigaChat", e);
+        }
+    }
+    
+    /**
+     * Extracts skills from a single vacancy's description text using GigaChat.
+     * Sends the full description to GigaChat and creates WorkSkill entities from the response.
+     */
+    private void extractSkillsFromText(VacancyEntity vacancy, String systemPrompt) {
+        String description = vacancy.getDescription();
+        
+        if (description == null || description.trim().isEmpty()) {
+            log.warn("Vacancy ID: {} has no description to analyze", vacancy.getId());
+            return;
+        }
+        
+        try {
+            log.debug("Sending vacancy description to GigaChat for skill extraction, vacancy ID: {}", vacancy.getId());
+            
+            // Call GigaChat with the vacancy description text
+            String gigaChatResponse = gigaChatService.chat(
+                description, 
+                systemPrompt, 
+                "GigaChat"
+            );
+            
+            log.debug("GigaChat response for vacancy ID {}: {}", vacancy.getId(), gigaChatResponse);
+            
+            // Parse the skills from GigaChat response
+            List<String> extractedSkills = parseSkillsFromGigaChatResponse(gigaChatResponse);
+            log.info("Extracted {} skills from vacancy ID: {}", extractedSkills.size(), vacancy.getId());
+            
+            // Create WorkSkill entities for each extracted skill
+            List<WorkSkill> newSkills = new ArrayList<>();
+            for (String skillName : extractedSkills) {
+                if (!"NOT_SKILL".equalsIgnoreCase(skillName)) {
+                    WorkSkill workSkill = findOrCreateWorkSkill(skillName);
+                    newSkills.add(workSkill);
+                }
+            }
+            
+            // Set the new skills to the vacancy
+            vacancy.setSkills(newSkills);
+            vacancyRepository.save(vacancy);
+            
+            log.info("Successfully extracted and saved {} skills for vacancy ID: {}", newSkills.size(), vacancy.getId());
+            
+        } catch (Exception e) {
+            log.error("Failed to extract skills from text for vacancy ID: {}", vacancy.getId(), e);
+            // Don't throw - continue with other vacancies
+        }
+    }
+    
+    /**
      * Processes skills for a single vacancy using GigaChat.
      * Replaces old skills with normalized ones from GigaChat.
      */
