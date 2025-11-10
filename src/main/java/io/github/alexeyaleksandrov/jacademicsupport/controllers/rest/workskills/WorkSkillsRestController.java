@@ -109,6 +109,22 @@ public class WorkSkillsRestController {
         }
     }
 
+    /**
+     * Delete all unused work skills that are not associated with any vacancy.
+     * @return response with the number of deleted skills
+     */
+    @DeleteMapping("/cleanup-unused")
+    public ResponseEntity<String> deleteUnusedWorkSkills() {
+        try {
+            int deletedCount = workSkillsService.deleteUnusedWorkSkills();
+            String message = String.format("Успешно удалено неиспользуемых навыков: %d", deletedCount);
+            return ResponseEntity.ok(message);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Ошибка при удалении неиспользуемых навыков: " + e.getMessage());
+        }
+    }
+
     private WorkSkillResponseDto convertToWorkSkillResponseDto(WorkSkill workSkill) {
         WorkSkillResponseDto dto = new WorkSkillResponseDto();
         dto.setId(workSkill.getId());

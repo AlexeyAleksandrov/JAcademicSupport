@@ -300,4 +300,47 @@ public class WorkSkillsService {
 
         return allVacancies;
     }
+
+    /**
+     * Удаляет все навыки (WorkSkill), которые не привязаны ни к одной вакансии.
+     * @return количество удаленных навыков
+     */
+    public int deleteUnusedWorkSkills() {
+        List<WorkSkill> allSkills = workSkillRepository.findAll();
+        List<VacancyEntity> allVacancies = vacancyEntityRepository.findAll();
+        
+        // Собираем все навыки, которые используются хотя бы в одной вакансии
+        List<Long> usedSkillIds = allVacancies.stream()
+                .flatMap(vacancy -> {
+                    if (vacancy.getSkills() != null) {
+                        return vacancy.getSkills().stream();
+                    }
+                    return java.util.stream.Stream.empty();
+                })
+                .map(WorkSkill::getId)
+                .distinct()
+                .toList();
+        
+        // Находим навыки, которые не используются
+        List<WorkSkill> unusedSkills = allSkills.stream()
+                .filter(skill -> !usedSkillIds.contains(skill.getId()))
+                .toList();
+        
+        int deletedCount = unusedSkills.size();
+        
+        if (deletedCount > 0) {
+            System.out.println("Найдено неиспользуемых навыков: " + deletedCount);
+            unusedSkills.forEach(skill -> 
+                System.out.println("  - Удаляется навык: " + skill.getDescription() + " (ID: " + skill.getId() + ")")
+            );
+            
+            // Удаляем неиспользуемые навыки
+            workSkillRepository.deleteAll(unusedSkills);
+            System.out.println("Успешно удалено навыков: " + deletedCount);
+        } else {
+            System.out.println("Неиспользуемых навыков не найдено");
+        }
+        
+        return deletedCount;
+    }
 }
