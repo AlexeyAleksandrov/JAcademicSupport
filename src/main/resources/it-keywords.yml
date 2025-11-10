@@ -1,0 +1,55 @@
+# IT-related keywords for vacancy filtering
+# A vacancy is considered IT-related if its name contains at least one of these keywords (case-insensitive)
+vacancy:
+  it-keywords:
+    # Russian terms
+    - программист
+    - разработчик
+    - стажёр
+    - стажер
+    - тимлид
+    - техлид
+    - инженер
+    - интерн
+    - тестировщик
+    - архитектор
+    - аналитик
+    # English terms - positions
+    - junior
+    - middle
+    - senior
+    - lead
+    - teamlead
+    - team lead
+    - tech lead
+    - intern
+    - developer
+    - engineer
+    - tester
+    - architect
+    - analyst
+    # English terms - specializations
+    - fullstack
+    - full-stack
+    - full stack
+    - frontend
+    - backend
+    - front-end
+    - back-end
+    - devops
+    - qa
+    - qc
+    - software engineer
+    # Technologies and platforms
+    - android
+    - ios
+    - mobile
+    - python
+    - java
+    - javascript
+    - c++
+    - golang
+    - rust
+    - .net
+    - php
+    - ruby

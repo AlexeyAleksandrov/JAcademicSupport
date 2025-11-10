@@ -8,6 +8,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.services.vacancies.VacancySe
 import io.github.alexeyaleksandrov.jacademicsupport.services.workskills.WorkSkillService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/vacancies")
 @RequiredArgsConstructor
+@Slf4j
 public class VacancyController {
 
     private final VacancyService vacancyService;
@@ -27,20 +29,14 @@ public class VacancyController {
     @GetMapping
     public ResponseEntity<List<VacancyEntity>> getAllVacancies(
             @RequestParam(defaultValue = "0") int offset,
-            @RequestParam(defaultValue = "50") int limit,
-            @RequestParam(defaultValue = "false") boolean all) {
-        // By default, filter only IT-related vacancies
-        // If 'all=true', return all vacancies without filtering
-        Page<VacancyEntity> vacanciesPage = vacancyService.findAllPaginated(offset, limit, !all);
+            @RequestParam(defaultValue = "50") int limit) {
+        Page<VacancyEntity> vacanciesPage = vacancyService.findAllPaginated(offset, limit);
         return ResponseEntity.ok(vacanciesPage.getContent());
     }
 
     @GetMapping("/count")
-    public ResponseEntity<Long> getVacanciesCount(
-            @RequestParam(defaultValue = "false") boolean all) {
-        // By default, count only IT-related vacancies
-        // If 'all=true', count all vacancies
-        long count = all ? vacancyService.count() : vacancyService.countItVacancies();
+    public ResponseEntity<Long> getVacanciesCount() {
+        long count = vacancyService.count();
         return ResponseEntity.ok(count);
     }
 
@@ -162,10 +158,28 @@ public class VacancyController {
     public ResponseEntity<String> extractSkillsFromText() {
         try {
             vacancyService.extractSkillsFromVacancyText();
-            return ResponseEntity.ok("Successfully extracted skills from vacancy descriptions with GigaChat");
+            return ResponseEntity.ok("Skills extraction from vacancy text completed successfully");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error extracting skills from vacancy text: " + e.getMessage());
+                    .body("Error extracting skills from text: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Clean up database by deleting all non-IT vacancies.
+     * A vacancy is considered IT-related if its name contains at least one keyword from it-keywords.yml.
+     * This endpoint should be called periodically to remove irrelevant vacancies from the database.
+     * 
+     * @return ResponseEntity with cleanup result message
+     */
+    @PostMapping("/cleanup-non-it")
+    public ResponseEntity<String> cleanupNonItVacancies() {
+        try {
+            long deletedCount = vacancyService.deleteNonItVacancies();
+            return ResponseEntity.ok(String.format("Successfully deleted %d non-IT vacancies from the database", deletedCount));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error cleaning up non-IT vacancies: " + e.getMessage());
         }
     }
 

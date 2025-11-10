@@ -2,6 +2,7 @@ package io.github.alexeyaleksandrov.jacademicsupport.services.vacancies;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.alexeyaleksandrov.jacademicsupport.configuration.ItKeywordsConfig;
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
@@ -18,12 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,58 +34,10 @@ public class VacancyService {
     private final WorkSkillService workSkillService;
     private final ObjectMapper objectMapper;
     private final ResourceFileReader resourceFileReader;
-
-    /**
-     * IT-related keywords for filtering vacancies.
-     * A vacancy is considered IT-related if its name contains at least one of these keywords (case-insensitive).
-     */
-    private static final List<String> IT_KEYWORDS = Arrays.asList(
-            "программист", "разработчик", "стажёр", "стажер",
-            "junior", "middle", "senior",
-            "тимлид", "техлид", "teamlead", "team lead", "tech lead", "lead",
-            "fullstack", "full-stack", "full stack",
-            "developer", "frontend", "backend", "front-end", "back-end",
-            "devops", "qa", "qc",
-            "software engineer", "engineer", "инженер",
-            "intern", "интерн",
-            "tester", "тестировщик",
-            "архитектор", "architect",
-            "аналитик", "analyst",
-            "android", "ios", "mobile",
-            "python", "java", "javascript", "c++", "golang", "rust",
-            ".net", "php", "ruby"
-    );
+    private final ItKeywordsConfig itKeywordsConfig;
 
     public List<VacancyEntity> findAll() {
         return vacancyRepository.findAll();
-    }
-
-    /**
-     * Find all IT-related vacancies (filtered by IT keywords).
-     * A vacancy is considered IT-related if its name contains at least one IT keyword.
-     * 
-     * @return List of IT-related vacancies
-     */
-    public List<VacancyEntity> findAllItVacancies() {
-        return vacancyRepository.findAll().stream()
-                .filter(this::isItRelatedVacancy)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Checks if a vacancy is IT-related based on IT keywords in its name.
-     * 
-     * @param vacancy The vacancy to check
-     * @return true if the vacancy name contains at least one IT keyword (case-insensitive)
-     */
-    private boolean isItRelatedVacancy(VacancyEntity vacancy) {
-        if (vacancy == null || vacancy.getName() == null) {
-            return false;
-        }
-
-        String lowercaseName = vacancy.getName().toLowerCase();
-        return IT_KEYWORDS.stream()
-                .anyMatch(keyword -> lowercaseName.contains(keyword.toLowerCase()));
     }
 
     public Optional<VacancyEntity> findById(Long id) {
@@ -114,48 +65,64 @@ public class VacancyService {
         return vacancyRepository.findAll(pageable);
     }
 
-    /**
-     * Find IT-related vacancies with pagination (filtered by IT keywords).
-     * A vacancy is considered IT-related if its name contains at least one IT keyword.
-     * 
-     * @param offset Starting position (0-based)
-     * @param limit Maximum number of results
-     * @param filterIt If true, filters only IT-related vacancies; if false, returns all vacancies
-     * @return Page of vacancies
-     */
-    public Page<VacancyEntity> findAllPaginated(int offset, int limit, boolean filterIt) {
-        Pageable pageable = new OffsetBasedPageRequest(offset, limit);
-        Page<VacancyEntity> allVacancies = vacancyRepository.findAll(pageable);
-
-        if (!filterIt) {
-            return allVacancies;
-        }
-
-        // Filter IT-related vacancies
-        List<VacancyEntity> filteredContent = allVacancies.getContent().stream()
-                .filter(this::isItRelatedVacancy)
-                .collect(Collectors.toList());
-
-        return new org.springframework.data.domain.PageImpl<>(
-                filteredContent,
-                pageable,
-                countItVacancies()
-        );
-    }
-
-    /**
-     * Count IT-related vacancies.
-     * 
-     * @return Number of IT-related vacancies
-     */
-    public long countItVacancies() {
-        return vacancyRepository.findAll().stream()
-                .filter(this::isItRelatedVacancy)
-                .count();
-    }
-
     public long count() {
         return vacancyRepository.count();
+    }
+
+    /**
+     * Delete all non-IT vacancies from the database.
+     * A vacancy is considered IT-related if its name contains at least one keyword from it-keywords.yml (case-insensitive).
+     * This method should be called periodically to clean up the database from irrelevant vacancies.
+     * 
+     * @return Number of deleted vacancies
+     */
+    @Transactional
+    public long deleteNonItVacancies() {
+        log.info("Starting cleanup of non-IT vacancies...");
+        
+        List<String> keywords = itKeywordsConfig.getItKeywords();
+        if (keywords == null || keywords.isEmpty()) {
+            log.warn("IT keywords list is empty. No vacancies will be deleted.");
+            return 0;
+        }
+        
+        List<VacancyEntity> allVacancies = vacancyRepository.findAll();
+        List<VacancyEntity> nonItVacancies = new ArrayList<>();
+        
+        for (VacancyEntity vacancy : allVacancies) {
+            if (!isItRelatedVacancy(vacancy, keywords)) {
+                nonItVacancies.add(vacancy);
+            }
+        }
+        
+        long deletedCount = nonItVacancies.size();
+        
+        if (deletedCount > 0) {
+            log.info("Found {} non-IT vacancies to delete", deletedCount);
+            vacancyRepository.deleteAll(nonItVacancies);
+            log.info("Successfully deleted {} non-IT vacancies", deletedCount);
+        } else {
+            log.info("No non-IT vacancies found");
+        }
+        
+        return deletedCount;
+    }
+
+    /**
+     * Checks if a vacancy is IT-related based on IT keywords from configuration.
+     * 
+     * @param vacancy The vacancy to check
+     * @param keywords List of IT keywords
+     * @return true if the vacancy name contains at least one IT keyword (case-insensitive)
+     */
+    private boolean isItRelatedVacancy(VacancyEntity vacancy, List<String> keywords) {
+        if (vacancy == null || vacancy.getName() == null) {
+            return false;
+        }
+        
+        String lowercaseName = vacancy.getName().toLowerCase();
+        return keywords.stream()
+                .anyMatch(keyword -> lowercaseName.contains(keyword.toLowerCase()));
     }
 
     /**
