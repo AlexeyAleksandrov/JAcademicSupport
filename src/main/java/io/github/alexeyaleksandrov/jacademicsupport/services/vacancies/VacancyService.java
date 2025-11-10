@@ -81,28 +81,43 @@ public class VacancyService {
         log.info("Starting cleanup of non-IT vacancies...");
         
         List<String> keywords = itKeywordsConfig.getItKeywords();
+        log.info("Loaded {} IT keywords from configuration", keywords != null ? keywords.size() : 0);
+        
         if (keywords == null || keywords.isEmpty()) {
-            log.warn("IT keywords list is empty. No vacancies will be deleted.");
+            log.warn("IT keywords list is empty. No vacancies will be deleted. Check it-keywords.yml file.");
             return 0;
         }
         
+        // Log first few keywords for debugging
+        log.debug("First 5 IT keywords: {}", keywords.stream().limit(5).toList());
+        
         List<VacancyEntity> allVacancies = vacancyRepository.findAll();
+        log.info("Total vacancies in database: {}", allVacancies.size());
+        
         List<VacancyEntity> nonItVacancies = new ArrayList<>();
+        int itVacanciesCount = 0;
         
         for (VacancyEntity vacancy : allVacancies) {
-            if (!isItRelatedVacancy(vacancy, keywords)) {
+            boolean isItRelated = isItRelatedVacancy(vacancy, keywords);
+            
+            if (!isItRelated) {
                 nonItVacancies.add(vacancy);
+                log.debug("Non-IT vacancy found: ID={}, Name={}", vacancy.getId(), vacancy.getName());
+            } else {
+                itVacanciesCount++;
             }
         }
+        
+        log.info("IT-related vacancies: {}, Non-IT vacancies: {}", itVacanciesCount, nonItVacancies.size());
         
         long deletedCount = nonItVacancies.size();
         
         if (deletedCount > 0) {
-            log.info("Found {} non-IT vacancies to delete", deletedCount);
+            log.info("Deleting {} non-IT vacancies...", deletedCount);
             vacancyRepository.deleteAll(nonItVacancies);
             log.info("Successfully deleted {} non-IT vacancies", deletedCount);
         } else {
-            log.info("No non-IT vacancies found");
+            log.info("No non-IT vacancies found. All vacancies are IT-related.");
         }
         
         return deletedCount;
@@ -121,8 +136,15 @@ public class VacancyService {
         }
         
         String lowercaseName = vacancy.getName().toLowerCase();
-        return keywords.stream()
+        boolean isItRelated = keywords.stream()
                 .anyMatch(keyword -> lowercaseName.contains(keyword.toLowerCase()));
+        
+        // Log for debugging (only for first few vacancies to avoid log spam)
+        if (log.isTraceEnabled()) {
+            log.trace("Vacancy '{}': IT-related={}", vacancy.getName(), isItRelated);
+        }
+        
+        return isItRelated;
     }
 
     /**

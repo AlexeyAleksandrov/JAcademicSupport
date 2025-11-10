@@ -1,6 +1,7 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.vacancies;
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.vacancies.SkillRequest;
+
 import io.github.alexeyaleksandrov.jacademicsupport.dto.vacancies.VacancyDto;
 import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyEntity;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;

@@ -1,5 +1,6 @@
 # IT-related keywords for vacancy filtering
 # A vacancy is considered IT-related if its name contains at least one of these keywords (case-insensitive)
+# This file is automatically loaded by Spring Boot and merged with application.properties
 vacancy:
   it-keywords:
     # Russian terms
@@ -53,3 +54,10 @@ vacancy:
     - .net
     - php
     - ruby
+    - node
+    - react
+    - angular
+    - vue
+    - kotlin
+    - swift
+    - scala
