@@ -1,5 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.services.workskills;
 
+import io.github.alexeyaleksandrov.jacademicsupport.configuration.ItKeywordsConfig;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.Vacancy;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.hh.VacancyItem;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.workskills.WorkSkillDto;
@@ -32,6 +33,7 @@ public class WorkSkillsService {
     private KeywordRepository keywordRepository;
     private final SavedSearchRepository searchRepository;
     private final VacancyService vacancyService;
+    private final ItKeywordsConfig itKeywordsConfig;
 
     // Convert WorkSkill entity to WorkSkillResponseDto
     public WorkSkillResponseDto convertToResponseDto(WorkSkill workSkill) {
@@ -196,8 +198,6 @@ public class WorkSkillsService {
     public List<VacancyEntity> getAndSaveAllVacancies(String searchText) {
         System.out.println("Search: " + searchText);
         List<VacancyItem> vacancyItemList = hhService.getAllVacancies(searchText);
-//        int vacanciesCount = vacancyItemList.size();
-//        int lastVacancyIndex = 0;
 
         // исключаем те вакансии, которые уже сохранены
         List<VacancyItem> vacancyItemListNew = vacancyItemList.stream()
@@ -206,14 +206,20 @@ public class WorkSkillsService {
 
         System.out.println("Всего найдено вакансий: " + vacancyItemList.size() + ". Найдено новых вакансий: " + vacancyItemListNew.size());
 
-        List<Vacancy> vacancies = vacancyItemListNew.stream()
+        // Filter only IT-related vacancies BEFORE fetching full details
+        List<VacancyItem> itVacancyItems = vacancyItemListNew.stream()
+                .filter(this::isItRelatedVacancyItem)
+                .toList();
+        
+        int nonItCount = vacancyItemListNew.size() - itVacancyItems.size();
+        if (nonItCount > 0) {
+            System.out.println("Отфильтровано non-IT вакансий: " + nonItCount);
+        }
+        System.out.println("IT-вакансий для обработки: " + itVacancyItems.size());
+
+        List<Vacancy> vacancies = itVacancyItems.stream()
                 .map(vacancyItem -> hhService.getVacancyById(vacancyItem.getId()))
                 .toList();  // делаем запрос в hh по каждой вакансии и получаем полную информацию
-
-        // так было, когда мы не исключали существующие вакансии
-//        List<Vacancy> vacancies = vacancyItemList.stream()
-//                .map(vacancyItem -> hhService.getVacancyById(vacancyItem.getId()))
-//                .toList();  // делаем запрос в hh по каждой вакансии и получаем полную информацию
 
         List<VacancyEntity> vacancyEntities = vacancies.stream()
                 .map(vacancy -> {
@@ -287,6 +293,11 @@ public class WorkSkillsService {
         System.out.println("Завершена обработка навыков через GigaChat");
 
         return vacancyEntitiesNew;
+    }
+
+    private boolean isItRelatedVacancyItem(VacancyItem vacancyItem) {
+        String name = vacancyItem.getName().toLowerCase();
+        return itKeywordsConfig.getItKeywords().stream().anyMatch(keyword -> name.contains(keyword.toLowerCase()));
     }
 
     public List<VacancyEntity> getAllVacanciesBySavedSearches() {
