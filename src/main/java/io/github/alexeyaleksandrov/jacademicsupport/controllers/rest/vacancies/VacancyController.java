@@ -27,14 +27,20 @@ public class VacancyController {
     @GetMapping
     public ResponseEntity<List<VacancyEntity>> getAllVacancies(
             @RequestParam(defaultValue = "0") int offset,
-            @RequestParam(defaultValue = "50") int limit) {
-        Page<VacancyEntity> vacanciesPage = vacancyService.findAllPaginated(offset, limit);
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "false") boolean all) {
+        // By default, filter only IT-related vacancies
+        // If 'all=true', return all vacancies without filtering
+        Page<VacancyEntity> vacanciesPage = vacancyService.findAllPaginated(offset, limit, !all);
         return ResponseEntity.ok(vacanciesPage.getContent());
     }
 
     @GetMapping("/count")
-    public ResponseEntity<Long> getVacanciesCount() {
-        long count = vacancyService.count();
+    public ResponseEntity<Long> getVacanciesCount(
+            @RequestParam(defaultValue = "false") boolean all) {
+        // By default, count only IT-related vacancies
+        // If 'all=true', count all vacancies
+        long count = all ? vacancyService.count() : vacancyService.countItVacancies();
         return ResponseEntity.ok(count);
     }
 

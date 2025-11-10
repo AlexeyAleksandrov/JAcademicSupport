@@ -18,10 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,8 +36,57 @@ public class VacancyService {
     private final ObjectMapper objectMapper;
     private final ResourceFileReader resourceFileReader;
 
+    /**
+     * IT-related keywords for filtering vacancies.
+     * A vacancy is considered IT-related if its name contains at least one of these keywords (case-insensitive).
+     */
+    private static final List<String> IT_KEYWORDS = Arrays.asList(
+            "программист", "разработчик", "стажёр", "стажер",
+            "junior", "middle", "senior",
+            "тимлид", "техлид", "teamlead", "team lead", "tech lead", "lead",
+            "fullstack", "full-stack", "full stack",
+            "developer", "frontend", "backend", "front-end", "back-end",
+            "devops", "qa", "qc",
+            "software engineer", "engineer", "инженер",
+            "intern", "интерн",
+            "tester", "тестировщик",
+            "архитектор", "architect",
+            "аналитик", "analyst",
+            "android", "ios", "mobile",
+            "python", "java", "javascript", "c++", "golang", "rust",
+            ".net", "php", "ruby"
+    );
+
     public List<VacancyEntity> findAll() {
         return vacancyRepository.findAll();
+    }
+
+    /**
+     * Find all IT-related vacancies (filtered by IT keywords).
+     * A vacancy is considered IT-related if its name contains at least one IT keyword.
+     * 
+     * @return List of IT-related vacancies
+     */
+    public List<VacancyEntity> findAllItVacancies() {
+        return vacancyRepository.findAll().stream()
+                .filter(this::isItRelatedVacancy)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Checks if a vacancy is IT-related based on IT keywords in its name.
+     * 
+     * @param vacancy The vacancy to check
+     * @return true if the vacancy name contains at least one IT keyword (case-insensitive)
+     */
+    private boolean isItRelatedVacancy(VacancyEntity vacancy) {
+        if (vacancy == null || vacancy.getName() == null) {
+            return false;
+        }
+
+        String lowercaseName = vacancy.getName().toLowerCase();
+        return IT_KEYWORDS.stream()
+                .anyMatch(keyword -> lowercaseName.contains(keyword.toLowerCase()));
     }
 
     public Optional<VacancyEntity> findById(Long id) {
@@ -63,6 +114,46 @@ public class VacancyService {
         return vacancyRepository.findAll(pageable);
     }
 
+    /**
+     * Find IT-related vacancies with pagination (filtered by IT keywords).
+     * A vacancy is considered IT-related if its name contains at least one IT keyword.
+     * 
+     * @param offset Starting position (0-based)
+     * @param limit Maximum number of results
+     * @param filterIt If true, filters only IT-related vacancies; if false, returns all vacancies
+     * @return Page of vacancies
+     */
+    public Page<VacancyEntity> findAllPaginated(int offset, int limit, boolean filterIt) {
+        Pageable pageable = new OffsetBasedPageRequest(offset, limit);
+        Page<VacancyEntity> allVacancies = vacancyRepository.findAll(pageable);
+
+        if (!filterIt) {
+            return allVacancies;
+        }
+
+        // Filter IT-related vacancies
+        List<VacancyEntity> filteredContent = allVacancies.getContent().stream()
+                .filter(this::isItRelatedVacancy)
+                .collect(Collectors.toList());
+
+        return new org.springframework.data.domain.PageImpl<>(
+                filteredContent,
+                pageable,
+                countItVacancies()
+        );
+    }
+
+    /**
+     * Count IT-related vacancies.
+     * 
+     * @return Number of IT-related vacancies
+     */
+    public long countItVacancies() {
+        return vacancyRepository.findAll().stream()
+                .filter(this::isItRelatedVacancy)
+                .count();
+    }
+
     public long count() {
         return vacancyRepository.count();
     }
@@ -81,22 +172,22 @@ public class VacancyService {
             log.warn("Attempted to process null vacancy");
             return;
         }
-        
+
         if (vacancy.getSkills() == null || vacancy.getSkills().isEmpty()) {
             log.debug("Vacancy ID: {} has no skills to process", vacancy.getId());
             return;
         }
-        
+
         try {
             // Load system prompt from resources
             String systemPrompt = resourceFileReader.readResourceFile("prompts/vacancies_work_skill_extract_system_prompt.txt");
             log.info("Processing skills for new vacancy ID: {}, Name: {}", vacancy.getId(), vacancy.getName());
-            
+
             // Process the vacancy's skills
             processVacancySkills(vacancy, systemPrompt);
-            
+
             log.info("Successfully processed skills for vacancy ID: {}", vacancy.getId());
-            
+
         } catch (IOException e) {
             log.error("Failed to read system prompt file for vacancy ID: {}", vacancy.getId(), e);
             // Don't throw exception - allow vacancy to be saved even if skill processing fails
@@ -119,36 +210,36 @@ public class VacancyService {
             log.warn("Attempted to process null vacancy");
             return;
         }
-        
+
         if (vacancy.getSkills() != null && !vacancy.getSkills().isEmpty()) {
             log.debug("Vacancy ID: {} already has skills, skipping text extraction", vacancy.getId());
             return;
         }
-        
+
         if (vacancy.getDescription() == null || vacancy.getDescription().trim().isEmpty()) {
             log.debug("Vacancy ID: {} has no description to extract skills from", vacancy.getId());
             return;
         }
-        
+
         try {
             // Load text extraction system prompt from resources
             String systemPrompt = resourceFileReader.readResourceFile("prompts/vacancies_text_work_skill_extract_system_prompt.txt");
             log.info("Extracting skills from text for new vacancy ID: {}, Name: {}", vacancy.getId(), vacancy.getName());
-            
+
             // Extract skills from the vacancy's description text
             extractSkillsFromText(vacancy, systemPrompt);
-            
+
             log.info("Successfully extracted skills from text for vacancy ID: {}", vacancy.getId());
-            
+
         } catch (IOException e) {
             log.error("Failed to read text extraction system prompt file for vacancy ID: {}", vacancy.getId(), e);
             // Don't throw exception - allow vacancy to be saved even if skill extraction fails
         } catch (RuntimeException e) {
             // Check if this is a 402 Payment Required error
-            if (e.getMessage() != null && 
-                (e.getMessage().contains("402") || 
-                 e.getMessage().contains("Payment Required") ||
-                 e.getMessage().contains("PAYMENT_REQUIRED"))) {
+            if (e.getMessage() != null &&
+                    (e.getMessage().contains("402") ||
+                            e.getMessage().contains("Payment Required") ||
+                            e.getMessage().contains("PAYMENT_REQUIRED"))) {
                 log.error("GigaChat tokens exhausted (402) while processing vacancy ID: {}. Skipping this vacancy.", vacancy.getId());
                 // Don't throw - just skip this vacancy and continue with others
                 return;
@@ -164,22 +255,22 @@ public class VacancyService {
             // Load system prompt from resources
             String systemPrompt = resourceFileReader.readResourceFile("prompts/vacancies_work_skill_extract_system_prompt.txt");
             log.info("System prompt loaded successfully");
-            
+
             // Get all vacancies that have at least one skill
             List<VacancyEntity> allVacancies = vacancyRepository.findAll();
             List<VacancyEntity> vacanciesToProcess = allVacancies.stream()
                     .filter(v -> v.getSkills() != null && !v.getSkills().isEmpty())
                     .toList();
-            
+
             log.info("Found {} vacancies to process", vacanciesToProcess.size());
-            
+
             for (VacancyEntity vacancy : vacanciesToProcess) {
                 log.info("Processing vacancy ID: {}, Name: {}", vacancy.getId(), vacancy.getName());
                 processVacancySkills(vacancy, systemPrompt);
             }
-            
+
             log.info("Successfully processed {} vacancies", vacanciesToProcess.size());
-            
+
         } catch (IOException e) {
             log.error("Failed to read system prompt file", e);
             throw new RuntimeException("Failed to load system prompt for skill processing", e);
@@ -188,9 +279,9 @@ public class VacancyService {
             throw new RuntimeException("Failed to process vacancy skills with GigaChat", e);
         }
     }
-    
+
     /**
-     * Extract skills from vacancy description text using GigaChat.
+     * Extracts skills from vacancy description text using GigaChat.
      * This method processes vacancies that have NO skills by analyzing their description text
      * and extracting professional skills mentioned in the text.
      * Uses a different system prompt specifically designed for text analysis.
@@ -201,16 +292,16 @@ public class VacancyService {
             // Load system prompt for text extraction from resources
             String systemPrompt = resourceFileReader.readResourceFile("prompts/vacancies_text_work_skill_extract_system_prompt.txt");
             log.info("Text extraction system prompt loaded successfully");
-            
+
             // Get all vacancies that have NO skills
             List<VacancyEntity> allVacancies = vacancyRepository.findAll();
             List<VacancyEntity> vacanciesToProcess = allVacancies.stream()
                     .filter(v -> v.getSkills() == null || v.getSkills().isEmpty())
                     .filter(v -> v.getDescription() != null && !v.getDescription().trim().isEmpty())
                     .toList();
-            
+
             log.info("Found {} vacancies without skills to process", vacanciesToProcess.size());
-            
+
             int processedCount = 0;
             for (VacancyEntity vacancy : vacanciesToProcess) {
                 try {
@@ -219,12 +310,12 @@ public class VacancyService {
                     processedCount++;
                 } catch (RuntimeException e) {
                     // Check if this is a 402 Payment Required error
-                    if (e.getMessage() != null && 
-                        (e.getMessage().contains("402") || 
-                         e.getMessage().contains("Payment Required") ||
-                         e.getMessage().contains("PAYMENT_REQUIRED"))) {
+                    if (e.getMessage() != null &&
+                            (e.getMessage().contains("402") ||
+                                    e.getMessage().contains("Payment Required") ||
+                                    e.getMessage().contains("PAYMENT_REQUIRED"))) {
                         log.error("GigaChat tokens exhausted (402 Payment Required). Stopping processing to avoid unnecessary API calls.");
-                        log.info("Successfully processed {} out of {} vacancies before token exhaustion", 
+                        log.info("Successfully processed {} out of {} vacancies before token exhaustion",
                                 processedCount, vacanciesToProcess.size());
                         throw new RuntimeException("GigaChat API tokens exhausted. Please top up your balance and try again.", e);
                     }
@@ -232,9 +323,9 @@ public class VacancyService {
                     log.error("Error processing vacancy ID: {}, continuing with next vacancy", vacancy.getId(), e);
                 }
             }
-            
+
             log.info("Successfully extracted skills from {} vacancies", processedCount);
-            
+
         } catch (IOException e) {
             log.error("Failed to read text extraction system prompt file", e);
             throw new RuntimeException("Failed to load system prompt for text skill extraction", e);
@@ -247,7 +338,7 @@ public class VacancyService {
             throw new RuntimeException("Failed to extract skills from vacancy text with GigaChat", e);
         }
     }
-    
+
     /**
      * Extracts skills from a single vacancy's description text using GigaChat.
      * Sends the full description to GigaChat and creates WorkSkill entities from the response.
@@ -256,28 +347,28 @@ public class VacancyService {
      */
     private void extractSkillsFromText(VacancyEntity vacancy, String systemPrompt) {
         String description = vacancy.getDescription();
-        
+
         if (description == null || description.trim().isEmpty()) {
             log.warn("Vacancy ID: {} has no description to analyze", vacancy.getId());
             return;
         }
-        
+
         try {
             log.debug("Sending vacancy description to GigaChat for skill extraction, vacancy ID: {}", vacancy.getId());
-            
+
             // Call GigaChat with the vacancy description text
             String gigaChatResponse = gigaChatService.chat(
-                description, 
-                systemPrompt, 
-                "GigaChat"
+                    description,
+                    systemPrompt,
+                    "GigaChat"
             );
-            
+
             log.debug("GigaChat response for vacancy ID {}: {}", vacancy.getId(), gigaChatResponse);
-            
+
             // Parse the skills from GigaChat response
             List<String> extractedSkills = parseSkillsFromGigaChatResponse(gigaChatResponse);
             log.info("Extracted {} skills from vacancy ID: {}", extractedSkills.size(), vacancy.getId());
-            
+
             // Create WorkSkill entities for each extracted skill
             List<WorkSkill> newSkills = new ArrayList<>();
             for (String skillName : extractedSkills) {
@@ -286,26 +377,26 @@ public class VacancyService {
                     newSkills.add(workSkill);
                 }
             }
-            
+
             // Set the new skills to the vacancy
             vacancy.setSkills(newSkills);
             vacancyRepository.save(vacancy);
-            
+
             log.info("Successfully extracted and saved {} skills for vacancy ID: {}", newSkills.size(), vacancy.getId());
-            
+
         } catch (RuntimeException e) {
             log.error("Failed to extract skills from text for vacancy ID: {}", vacancy.getId(), e);
             // Check if this is a payment required error - if so, propagate it up to stop all processing
-            if (e.getMessage() != null && 
-                (e.getMessage().contains("402") || 
-                 e.getMessage().contains("Payment Required") ||
-                 e.getMessage().contains("PAYMENT_REQUIRED"))) {
+            if (e.getMessage() != null &&
+                    (e.getMessage().contains("402") ||
+                            e.getMessage().contains("Payment Required") ||
+                            e.getMessage().contains("PAYMENT_REQUIRED"))) {
                 throw e; // Propagate 402 errors to stop processing
             }
             // For other errors, just log and return (don't stop processing other vacancies)
         }
     }
-    
+
     /**
      * Processes skills for a single vacancy using GigaChat.
      * Replaces old skills with normalized ones from GigaChat.
@@ -313,32 +404,32 @@ public class VacancyService {
     private void processVacancySkills(VacancyEntity vacancy, String systemPrompt) {
         List<WorkSkill> oldSkills = new ArrayList<>(vacancy.getSkills());
         List<WorkSkill> newSkills = new ArrayList<>();
-        
+
         log.info("Processing {} skills for vacancy ID: {}", oldSkills.size(), vacancy.getId());
-        
+
         for (WorkSkill oldSkill : oldSkills) {
             String skillDescription = oldSkill.getDescription();
-            
+
             if (skillDescription == null || skillDescription.trim().isEmpty()) {
                 log.warn("Skipping skill with empty description, ID: {}", oldSkill.getId());
                 continue;
             }
-            
+
             try {
                 log.debug("Sending skill to GigaChat: {}", skillDescription);
-                
+
                 // Call GigaChat with custom system prompt and model
                 String gigaChatResponse = gigaChatService.chat(
-                    skillDescription, 
-                    systemPrompt, 
-                    "GigaChat"
+                        skillDescription,
+                        systemPrompt,
+                        "GigaChat"
                 );
-                
+
                 log.debug("GigaChat response: {}", gigaChatResponse);
-                
+
                 // Parse JSON array from response
                 List<String> extractedSkills = parseSkillsFromGigaChatResponse(gigaChatResponse);
-                
+
                 // Create new WorkSkill entities for each extracted skill
                 for (String extractedSkill : extractedSkills) {
                     if (!"NOT_SKILL".equals(extractedSkill)) {
@@ -349,21 +440,21 @@ public class VacancyService {
                         log.info("Skipping NOT_SKILL for vacancy ID: {}", vacancy.getId());
                     }
                 }
-                
+
             } catch (Exception e) {
                 log.error("Error processing skill '{}' for vacancy ID: {}", skillDescription, vacancy.getId(), e);
                 // Continue processing other skills even if one fails
             }
         }
-        
+
         // Replace old skills with new ones
         vacancy.setSkills(newSkills);
         vacancyRepository.save(vacancy);
-        
-        log.info("Replaced {} old skills with {} new skills for vacancy ID: {}", 
+
+        log.info("Replaced {} old skills with {} new skills for vacancy ID: {}",
                 oldSkills.size(), newSkills.size(), vacancy.getId());
     }
-    
+
     /**
      * Parses skills from GigaChat JSON response.
      * Extracts JSON array from response which may contain markdown code blocks.
@@ -372,11 +463,11 @@ public class VacancyService {
         try {
             // Remove markdown code blocks if present
             String jsonString = response.trim();
-            
+
             // Pattern to extract JSON array from markdown code block
             Pattern pattern = Pattern.compile("```json\\s*\\n([\\s\\S]*?)\\n```");
             Matcher matcher = pattern.matcher(jsonString);
-            
+
             if (matcher.find()) {
                 jsonString = matcher.group(1).trim();
             } else {
@@ -387,18 +478,19 @@ public class VacancyService {
                     jsonString = jsonString.substring(startIdx, endIdx + 1);
                 }
             }
-            
+
             // Parse JSON array
-            List<String> skills = objectMapper.readValue(jsonString, new TypeReference<List<String>>() {});
+            List<String> skills = objectMapper.readValue(jsonString, new TypeReference<List<String>>() {
+            });
             log.debug("Parsed {} skills from GigaChat response", skills.size());
             return skills;
-            
+
         } catch (Exception e) {
             log.error("Failed to parse skills from GigaChat response: {}", response, e);
             return List.of(); // Return empty list on parse error
         }
     }
-    
+
     /**
      * Finds existing WorkSkill by description or creates a new one.
      */
@@ -409,12 +501,12 @@ public class VacancyService {
                 .filter(s -> s.getDescription().equalsIgnoreCase(description))
                 .findFirst()
                 .orElse(null);
-        
+
         if (existingSkill != null) {
             log.debug("Found existing skill: {}", description);
             return existingSkill;
         }
-        
+
         // Create new skill
         WorkSkill newSkill = new WorkSkill();
         newSkill.setDescription(description);
