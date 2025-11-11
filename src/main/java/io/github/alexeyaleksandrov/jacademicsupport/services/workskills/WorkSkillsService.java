@@ -35,6 +35,10 @@ public class WorkSkillsService {
     private final SavedSearchRepository searchRepository;
     private final VacancyService vacancyService;
     private final ItKeywordsConfig itKeywordsConfig;
+    private final ForesightRepository foresightRepository;
+    private final ExpertOpinionRepository expertOpinionRepository;
+    private final RecommendedSkillRepository recommendedSkillRepository;
+    private final RpdSkillRepository rpdSkillRepository;
 
     // Convert WorkSkill entity to WorkSkillResponseDto
     public WorkSkillResponseDto convertToResponseDto(WorkSkill workSkill) {
@@ -337,16 +341,20 @@ public class WorkSkillsService {
     }
 
     /**
-     * Удаляет все навыки (WorkSkill), которые не привязаны ни к одной вакансии.
+     * Удаляет все навыки (WorkSkill), которые не привязаны ни к одной вакансии, foresight, expert opinion, keyword, recommended skill или RPD.
+     * Проверяет все таблицы с Foreign Key ссылками на work_skill.
      * @return количество удаленных навыков
      */
     @Transactional
     public int deleteUnusedWorkSkills() {
         List<WorkSkill> allSkills = workSkillRepository.findAll();
-        List<VacancyEntity> allVacancies = vacancyEntityRepository.findAll();
         
-        // Собираем все навыки, которые используются хотя бы в одной вакансии
-        List<Long> usedSkillIds = allVacancies.stream()
+        // Собираем ID навыков, используемых в ВСЕХ связанных таблицах
+        List<Long> usedSkillIds = new ArrayList<>();
+        
+        // 1. Навыки из вакансий (vacancy)
+        List<VacancyEntity> allVacancies = vacancyEntityRepository.findAll();
+        List<Long> vacancySkillIds = allVacancies.stream()
                 .flatMap(vacancy -> {
                     if (vacancy.getSkills() != null) {
                         return vacancy.getSkills().stream();
@@ -356,10 +364,64 @@ public class WorkSkillsService {
                 .map(WorkSkill::getId)
                 .distinct()
                 .toList();
+        usedSkillIds.addAll(vacancySkillIds);
+        System.out.println("Навыков используется в vacancy: " + vacancySkillIds.size());
         
-        // Находим навыки, которые не используются
+        // 2. Навыки из foresight
+        List<Long> foresightSkillIds = foresightRepository.findAll().stream()
+                .map(foresight -> foresight.getWorkSkill().getId())
+                .distinct()
+                .toList();
+        usedSkillIds.addAll(foresightSkillIds);
+        System.out.println("Навыков используется в foresight: " + foresightSkillIds.size());
+        
+        // 3. Навыки из expert_opinion
+        List<Long> expertOpinionSkillIds = expertOpinionRepository.findAll().stream()
+                .filter(opinion -> opinion.getWorkSkill() != null)
+                .map(opinion -> opinion.getWorkSkill().getId())
+                .distinct()
+                .toList();
+        usedSkillIds.addAll(expertOpinionSkillIds);
+        System.out.println("Навыков используется в expert_opinion: " + expertOpinionSkillIds.size());
+        
+        // 4. Навыки из keyword (Many-to-Many)
+        List<Long> keywordSkillIds = keywordRepository.findAll().stream()
+                .flatMap(keyword -> {
+                    if (keyword.getWorkSkills() != null) {
+                        return keyword.getWorkSkills().stream();
+                    }
+                    return java.util.stream.Stream.empty();
+                })
+                .map(WorkSkill::getId)
+                .distinct()
+                .toList();
+        usedSkillIds.addAll(keywordSkillIds);
+        System.out.println("Навыков используется в keyword: " + keywordSkillIds.size());
+        
+        // 5. Навыки из recommended_skill
+        List<Long> recommendedSkillIds = recommendedSkillRepository.findAll().stream()
+                .map(recommended -> recommended.getWorkSkill().getId())
+                .distinct()
+                .toList();
+        usedSkillIds.addAll(recommendedSkillIds);
+        System.out.println("Навыков используется в recommended_skill: " + recommendedSkillIds.size());
+        
+        // 6. Навыки из rpd_skill
+        List<Long> rpdSkillIds = rpdSkillRepository.findAll().stream()
+                .map(rpdSkill -> rpdSkill.getWorkSkill().getId())
+                .distinct()
+                .toList();
+        usedSkillIds.addAll(rpdSkillIds);
+        System.out.println("Навыков используется в rpd_skill: " + rpdSkillIds.size());
+        
+        // Уникальные ID используемых навыков
+        usedSkillIds = usedSkillIds.stream().distinct().toList();
+        System.out.println("Всего уникальных используемых навыков: " + usedSkillIds.size());
+        
+        // Находим навыки, которые НЕ используются
+        List<Long> finalUsedSkillIds = usedSkillIds;
         List<WorkSkill> unusedSkills = allSkills.stream()
-                .filter(skill -> !usedSkillIds.contains(skill.getId()))
+                .filter(skill -> !finalUsedSkillIds.contains(skill.getId()))
                 .toList();
         
         int deletedCount = unusedSkills.size();
@@ -370,13 +432,12 @@ public class WorkSkillsService {
                 System.out.println("  - Удаляется навык: " + skill.getDescription() + " (ID: " + skill.getId() + ")")
             );
             
-            // Извлекаем только ID для удаления, чтобы избежать StackOverflowError
-            // из-за циклических ссылок в @EqualsAndHashCode
+            // Извлекаем только ID для удаления
             List<Long> unusedSkillIds = unusedSkills.stream()
                     .map(WorkSkill::getId)
                     .toList();
             
-            // Удаляем по ID - безопаснее, чем deleteAllInBatch() для сущностей со связями
+            // Удаляем по ID
             workSkillRepository.deleteAllById(unusedSkillIds);
             System.out.println("Успешно удалено навыков: " + deletedCount);
         } else {
