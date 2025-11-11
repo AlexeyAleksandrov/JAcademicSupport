@@ -347,9 +347,14 @@ public class WorkSkillsService {
                 System.out.println("  - Удаляется навык: " + skill.getDescription() + " (ID: " + skill.getId() + ")")
             );
             
-            // Удаляем неиспользуемые навыки одним batch-запросом
-            // deleteAllInBatch() быстрее, чем deleteAll() для массового удаления
-            workSkillRepository.deleteAllInBatch(unusedSkills);
+            // Извлекаем только ID для удаления, чтобы избежать StackOverflowError
+            // из-за циклических ссылок в @EqualsAndHashCode
+            List<Long> unusedSkillIds = unusedSkills.stream()
+                    .map(WorkSkill::getId)
+                    .toList();
+            
+            // Удаляем по ID - безопаснее, чем deleteAllInBatch() для сущностей со связями
+            workSkillRepository.deleteAllById(unusedSkillIds);
             System.out.println("Успешно удалено навыков: " + deletedCount);
         } else {
             System.out.println("Неиспользуемых навыков не найдено");
