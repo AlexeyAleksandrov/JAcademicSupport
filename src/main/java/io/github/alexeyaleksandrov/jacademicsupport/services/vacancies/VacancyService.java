@@ -8,7 +8,6 @@ import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyEntityRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.services.gigachat.GigaChatService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.workskills.WorkSkillService;
-import io.github.alexeyaleksandrov.jacademicsupport.services.workskills.WorkSkillsService;
 import io.github.alexeyaleksandrov.jacademicsupport.utils.OffsetBasedPageRequest;
 import io.github.alexeyaleksandrov.jacademicsupport.utils.ResourceFileReader;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +32,6 @@ public class VacancyService {
     private final VacancyEntityRepository vacancyRepository;
     private final GigaChatService gigaChatService;
     private final WorkSkillService workSkillService;
-    private final WorkSkillsService workSkillsService;
     private final ObjectMapper objectMapper;
     private final ResourceFileReader resourceFileReader;
     private final ItKeywordsConfig itKeywordsConfig;
