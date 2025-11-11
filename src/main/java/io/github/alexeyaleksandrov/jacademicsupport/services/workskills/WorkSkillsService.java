@@ -286,6 +286,29 @@ public class WorkSkillsService {
                     // Vacancy has NO skills - extract from description text
                     vacancyService.processNewVacancyWithoutSkills(newVacancy);
                 }
+                
+                // После обработки навыков через GigaChat, определяем группы для новых навыков
+                // Загружаем обновленную вакансию из БД, чтобы получить актуальный список навыков
+                VacancyEntity updatedVacancy = vacancyEntityRepository.findById(newVacancy.getId()).orElse(null);
+                if (updatedVacancy != null && updatedVacancy.getSkills() != null) {
+                    System.out.println("Определение групп технологий для новых навыков вакансии ID: " + updatedVacancy.getId());
+                    
+                    // Проверяем каждый навык и определяем группу для тех, у кого NO_GROUP
+                    for (WorkSkill skill : updatedVacancy.getSkills()) {
+                        // Проверяем, является ли навык новым (имеет группу NO_GROUP)
+                        if (skill.getSkillsGroupBySkillsGroupId() == null || 
+                            "NO_GROUP".equals(skill.getSkillsGroupBySkillsGroupId().getDescription())) {
+                            try {
+                                System.out.println("Определение группы для нового навыка: " + skill.getDescription());
+                                assignSkillGroupWithGigaChat(skill);
+                            } catch (Exception groupError) {
+                                System.err.println("Ошибка определения группы для навыка \"" + 
+                                        skill.getDescription() + "\": " + groupError.getMessage());
+                            }
+                        }
+                    }
+                }
+                
             } catch (Exception e) {
                 System.err.println("Ошибка обработки навыков для вакансии ID: " + newVacancy.getId() + " - " + e.getMessage());
                 // Continue processing other vacancies even if one fails
@@ -361,5 +384,46 @@ public class WorkSkillsService {
         }
         
         return deletedCount;
+    }
+
+    /**
+     * Автоматически сопоставляет навык с группой технологий через GigaChat.
+     * Используется для новых навыков, чтобы сразу определить их группу.
+     * @param workSkill навык для сопоставления
+     * @return обновленный навык с назначенной группой
+     */
+    public WorkSkill assignSkillGroupWithGigaChat(WorkSkill workSkill) {
+        try {
+            List<SkillsGroup> skillsGroups = skillsGroupRepository.findAll();
+            
+            String allSkillsPrompt = skillsGroups.stream()
+                    .map(SkillsGroup::getDescription)
+                    .collect(Collectors.joining(", ", "[", "]"));
+            
+            String prompt = "У тебя есть профессиональный навык " + workSkill.getDescription() + 
+                    ", к какой группе навыков из списка его можно отнести? Список группы навыков: " + 
+                    allSkillsPrompt + ". Ответ должен содержать только название группы";
+            
+            System.out.println("Определение группы для нового навыка через GigaChat: " + workSkill.getDescription());
+            String answer = gigaChatService.chat(prompt);
+            
+            SkillsGroup skillsGroup = skillsGroups.stream()
+                    .filter(group -> answer.contains(group.getDescription()))
+                    .findFirst()
+                    .orElse(skillsGroupRepository.findByDescription("NO_GROUP"));
+            
+            workSkill.setSkillsGroupBySkillsGroupId(skillsGroup);
+            workSkill = workSkillRepository.saveAndFlush(workSkill);
+            
+            System.out.println("Для нового навыка \"" + workSkill.getDescription() + 
+                    "\" установлена группа \"" + skillsGroup.getDescription() + "\"");
+            
+            return workSkill;
+        } catch (Exception e) {
+            System.err.println("Ошибка при определении группы для навыка \"" + 
+                    workSkill.getDescription() + "\": " + e.getMessage());
+            // В случае ошибки оставляем NO_GROUP
+            return workSkill;
+        }
     }
 }
