@@ -15,6 +15,7 @@ import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -316,6 +317,7 @@ public class WorkSkillsService {
      * Удаляет все навыки (WorkSkill), которые не привязаны ни к одной вакансии.
      * @return количество удаленных навыков
      */
+    @Transactional
     public int deleteUnusedWorkSkills() {
         List<WorkSkill> allSkills = workSkillRepository.findAll();
         List<VacancyEntity> allVacancies = vacancyEntityRepository.findAll();
@@ -345,8 +347,9 @@ public class WorkSkillsService {
                 System.out.println("  - Удаляется навык: " + skill.getDescription() + " (ID: " + skill.getId() + ")")
             );
             
-            // Удаляем неиспользуемые навыки
-            workSkillRepository.deleteAll(unusedSkills);
+            // Удаляем неиспользуемые навыки одним batch-запросом
+            // deleteAllInBatch() быстрее, чем deleteAll() для массового удаления
+            workSkillRepository.deleteAllInBatch(unusedSkills);
             System.out.println("Успешно удалено навыков: " + deletedCount);
         } else {
             System.out.println("Неиспользуемых навыков не найдено");
