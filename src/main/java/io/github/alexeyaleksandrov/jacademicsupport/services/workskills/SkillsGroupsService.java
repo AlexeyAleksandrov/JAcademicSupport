@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @AllArgsConstructor
@@ -17,6 +18,14 @@ public class SkillsGroupsService {
     private SkillsGroupRepository skillsGroupRepository;
     private VacancyEntityRepository vacancyEntityRepository;
     private WorkSkillRepository workSkillRepository;
+
+    public Optional<SkillsGroup> findById(Long id) {
+        return skillsGroupRepository.findById(id);
+    }
+
+    public List<SkillsGroup> findAll() {
+        return skillsGroupRepository.findAll();
+    }
 
     public List<SkillsGroup> updateSkillsGroupsMarketDemand() {
         List<SkillsGroup> skillsGroups = skillsGroupRepository.findAll();
