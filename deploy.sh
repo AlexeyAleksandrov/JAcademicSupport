@@ -12,7 +12,39 @@ export COMPOSE_DOCKER_CLI_BUILD=1
 echo "1. Checking Docker access..."
 docker ps > /dev/null
 
-echo "2. Creating external network if not exists..."
+echo "2. Checking system resources..."
+# Проверка свободного места на диске
+DISK_FREE=$(df / | tail -1 | awk '{print $4}')
+DISK_FREE_GB=$((DISK_FREE / 1024 / 1024))
+echo "Free disk space: ${DISK_FREE_GB}GB"
+if [ $DISK_FREE_GB -lt 2 ]; then
+    echo "⚠️  WARNING: Low disk space (${DISK_FREE_GB}GB). Cleaning up Docker..."
+    docker system prune -f --volumes
+fi
+
+# Проверка и создание swap для предотвращения OOM killer
+SWAP_SIZE=$(free -m | grep Swap | awk '{print $2}')
+echo "Current swap size: ${SWAP_SIZE}MB"
+if [ $SWAP_SIZE -lt 1024 ]; then
+    echo "⚠️  Insufficient swap detected. Creating 2GB swap file..."
+    if [ ! -f /swapfile ]; then
+        sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        # Добавляем в fstab если ещё не добавлено
+        if ! grep -q '/swapfile' /etc/fstab; then
+            echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+        fi
+        echo "✓ Swap file created and activated"
+    else
+        sudo swapon /swapfile 2>/dev/null || echo "✓ Swap file already active"
+    fi
+else
+    echo "✓ Sufficient swap available"
+fi
+
+echo "3. Creating external network if not exists..."
 # Проверяем, существует ли сеть
 if ! docker network ls | grep -q app-network; then
     echo "Creating app-network..."
@@ -22,7 +54,7 @@ else
 fi
 
 # Сохраняем текущий образ для возможного отката
-echo "3. Backing up current image..."
+echo "4. Backing up current image..."
 BACKUP_IMAGE="jacademicsupport-app:backup-$(date +%Y%m%d-%H%M%S)"
 if docker images jacademicsupport-app:latest -q | grep -q .; then
     docker tag jacademicsupport-app:latest "$BACKUP_IMAGE" || true
@@ -31,7 +63,7 @@ else
     echo "✓ No existing image to backup"
 fi
 
-echo "4. Pulling latest code from GitHub..."
+echo "5. Pulling latest code from GitHub..."
 git fetch origin
 
 # Проверяем, есть ли изменения в критичных файлах
@@ -45,10 +77,10 @@ fi
 
 git reset --hard origin/master
 
-echo "5. Stopping existing containers..."
+echo "6. Stopping existing containers..."
 docker compose down
 
-echo "6. Starting containers..."
+echo "7. Starting containers..."
 # Pass environment variables to docker-compose
 export GIGACHAT_API_TOKEN="${GIGACHAT_API_TOKEN}"
 export JWT_SECRET="${JWT_SECRET}"
@@ -69,7 +101,7 @@ else
     fi
 fi
 
-echo "7. Checking container status..."
+echo "8. Checking container status..."
 sleep 5  # Даём контейнерам время на старт
 if ! docker compose ps | grep -q "Up"; then
     echo "❌ ERROR: No containers are running!"
@@ -77,7 +109,7 @@ if ! docker compose ps | grep -q "Up"; then
     exit 1
 fi
 
-echo "8. Performing health check..."
+echo "9. Performing health check..."
 chmod +x scripts/health-check.sh
 
 # Определяем таймаут в зависимости от наличия backup
@@ -137,11 +169,11 @@ else
     fi
 fi
 
-echo "9. Cleaning up old images..."
+echo "10. Cleaning up old images..."
 docker image prune -f
 
 # Удаляем старые backup образы (оставляем только последние 3)
-echo "10. Cleaning up old backups..."
+echo "11. Cleaning up old backups..."
 docker images jacademicsupport-app --format "{{.Tag}}" | grep "backup-" | sort -r | tail -n +4 | xargs -r -I {} docker rmi jacademicsupport-app:{} || true
 
 echo ""

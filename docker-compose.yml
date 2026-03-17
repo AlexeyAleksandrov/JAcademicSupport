@@ -14,6 +14,18 @@ services:
     networks:
       - myapp-network
     restart: unless-stopped # Контейнер автоматически перезапустится при сбое
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # Максимум 512MB для PostgreSQL
+        reservations:
+          memory: 256M  # Минимум 256MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Сервис вашего Spring Boot приложения
   app:
@@ -40,7 +52,8 @@ services:
     ports:
       - "8080:8080" # Пробрасываем порт приложения на хост
     depends_on:
-      - postgres # Приложение запустится только после успешного старта БД
+      postgres:
+        condition: service_healthy  # Ждем пока БД станет здоровой
     healthcheck:
       # Увеличенные параметры для медленного VPS (средний запуск 80-90s)
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health/readiness", "||", "exit", "1"]
@@ -52,6 +65,12 @@ services:
       - myapp-network
       - app-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M  # Максимум 768MB для backend
+        reservations:
+          memory: 512M  # Минимум 512MB
 
   # Новая служба - планировщик
   scheduler:
