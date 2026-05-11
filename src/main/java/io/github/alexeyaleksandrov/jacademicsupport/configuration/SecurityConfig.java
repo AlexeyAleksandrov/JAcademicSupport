@@ -62,6 +62,8 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/actuator/info").permitAll()
+                        // Scheduler cron job endpoint для автоматической загрузки вакансий
+                        .requestMatchers("/vac/by-saved-searches").permitAll()
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
