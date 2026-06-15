@@ -16,7 +16,8 @@ public class WebClient {
             HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
             httpURLConnection.setRequestMethod("GET");
             // Add User-Agent header to prevent 403 Forbidden from HeadHunter API
-            httpURLConnection.setRequestProperty("User-Agent", "JAcademicSupport/1.0 (https://github.com/AlexeyAleksandrov/JAcademicSupport)");
+            // Using official HH documentation example: https://habr.com/ru/companies/hh/articles/303168/
+            httpURLConnection.setRequestProperty("User-Agent", "api-test-agent");
 
             BufferedReader in = new BufferedReader(new InputStreamReader(httpURLConnection.getInputStream()));
             String inputLine;
