@@ -27,6 +27,9 @@ public class WorkSkill {
     @JoinColumn(name = "skills_group_id", referencedColumnName = "id")
     private SkillsGroup skillsGroupBySkillsGroupId;
 
+    @Column(name = "canonical_id")
+    private Long canonicalId;
+
     public double getRoundedMarketDemand() {
         return Math.round(marketDemand * 1000.0) / 1000.0;
     }

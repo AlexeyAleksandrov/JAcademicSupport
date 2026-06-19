@@ -53,30 +53,32 @@ public class DSTAggregationService {
         if (verbose) printDiscountStep(vacData, expData, foreData);
 
         // ── ШАГ 3.1: комбинируем вакансии ⊕ эксперты ────────────────────────
-        double[] m12 = combineDST(
+        double[] m12 = combineAdaptive(
             vacData.getMTDiscounted(), vacData.getMUDiscounted(), vacData.getMFDiscounted(),
             expData.getMTDiscounted(), expData.getMUDiscounted(), expData.getMFDiscounted()
         );
         double K1 = m12[3];
+        boolean usedYager1 = K1 >= TAU_K;
         if (verbose) printCombineStep(
             "ШАГ 3.1: Вакансии ⊕ Эксперты",
             vacData.getMTDiscounted(), vacData.getMUDiscounted(), vacData.getMFDiscounted(),
             expData.getMTDiscounted(), expData.getMUDiscounted(), expData.getMFDiscounted(),
-            m12, K1,
+            m12, K1, usedYager1,
             "Согласие источников усиливает уверенность (m(T) растёт, m(U) падает)"
         );
 
         // ── ШАГ 3.2: комбинируем результат ⊕ прогнозы ────────────────────────
-        double[] mFinal = combineDST(
+        double[] mFinal = combineAdaptive(
             m12[0], m12[1], m12[2],
             foreData.getMTDiscounted(), foreData.getMUDiscounted(), foreData.getMFDiscounted()
         );
         double K2 = mFinal[3];
+        boolean usedYager2 = K2 >= TAU_K;
         if (verbose) printCombineStep(
             "ШАГ 3.2: (Вак⊕Эксп) ⊕ Прогнозы",
             m12[0], m12[1], m12[2],
             foreData.getMTDiscounted(), foreData.getMUDiscounted(), foreData.getMFDiscounted(),
-            mFinal, K2,
+            mFinal, K2, usedYager2,
             "Прогнозы корректируют итоговое распределение масс"
         );
 
@@ -129,10 +131,43 @@ public class DSTAggregationService {
         return new double[]{mT, mU, mF, K};
     }
 
+    /**
+     * Комбинирует два источника по правилу Ягера (при высоком конфликте).
+     * Конфликтная масса K уходит в неопределённость m(U) — без нормировки.
+     * Честно отражает противоречие источников, не скрывая его за нормой.
+     * @return массив [mT, mU, mF, K]
+     */
+    private double[] combineYager(double m1T, double m1U, double m1F,
+                                   double m2T, double m2U, double m2F) {
+        double K  = m1T * m2F + m1F * m2T;
+
+        double mT = m1T * m2T + m1T * m2U + m1U * m2T;
+        double mU = m1U * m2U + K;   // конфликт переходит в неопределённость
+        double mF = m1F * m2F + m1F * m2U + m1U * m2F;
+
+        double sum = mT + mU + mF;
+        if (sum > 0) { mT /= sum; mU /= sum; mF /= sum; }
+
+        return new double[]{mT, mU, mF, K};
+    }
+
+    /**
+     * Адаптивное комбинирование: Демпстер при K < τK, Ягер при K ≥ τK.
+     * @return массив [mT, mU, mF, K]
+     */
+    private double[] combineAdaptive(double m1T, double m1U, double m1F,
+                                      double m2T, double m2U, double m2F) {
+        double K = m1T * m2F + m1F * m2T;
+        return K >= TAU_K
+            ? combineYager(m1T, m1U, m1F, m2T, m2U, m2F)
+            : combineDST(m1T, m1U, m1F, m2T, m2U, m2F);
+    }
+
     private String generateRecommendation(double mT, double mU, double mF, double K, double delta) {
         StringBuilder rec = new StringBuilder();
-        if (K > TAU_K) {
-            rec.append("⚠️ ВЫСОКИЙ КОНФЛИКТ (K=").append(f2(K)).append(")! Источники противоречат друг другу. ");
+        if (K >= TAU_K) {
+            rec.append("⚡ Применено правило Ягера (K=").append(f2(K)).append(" ≥ τK=").append(f2(TAU_K)).append("). ");
+            rec.append("⚠️ ВЫСОКИЙ КОНФЛИКТ — источники противоречат друг другу. ");
         }
         if (mU > TAU_THETA) {
             rec.append("📊 Высокая неопределённость (m(U)=").append(f2(mU)).append("). ");
@@ -299,34 +334,52 @@ public class DSTAggregationService {
     private void printCombineStep(String title,
                                    double m1T, double m1U, double m1F,
                                    double m2T, double m2U, double m2F,
-                                   double[] result, double K, String comment) {
-        p("📐 " + title);
+                                   double[] result, double K, boolean usedYager, String comment) {
+        String ruleLabel = usedYager ? "  [⚡ ПРАВИЛО ЯГЕРА]" : "";
+        p("📐 " + title + ruleLabel);
         sep('-');
         p(String.format("  Вход 1:  m(T)=%.4f  m(U)=%.4f  m(F)=%.4f", m1T, m1U, m1F));
         p(String.format("  Вход 2:  m(T)=%.4f  m(U)=%.4f  m(F)=%.4f", m2T, m2U, m2F));
         p("");
-        p(String.format("  Конфликт K = m1(T)×m2(F) + m1(F)×m2(T)"));
+        p("  Конфликт K = m1(T)×m2(F) + m1(F)×m2(T)");
         p(String.format("           K = %.4f×%.4f + %.4f×%.4f = %.4f",
             m1T, m2F, m1F, m2T, K));
-        if (K > TAU_K) {
-            p(String.format("  ⚠️  K = %.4f > τK = %.2f  → ВЫСОКИЙ КОНФЛИКТ!", K, TAU_K));
-            p("      Правило Демпстера неустойчиво — данные противоречат друг другу.");
+        if (usedYager) {
+            p(String.format("  🔴 K = %.4f ≥ τK = %.2f  → ПРАВИЛО ЯГЕРА: конфликт уходит в неопределённость", K, TAU_K));
+            p("");
+            double rawT = m1T * m2T + m1T * m2U + m1U * m2T;
+            double rawU = m1U * m2U;
+            double rawF = m1F * m2F + m1F * m2U + m1U * m2F;
+            p("  Сырые массы (без нормировки, как у Демпстера):");
+            p("  raw(T) = m1(T)×m2(T) + m1(T)×m2(U) + m1(U)×m2(T)");
+            p(String.format("         = %.4f×%.4f + %.4f×%.4f + %.4f×%.4f = %.4f",
+                m1T, m2T, m1T, m2U, m1U, m2T, rawT));
+            p("  raw(U) = m1(U)×m2(U)");
+            p(String.format("         = %.4f×%.4f = %.4f", m1U, m2U, rawU));
+            p("  raw(F) = m1(F)×m2(F) + m1(F)×m2(U) + m1(U)×m2(F)");
+            p(String.format("         = %.4f×%.4f + %.4f×%.4f + %.4f×%.4f = %.4f",
+                m1F, m2F, m1F, m2U, m1U, m2F, rawF));
+            p("");
+            p("  ⚡ Ягер: K не нормирует — конфликт честно переходит в m(U):");
+            p(String.format("  m_Y(T) = raw(T)           = %.4f", rawT));
+            p(String.format("  m_Y(U) = raw(U) + K = %.4f + %.4f = %.4f  ← конфликт здесь!", rawU, K, rawU + K));
+            p(String.format("  m_Y(F) = raw(F)           = %.4f", rawF));
         } else {
             p(String.format("  ✅  K = %.4f ≤ τK = %.2f  → применяем правило Демпстера", K, TAU_K));
+            p("");
+            double norm = 1.0 - K;
+            p(String.format("  Нормировка: 1 − K = %.4f", norm));
+            p("  m_out(T) = [m1(T)×m2(T) + m1(T)×m2(U) + m1(U)×m2(T)] / (1−K)");
+            p(String.format("           = [%.4f×%.4f + %.4f×%.4f + %.4f×%.4f] / %.4f",
+                m1T, m2T, m1T, m2U, m1U, m2T, norm));
+            p(String.format("           = %.4f", result[0]));
+            p("  m_out(U) = [m1(U)×m2(U)] / (1−K)");
+            p(String.format("           = [%.4f×%.4f] / %.4f = %.4f", m1U, m2U, norm, result[1]));
+            p("  m_out(F) = [m1(F)×m2(F) + m1(F)×m2(U) + m1(U)×m2(F)] / (1−K)");
+            p(String.format("           = [%.4f×%.4f + %.4f×%.4f + %.4f×%.4f] / %.4f",
+                m1F, m2F, m1F, m2U, m1U, m2F, norm));
+            p(String.format("           = %.4f", result[2]));
         }
-        p("");
-        double norm = 1.0 - K;
-        p(String.format("  Нормировка: 1 − K = %.4f", norm));
-        p("  m_out(T) = [m1(T)×m2(T) + m1(T)×m2(U) + m1(U)×m2(T)] / (1−K)");
-        p(String.format("           = [%.4f×%.4f + %.4f×%.4f + %.4f×%.4f] / %.4f",
-            m1T, m2T, m1T, m2U, m1U, m2T, norm));
-        p(String.format("           = %.4f", result[0]));
-        p("  m_out(U) = [m1(U)×m2(U)] / (1−K)");
-        p(String.format("           = [%.4f×%.4f] / %.4f = %.4f", m1U, m2U, norm, result[1]));
-        p("  m_out(F) = [m1(F)×m2(F) + m1(F)×m2(U) + m1(U)×m2(F)] / (1−K)");
-        p(String.format("           = [%.4f×%.4f + %.4f×%.4f + %.4f×%.4f] / %.4f",
-            m1F, m2F, m1F, m2U, m1U, m2F, norm));
-        p(String.format("           = %.4f", result[2]));
         p("");
         p(String.format("  Итог: m(T)=%.4f  m(U)=%.4f  m(F)=%.4f  (сумма=%.4f)",
             result[0], result[1], result[2], result[0]+result[1]+result[2]));
