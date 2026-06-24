@@ -64,6 +64,10 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/info").permitAll()
                         // Scheduler cron job endpoint для автоматической загрузки вакансий
                         .requestMatchers("/vac/by-saved-searches").permitAll()
+                        // DST pipeline admin endpoints
+                        .requestMatchers("/api/admin/dst/**").permitAll()
+                        // DST query endpoints (read-only, used by frontend)
+                        .requestMatchers("/api/dst/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

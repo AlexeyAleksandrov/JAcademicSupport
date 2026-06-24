@@ -1,8 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers;
 
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.*;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +17,6 @@ import java.util.Map;
 @RequestMapping("/api/admin/dst")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "DST Admin Pipeline", description = "Data preparation pipeline for the DST algorithm")
 public class DstAdminController {
 
     private final SkillNormalizationService  normalizationService;
@@ -29,11 +26,6 @@ public class DstAdminController {
     private final VacancyClusterScoreService scoreService;
 
     @PostMapping("/normalize-skills")
-    @Operation(
-        summary     = "Phase 2 — Normalise skills",
-        description = "Runs the 3-pass regex pipeline: splits composite skills, extracts versions, "
-                    + "creates skill_canonical entries, links work_skill.canonical_id."
-    )
     public ResponseEntity<Map<String, Object>> normalizeSkills() {
         log.info("Admin: starting skill normalisation");
         SkillNormalizationService.NormalizationReport report = normalizationService.normalizeAll();
@@ -46,11 +38,6 @@ public class DstAdminController {
     }
 
     @PostMapping("/classify-professions")
-    @Operation(
-        summary     = "Phase 3 — Classify vacancies into professions",
-        description = "Keyword-matching on vacancy title. One vacancy may map to multiple "
-                    + "professions with individual confidence scores."
-    )
     public ResponseEntity<Map<String, Object>> classifyProfessions() {
         log.info("Admin: starting profession classification");
         VacancyProfessionService.ClassificationReport report = professionService.classifyAll();
@@ -62,11 +49,6 @@ public class DstAdminController {
     }
 
     @PostMapping("/build-dependency-graph")
-    @Operation(
-        summary     = "Phase 4 — Build skill dependency graph",
-        description = "Computes co-occurrence statistics from vacancy-skill data. "
-                    + "Optional 'threshold' param (default 0.30) controls minimum P(parent|child)."
-    )
     public ResponseEntity<Map<String, Object>> buildDependencyGraph(
             @RequestParam(defaultValue = "0.30") double threshold) {
         log.info("Admin: building dependency graph with threshold={}", threshold);
@@ -79,11 +61,6 @@ public class DstAdminController {
     }
 
     @PostMapping("/compute-profession-weights")
-    @Operation(
-        summary     = "Phase 5 — Compute profession-cluster weights",
-        description = "Fills profession_cluster.weight for every (profession, cluster) pair "
-                    + "based on vacancy statistics."
-    )
     public ResponseEntity<Map<String, Object>> computeProfessionWeights() {
         log.info("Admin: computing profession-cluster weights");
         ProfessionClusterService.WeightReport report = professionClusterService.computeWeights();
@@ -93,11 +70,6 @@ public class DstAdminController {
     }
 
     @PostMapping("/compute-cluster-scores")
-    @Operation(
-        summary     = "Phase 6 — Compute vacancy-cluster scores",
-        description = "Pre-computes vacancy_cluster_score for every (vacancy, cluster) pair. "
-                    + "Uses title=1.0, skills=0.8, description=0.5 weights with dependency expansion."
-    )
     public ResponseEntity<Map<String, Object>> computeClusterScores() {
         log.info("Admin: computing vacancy-cluster scores");
         VacancyClusterScoreService.ScoreReport report = scoreService.computeScores();
@@ -107,10 +79,6 @@ public class DstAdminController {
     }
 
     @PostMapping("/run-full-pipeline")
-    @Operation(
-        summary     = "Run full pipeline (phases 2–6)",
-        description = "Runs all phases sequentially. Safe to re-run (idempotent — upserts, not inserts)."
-    )
     public ResponseEntity<Map<String, Object>> runFullPipeline(
             @RequestParam(defaultValue = "0.30") double dependencyThreshold) {
         log.info("Admin: running full DST pipeline");

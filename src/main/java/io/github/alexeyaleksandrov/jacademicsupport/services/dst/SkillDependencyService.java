@@ -55,7 +55,9 @@ public class SkillDependencyService {
         // totalWithSkill[A] = vacancies containing A
         Map<Long, Integer> totalWith = new HashMap<>();
 
+        int vacTotal = vacancies.size(), vacIdx = 0;
         for (VacancyEntity vacancy : vacancies) {
+            vacIdx++;
             if (vacancy.getSkills() == null) continue;
 
             Set<Long> canonicalIds = new HashSet<>();
@@ -74,7 +76,13 @@ public class SkillDependencyService {
                     }
                 }
             }
+
+            if (vacIdx % 200 == 0)
+                log.info("Dependency: co-occurrence matrix progress {}/{}", vacIdx, vacTotal);
         }
+
+        log.info("Dependency: matrix built — {} unique skills, {} pairs to evaluate",
+                totalWith.size(), coMatrix.values().stream().mapToInt(Map::size).sum());
 
         int saved = 0, skipped = 0;
 

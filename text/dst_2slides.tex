@@ -1,0 +1,215 @@
+\documentclass[12pt,aspectratio=169]{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb, mathtools}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes.rounded, positioning, fit, calc}
+
+% ── Цветовая схема (тёмный фон, золотые акценты) ─────────────────────────────
+\definecolor{darkbg}{RGB}{28,28,28}
+\definecolor{gold}{RGB}{212,170,40}
+\definecolor{lightgold}{RGB}{255,215,80}
+\definecolor{blockbg}{RGB}{45,45,45}
+
+\setbeamercolor{background canvas}{bg=darkbg}
+\setbeamercolor{frametitle}{fg=white, bg=darkbg}
+\setbeamercolor{normal text}{fg=white, bg=darkbg}
+\setbeamercolor{itemize item}{fg=gold}
+\setbeamercolor{itemize subitem}{fg=lightgold}
+\setbeamercolor{block title}{bg=gold, fg=black}
+\setbeamercolor{block body}{bg=blockbg, fg=white}
+\setbeamercolor{alerted text}{fg=lightgold}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize item}{\color{gold}\raisebox{0.15ex}{\rule{0.55em}{0.55em}}}
+\setbeamertemplate{itemize subitem}{\color{lightgold}\raisebox{0.15ex}{\rule{0.4em}{0.4em}}}
+
+% ── Заголовок кадра с золотой линией ─────────────────────────────────────────
+\setbeamertemplate{frametitle}{%
+  \vspace*{0.35em}%
+  {\Large\bfseries\color{white}\insertframetitle}\par
+  \vspace*{0.25em}%
+  {\color{gold}\hrule height 1.2pt}\vspace*{0.3em}%
+}
+
+\newcommand{\slideno}[1]{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \node[fill=gold, text=black, font=\bfseries\large,
+          inner sep=4pt, minimum width=1.8em, minimum height=1.8em]
+      at ([xshift=1.1cm, yshift=-0.55cm] current page.north west) {#1};
+  \end{tikzpicture}%
+}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+% =============================================================================
+\begin{frame}{Паспорт источника и формирование BPA}
+\slideno{1}
+
+\begin{columns}[T]
+
+% ── ЛЕВАЯ КОЛОНКА ─────────────────────────────────────────────────────────────
+\begin{column}{0.50\textwidth}
+\begin{block}{\bfseries Параметры источника $s \in \mathcal{S}$}
+\small
+\begin{itemize}
+  \item Входной кортеж: $(n^{\mathrm{tot}}_s,\;n^{\mathrm{rel}}_s,\;\bar{a}_s,\;\alpha_s,\;w_s,\;\lambda_s)$
+  \item Эффективный объём:
+        $n^{\mathrm{eff}}_s = n^{\mathrm{rel}}_s \cdot \alpha_s$
+  \item Коэффициент уверенности:
+        \[
+          \kappa_s = \dfrac{n^{\mathrm{eff}}_s}{n^{\mathrm{eff}}_s + \lambda_s}
+          \;\in (0,1)
+        \]
+  \item BPA для vac, exp:
+        \[
+          m_s(\{T\}) = \kappa_s \cdot \bar{a}_s \cdot \frac{n^{\mathrm{rel}}_s}{n^{\mathrm{tot}}_s},
+          \quad m_s(\{F\}) = 0
+        \]
+  \item BPA для смешанных прогнозов fc:
+        \[
+          m_{\mathrm{fc}}(\{F\}) = \kappa_{\mathrm{fc}} \cdot \bar{a}_- \cdot \frac{n_-}{n^{\mathrm{tot}}_{\mathrm{fc}}}
+        \]
+  \item $m_s(\Theta) = 1 - m_s(\{T\}) - m_s(\{F\})$
+\end{itemize}
+\end{block}
+\end{column}
+
+% ── ПРАВАЯ КОЛОНКА ────────────────────────────────────────────────────────────
+\begin{column}{0.48\textwidth}
+\smallskip
+\textbf{\color{lightgold}Дисконтирование по надёжности $w_s$:}
+\[
+  m'_s(A) = w_s \cdot m_s(A),\quad A \neq \Theta
+\]
+\[
+  m'_s(\Theta) = (1 - w_s) + w_s \cdot m_s(\Theta)
+\]
+
+\smallskip
+\begin{tabular}{lcc}
+  \hline\rule{0pt}{2.2ex}
+  Источник & $w_s$ & $\lambda_s$ \\
+  \hline
+  Эксперты & $0{,}90$ & $5$ \\
+  Вакансии & $0{,}80$ & $15$ \\
+  Прогнозы & $0{,}60$ & $2$ \\
+  \hline
+\end{tabular}
+
+\bigskip
+\textbf{\color{lightgold}Рамка рассуждений:}
+\[
+  \Theta = \{T,\,F\},\qquad
+  2^\Theta = \bigl\{\emptyset,\{T\},\{F\},\Theta\bigr\}
+\]
+
+\smallskip
+\textit{\footnotesize
+Выход: дисконтированные тройки $(m'_s(\{T\}), m'_s(\Theta), m'_s(\{F\}))$
+для каждого источника. Передаются на комбинирование по правилу Демпстера.}
+\end{column}
+
+\end{columns}
+\end{frame}
+
+% =============================================================================
+\begin{frame}{Комбинирование и принятие решения}
+\slideno{2}
+
+\begin{columns}[T]
+
+% ── ЛЕВАЯ КОЛОНКА — блок-схема ───────────────────────────────────────────────
+\begin{column}{0.38\textwidth}
+\vspace*{0.2em}
+\centering
+\begin{tikzpicture}[
+  box/.style={draw=white, fill=blockbg, rounded corners=3pt,
+              text=white, font=\footnotesize, align=center,
+              minimum width=2.0cm, minimum height=0.6cm, inner sep=3pt},
+  src/.style={draw=gold, fill=blockbg, text=white, font=\scriptsize,
+              align=center, minimum width=1.6cm, minimum height=0.55cm},
+  dec/.style={draw=gold, fill=gold!20!darkbg, rounded corners=8pt,
+              text=white, font=\footnotesize\bfseries, align=center,
+              minimum width=2.3cm, minimum height=0.7cm},
+  arr/.style={-{Stealth[length=5pt]}, color=gold, thick}
+]
+  \node[src] (vac) {Вакансии};
+  \node[src, below=0.18cm of vac] (std) {Стандарты};
+  \node[src, below=0.18cm of std] (exp) {Эксперты};
+  \node[src, below=0.18cm of exp] (fc)  {Прогноз};
+
+  \node[box, right=0.55cm of std, yshift=-0.18cm] (bpa)
+    {Построение\\$m_s$};
+
+  \node[box, right=0.5cm of bpa] (disc)
+    {Дисконт.\\$w_s$};
+
+  \node[box, below=0.45cm of disc] (comb)
+    {$\oplus$ Демпстер\\$m^*$};
+
+  \node[box, right=0.5cm of disc] (out)
+    {$\mathrm{BetP}$\\$\Delta$};
+
+  \node[dec, below=0.45cm of comb] (dec)
+    {Решение};
+
+  \draw[arr] (vac.east) -- (bpa.west|-vac) -- (bpa.west);
+  \draw[arr] (std.east) -- (bpa.west|-std) -- (bpa.west);
+  \draw[arr] (exp.east) -- (bpa.west|-exp) -- (bpa.west);
+  \draw[arr] (fc.east)  -- (bpa.west|-fc)  -- (bpa.west);
+
+  \draw[arr] (bpa)  -- (disc);
+  \draw[arr] (disc) -- (out);
+  \draw[arr] (disc) -- (comb);
+  \draw[arr] (out)  -- (comb);
+  \draw[arr] (comb) -- (dec);
+\end{tikzpicture}
+\end{column}
+
+% ── ПРАВАЯ КОЛОНКА — формулы ─────────────────────────────────────────────────
+\begin{column}{0.60\textwidth}
+\small
+
+\textbf{\color{lightgold}Конфликт и правило Демпстера:}
+\begin{align*}
+  K &= m_1(\{T\})\cdot m_2(\{F\}) + m_1(\{F\})\cdot m_2(\{T\}) \\[4pt]
+  (m_1{\oplus}m_2)(A) &=
+    \frac{\displaystyle\sum_{B\cap C=A} m_1(B)\cdot m_2(C)}{1-K},
+    \quad K < \tau_K \\[4pt]
+  m^* &= m'_{\mathrm{vac}} \oplus m'_{\mathrm{exp}} \oplus m'_{\mathrm{fc}}
+\end{align*}
+
+\smallskip
+\textbf{\color{lightgold}Пигнистическая вероятность и дефицит:}
+\[
+  \mathrm{BetP} = m^*\!\bigl(\{T\}\bigr) + \frac{m^*(\Theta)}{N_C},
+  \qquad
+  \Delta = \mathrm{BetP} - \mathrm{supply}
+\]
+
+\smallskip
+\textbf{\color{lightgold}Правила принятия решений:}
+\begin{align*}
+  \Delta > \tau_\Delta \wedge K \le \tau_K \wedge m^*(\Theta) \le \tau_\Theta
+    &\;\Rightarrow\; \textbf{УСИЛИТЬ} \\
+  \Delta > \tau_\Delta \wedge \bigl(K > \tau_K \vee m^*(\Theta) > \tau_\Theta\bigr)
+    &\;\Rightarrow\; \textbf{ВАРИАТИВНОСТЬ} \\
+  |\Delta| \le \tau_\Delta
+    &\;\Rightarrow\; \textbf{СТАБИЛИЗИРОВАТЬ}
+\end{align*}
+
+\vspace*{-0.4em}
+{\footnotesize
+$\tau_\Delta = 0{,}15$;\quad
+$\tau_K = 0{,}40$;\quad
+$\tau_\Theta = 0{,}15$;\quad
+$N_C = 25$ (число кластеров программы).}
+\end{column}
+
+\end{columns}
+\end{frame}
+
+% =============================================================================
+\end{document}

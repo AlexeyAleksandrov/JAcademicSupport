@@ -1,0 +1,507 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\newtheorem{definition}{Определение}
+\newtheorem{predicate}[definition]{Предикат}
+
+\title{%
+  Алгоритм DST-агрегации для анализа компетентностных дефицитов:\\
+  \large Формальное описание в предикатной логике и теории множеств
+}
+\author{}
+\date{}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+\maketitle
+\tableofcontents
+\bigskip
+
+% =============================================================================
+\section{Базовые множества и рамка рассуждений}
+% =============================================================================
+
+\begin{definition}[Рамка рассуждений]
+  Для одного кластера компетенций рамка рассуждений определяется как
+  \[
+    \Theta = \{T,\, F\},
+  \]
+  где $T$ означает «кластер важен» (True), $F$ --- «кластер не важен» (False).
+  Степенное множество $2^\Theta = \{\emptyset,\, \{T\},\, \{F\},\, \Theta\}$.
+\end{definition}
+
+\begin{definition}[Множество источников]
+  \[
+    \mathcal{S} = \{\text{vac},\; \text{exp},\; \text{fc}\},
+  \]
+  где \textbf{vac} --- данные вакансий, \textbf{exp} --- экспертные оценки,
+  \textbf{fc} --- прогнозы (forecasts).
+\end{definition}
+
+\begin{definition}[Входной кортеж источника]
+  Каждый источник $s \in \mathcal{S}$ задаётся кортежем
+  \[
+    \mathcal{D}_s
+      = \bigl(n_s^{\mathrm{tot}},\; n_s^{\mathrm{rel}},\;
+              \bar{a}_s,\; \alpha_s,\; w_s,\; \lambda_s\bigr),
+  \]
+  где:
+  \begin{itemize}
+    \item $n_s^{\mathrm{tot}} \in \mathbb{N}$ --- общее число записей источника,
+    \item $n_s^{\mathrm{rel}} \in \mathbb{N},\ n_s^{\mathrm{rel}} \le n_s^{\mathrm{tot}}$ --- записей, относящихся к кластеру,
+    \item $\bar{a}_s \in [0,1]$ --- средняя оценка важности кластера,
+    \item $\alpha_s \in [0,1]$ --- уровень согласованности источника,
+    \item $w_s \in [0,1]$ --- вес надёжности источника,
+    \item $\lambda_s > 0$ --- константа сглаживания.
+  \end{itemize}
+
+  Для прогнозов со смешанным направлением вводится расширенный кортеж
+  \[
+    \mathcal{D}_{\mathrm{fc}}^{\mathrm{mix}}
+      = \bigl(n_{\mathrm{fc}}^{\mathrm{tot}},\;
+              n_+,\; \bar{a}_+,\;
+              n_-,\; \bar{a}_-,\;
+              w_{\mathrm{fc}},\; \lambda_{\mathrm{fc}}\bigr),
+  \]
+  где $n_+$ ($n_-$) --- количество прогнозов роста (спада),
+  $\bar{a}_+$ ($\bar{a}_-$) --- средние оценки соответственно,
+  $n_+ + n_- = n_{\mathrm{fc}}^{\mathrm{tot}}$.
+
+\end{definition}
+
+\begin{definition}[Обеспечённость кластера]
+  $\sigma \in [0,1]$ --- текущая доля кластера в учебной программе
+  (РПД / учебный план).
+\end{definition}
+
+% =============================================================================
+\section{Шаг 1. Коэффициент уверенности $\kappa$}
+% =============================================================================
+
+\subsection{Мотивация}
+
+Источник с тысячами записей заслуживает большего доверия, чем источник
+с тремя. При этом уверенность ограничена сверху: $\kappa \in (0,1)$.
+
+\subsection{Формулы}
+
+\begin{definition}[Эффективный объём источника]
+  \[
+    n_s^{\mathrm{eff}} = n_s^{\mathrm{rel}} \cdot \alpha_s.
+  \]
+  Для смешанных прогнозов ($\alpha_{\mathrm{fc}} = 1$):
+  \[
+    n_{\mathrm{fc}}^{\mathrm{eff}} = n_+ + n_-.
+  \]
+\end{definition}
+
+\begin{definition}[Коэффициент уверенности]
+  \[
+    \kappa_s = \frac{n_s^{\mathrm{eff}}}{n_s^{\mathrm{eff}} + \lambda_s}.
+  \]
+\end{definition}
+
+\subsection{Свойства}
+
+\begin{align*}
+  n_s^{\mathrm{eff}} = 0     &\;\Rightarrow\; \kappa_s = 0
+    && \text{(нет данных --- нет уверенности)}, \\
+  n_s^{\mathrm{eff}} \to \infty &\;\Rightarrow\; \kappa_s \to 1
+    && \text{(бесконечный объём --- полная уверенность)}, \\
+  n_s^{\mathrm{eff}} = \lambda_s &\;\Rightarrow\; \kappa_s = 0{,}5
+    && \text{(«полудоверие» --- смысл $\lambda_s$)}.
+\end{align*}
+
+\subsection{Зафиксированные значения $\lambda_s$}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Источник $s$ & $\lambda_s$ & Смысл \\
+\midrule
+vac & 15 & 15 вакансий $\Rightarrow \kappa = 0{,}5$ \\
+exp & 5  & 5 экспертов $\Rightarrow \kappa = 0{,}5$ \\
+fc  & 2  & 2 прогноза $\Rightarrow \kappa = 0{,}5$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% =============================================================================
+\section{Шаг 2. Базовое распределение вероятности (BPA)}
+% =============================================================================
+
+\subsection{Определение}
+
+\begin{definition}[BPA]
+  Функция базового распределения вероятности для источника $s$:
+  \[
+    m_s : 2^\Theta \to [0,1],
+    \qquad
+    \sum_{A \subseteq \Theta} m_s(A) = 1,
+    \qquad
+    m_s(\emptyset) = 0.
+  \]
+\end{definition}
+
+\subsection{Единая схема BPA для всех источников}
+
+Для каждого источника $s$ всегда вычисляются три составляющих:
+
+\begin{align}
+  m_s\!\bigl(\{T\}\bigr)
+    &= \kappa_s \cdot \bar{a}_s^{+} \cdot
+       \frac{n_s^{+}}{n_s^{\mathrm{tot}}}, \label{eq:mT} \\[6pt]
+  m_s\!\bigl(\{F\}\bigr)
+    &= \kappa_s \cdot \bar{a}_s^{-} \cdot
+       \frac{n_s^{-}}{n_s^{\mathrm{tot}}}, \label{eq:mF} \\[6pt]
+  m_s(\Theta)
+    &= 1 - m_s\!\bigl(\{T\}\bigr) - m_s\!\bigl(\{F\}\bigr), \label{eq:mU}
+\end{align}
+
+где $n_s^{+}$, $\bar{a}_s^{+}$ --- количество и средняя оценка
+\emph{положительных} сигналов источника $s$;
+$n_s^{-}$, $\bar{a}_s^{-}$ --- отрицательных.
+
+\paragraph{Частный случай для vac и exp.}
+Данные источники содержат только подтверждающие сигналы:
+$n_s^{-} = 0$, поэтому $m_s(\{F\}) = 0$ (не аксиома, а следствие данных).
+Формулы \eqref{eq:mT}--\eqref{eq:mU} остаются теми же.
+
+\paragraph{Частный случай для fc (смешанный тип).}
+Прогнозы роста дают $n_{\mathrm{fc}}^{+} > 0$, прогнозы спада ---
+$n_{\mathrm{fc}}^{-} > 0$, поэтому оба слагаемых $m_{\mathrm{fc}}(\{T\})$
+и $m_{\mathrm{fc}}(\{F\})$ ненулевые.
+
+\subsection{Предикат корректности BPA}
+
+\begin{predicate}[Нормировка]
+  \[
+    \forall s \in \mathcal{S}:\quad
+    m_s\!\bigl(\{T\}\bigr) + m_s\!\bigl(\{F\}\bigr) + m_s(\Theta) = 1
+    \;\wedge\;
+    m_s(\emptyset) = 0.
+  \]
+\end{predicate}
+
+% =============================================================================
+\section{Шаг 3. Дисконтирование}
+% =============================================================================
+
+\subsection{Определение}
+
+Дисконтирование «перекладывает» часть уверенности источника
+в неопределённость пропорционально его ненадёжности $(1 - w_s)$.
+
+\begin{definition}[Дисконтированное BPA]
+  \begin{align}
+    m'_s(A)      &= w_s \cdot m_s(A),
+      \quad \forall A \subsetneq \Theta,
+      \label{eq:disc_A} \\[6pt]
+    m'_s(\Theta) &= 1 - w_s \cdot \bigl(1 - m_s(\Theta)\bigr)
+                 = (1 - w_s) + w_s \cdot m_s(\Theta).
+      \label{eq:disc_Theta}
+  \end{align}
+\end{definition}
+
+\noindent
+Для $\Theta = \{T, F\}$ раскрываем явно:
+\begin{align*}
+  m'_s\!\bigl(\{T\}\bigr) &= w_s \cdot m_s\!\bigl(\{T\}\bigr), \\
+  m'_s\!\bigl(\{F\}\bigr) &= w_s \cdot m_s\!\bigl(\{F\}\bigr), \\
+  m'_s(\Theta)             &= (1 - w_s) + w_s \cdot m_s(\Theta).
+\end{align*}
+
+\subsection{Зафиксированные веса $w_s$}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Источник $s$ & $w_s$ & Обоснование \\
+\midrule
+exp  & $0{,}90$ & Профессиональные оценки, высокая надёжность \\
+vac  & $0{,}80$ & Фактические данные, есть дубли и сезонность \\
+fc   & $0{,}60$ & Прогнозы часто ошибаются в IT-отрасли \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% =============================================================================
+\section{Шаг 4. Комбинирование по правилу Демпстера}
+% =============================================================================
+
+\subsection{Коэффициент конфликта}
+
+\begin{definition}[Коэффициент конфликта двух BPA]
+  Для $m_1, m_2 : 2^\Theta \to [0,1]$:
+  \[
+    K(m_1, m_2)
+      = \sum_{\substack{B,\, C \,\subseteq\, \Theta \\ B \,\cap\, C \,=\, \emptyset}}
+          m_1(B) \cdot m_2(C).
+  \]
+  Для $\Theta = \{T, F\}$ это раскрывается в:
+  \[
+    K(m_1, m_2)
+      = m_1\!\bigl(\{T\}\bigr) \cdot m_2\!\bigl(\{F\}\bigr)
+      + m_1\!\bigl(\{F\}\bigr) \cdot m_2\!\bigl(\{T\}\bigr).
+  \]
+\end{definition}
+
+\subsection{Предикат низкого конфликта}
+
+\begin{predicate}[Допустимый конфликт]
+  \[
+    \mathrm{LowConflict}(m_1, m_2)
+      \;\Longleftrightarrow\;
+      K(m_1, m_2) < \tau_K.
+  \]
+\end{predicate}
+
+\subsection{Правило Демпстера (при низком конфликте)}
+
+\begin{definition}[Комбинирование по Демпстеру]
+  Если $\mathrm{LowConflict}(m_1, m_2)$:
+  \[
+    (m_1 \oplus m_2)(A)
+      = \frac{1}{1 - K(m_1, m_2)}
+        \sum_{\substack{B \,\cap\, C \,=\, A \\ A \neq \emptyset}}
+          m_1(B) \cdot m_2(C),
+    \qquad A \neq \emptyset.
+  \]
+\end{definition}
+
+Для $\Theta = \{T, F\}$ раскрываем:
+
+\begin{align}
+  (m_1 \oplus m_2)\!\bigl(\{T\}\bigr)
+    &= \frac{
+        m_1(\{T\}) \cdot m_2(\{T\})
+        + m_1(\{T\}) \cdot m_2(\Theta)
+        + m_1(\Theta) \cdot m_2(\{T\})
+      }{1 - K},
+    \label{eq:comb_T} \\[8pt]
+  (m_1 \oplus m_2)(\Theta)
+    &= \frac{m_1(\Theta) \cdot m_2(\Theta)}{1 - K},
+    \label{eq:comb_U} \\[8pt]
+  (m_1 \oplus m_2)\!\bigl(\{F\}\bigr)
+    &= \frac{
+        m_1(\{F\}) \cdot m_2(\{F\})
+        + m_1(\{F\}) \cdot m_2(\Theta)
+        + m_1(\Theta) \cdot m_2(\{F\})
+      }{1 - K}.
+    \label{eq:comb_F}
+\end{align}
+
+\subsection{Последовательное комбинирование трёх источников}
+
+\[
+  m^{(1)} = m'_{\mathrm{vac}} \oplus m'_{\mathrm{exp}},
+  \qquad
+  K_1 = K\!\bigl(m'_{\mathrm{vac}},\, m'_{\mathrm{exp}}\bigr),
+\]
+\[
+  m^* = m^{(1)} \oplus m'_{\mathrm{fc}},
+  \qquad
+  K_2 = K\!\bigl(m^{(1)},\, m'_{\mathrm{fc}}\bigr),
+\]
+\[
+  K = \max(K_1,\, K_2).
+\]
+
+Правило Демпстера коммутативно и ассоциативно:
+\[
+  m'_{\mathrm{vac}} \oplus m'_{\mathrm{exp}} \oplus m'_{\mathrm{fc}}
+  = m'_{\mathrm{exp}} \oplus m'_{\mathrm{vac}} \oplus m'_{\mathrm{fc}}
+  = \cdots
+\]
+
+% =============================================================================
+\section{Шаг 5. Пигнистическая вероятность и показатель дефицита}
+% =============================================================================
+
+\subsection{BetP}
+
+\begin{definition}[Pignistic Probability]
+  В рамке $\Theta = \{T, F\}$ из $N_C$ кластеров программы:
+  \[
+    \mathrm{BetP}(T)
+      = m^*\!\bigl(\{T\}\bigr)
+        + \frac{m^*(\Theta)}{N_C},
+  \]
+  где $N_C$ --- количество кластеров в учебной программе
+  (текущее значение: $N_C = 25$).
+\end{definition}
+
+\noindent
+\textit{Смысл:} неопределённая масса $m^*(\Theta)$ равномерно
+распределяется между всеми $N_C$ кластерами.
+Общая формула через суммирование по фокальным элементам:
+\[
+  \mathrm{BetP}(T)
+    = \sum_{\substack{A \,\subseteq\, \Theta \\ T \,\in\, A}}
+        \frac{m^*(A)}{|A|}
+    = m^*\!\bigl(\{T\}\bigr) + \frac{m^*(\Theta)}{|\Theta|}.
+\]
+
+\subsection{Показатель дефицита}
+
+\begin{definition}[Дефицит кластера]
+  \[
+    \Delta = \mathrm{BetP}(T) - \sigma.
+  \]
+\end{definition}
+
+\subsection{Интерпретация}
+
+\[
+  \Delta > \tau_\Delta
+    \;\Rightarrow\; \text{дефицит: рынок требует больше, чем есть в РПД},
+\]
+\[
+  |\Delta| \le \tau_\Delta
+    \;\Rightarrow\; \text{баланс},
+\]
+\[
+  \Delta < -\tau_\Delta
+    \;\Rightarrow\; \text{избыток: в РПД больше, чем требует рынок}.
+\]
+
+% =============================================================================
+\section{Шаг 6. Правила принятия решения}
+% =============================================================================
+
+\subsection{Три условия-предиката}
+
+\begin{predicate}[Дефицит]
+  \[
+    \mathrm{Def} \;\Longleftrightarrow\; \Delta > \tau_\Delta.
+  \]
+\end{predicate}
+
+\begin{predicate}[Согласованность источников]
+  \[
+    \mathrm{Cons} \;\Longleftrightarrow\; K \le \tau_K.
+  \]
+\end{predicate}
+
+\begin{predicate}[Достаточная определённость]
+  \[
+    \mathrm{Cert} \;\Longleftrightarrow\; m^*(\Theta) \le \tau_\Theta.
+  \]
+\end{predicate}
+
+\subsection{Таблица решений}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{ccc l}
+\toprule
+$\mathrm{Def}$ & $\mathrm{Cons}$ & $\mathrm{Cert}$ & Решение \\
+\midrule
+$\top$ & $\top$ & $\top$ & \textbf{УСИЛИТЬ} \\
+$\top$ & $\top$ & $\bot$ & \textbf{ВАРИАТИВНОСТЬ} (высокая неопределённость) \\
+$\top$ & $\bot$ & любое  & \textbf{ВАРИАТИВНОСТЬ} (конфликт источников) \\
+$\bot$ ($\Delta < -\tau_\Delta$) & --- & --- & \textbf{СОКРАТИТЬ} \\
+$\bot$ ($|\Delta| \le \tau_\Delta$) & --- & --- & \textbf{СТАБИЛИЗИРОВАТЬ} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Формальные правила в предикатной логике}
+
+\begin{align}
+  \mathrm{REINFORCE}
+    &\;\Longleftrightarrow\;
+      \Delta > \tau_\Delta
+      \;\wedge\; K \le \tau_K
+      \;\wedge\; m^*(\Theta) \le \tau_\Theta,
+    \label{eq:reinforce} \\[6pt]
+  \mathrm{VARIABILITY}
+    &\;\Longleftrightarrow\;
+      \Delta > \tau_\Delta
+      \;\wedge\; \bigl(K > \tau_K
+                       \;\vee\; m^*(\Theta) > \tau_\Theta\bigr),
+    \label{eq:variability} \\[6pt]
+  \mathrm{REDUCE}
+    &\;\Longleftrightarrow\;
+      \Delta < -\tau_\Delta,
+    \label{eq:reduce} \\[6pt]
+  \mathrm{STABILIZE}
+    &\;\Longleftrightarrow\;
+      |\Delta| \le \tau_\Delta,
+    \label{eq:stabilize}
+\end{align}
+
+\noindent
+при этом $\mathrm{REINFORCE} \cup \mathrm{VARIABILITY}$ --- непересекающееся разбиение
+для случая $\Delta > \tau_\Delta$.
+
+\subsection{Градация УСИЛИТЬ}
+
+\[
+  \mathrm{STRONG} \;\Longleftrightarrow\; \mathrm{REINFORCE} \;\wedge\; \Delta > 0{,}5,
+\]
+\[
+  \mathrm{MODERATE} \;\Longleftrightarrow\; \mathrm{REINFORCE} \;\wedge\;
+    \tau_\Delta < \Delta \le 0{,}5.
+\]
+
+% =============================================================================
+\section{Сводная цепочка алгоритма}
+% =============================================================================
+
+\noindent\textbf{Вход:} $\mathcal{D}_s = (n_s^{\mathrm{tot}},\; n_s^{+},\; \bar{a}_s^{+},\; n_s^{-},\; \bar{a}_s^{-},\; \alpha_s,\; w_s,\; \lambda_s)$, $\sigma$
+
+\begin{align*}
+  (1)\quad & n_s^{\mathrm{eff}} = n_s^{\mathrm{rel}} \cdot \alpha_s,
+             \qquad
+             \kappa_s = \frac{n_s^{\mathrm{eff}}}{n_s^{\mathrm{eff}} + \lambda_s} \\[6pt]
+  (2)\quad & m_s(\{T\}) = \kappa_s \cdot \bar{a}_s^{+} \cdot
+               \frac{n_s^{+}}{n_s^{\mathrm{tot}}},\quad
+             m_s(\{F\}) = \kappa_s \cdot \bar{a}_s^{-} \cdot
+               \frac{n_s^{-}}{n_s^{\mathrm{tot}}},\quad
+             m_s(\Theta) = 1 - m_s(\{T\}) - m_s(\{F\}) \\[6pt]
+  (3)\quad & m'_s(\{T\}) = w_s \cdot m_s(\{T\}),\quad
+             m'_s(\Theta) = (1-w_s) + w_s \cdot m_s(\Theta) \\[6pt]
+  (4)\quad & m^* = m'_{\mathrm{vac}} \oplus m'_{\mathrm{exp}} \oplus m'_{\mathrm{fc}},
+             \qquad K = \max(K_1,\, K_2) \\[6pt]
+  (5)\quad & \mathrm{BetP} = m^*(\{T\}) + \frac{m^*(\Theta)}{N_C},\quad
+             \Delta = \mathrm{BetP} - \sigma
+\end{align*}
+
+\noindent\textbf{Выход:} решение по формулам \eqref{eq:reinforce}--\eqref{eq:stabilize}.
+
+% =============================================================================
+\section{Параметры алгоритма}
+% =============================================================================
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{llll}
+\toprule
+Параметр & Значение & Источник & Рекомендуемый метод \\
+\midrule
+$\lambda_{\mathrm{vac}}$ & 15 & хардкод & Медиана объёмов вакансий \\
+$\lambda_{\mathrm{exp}}$ & 5  & хардкод & Медиана числа экспертов \\
+$\lambda_{\mathrm{fc}}$  & 2  & хардкод & Медиана числа прогнозов \\
+$w_{\mathrm{exp}}$  & $0{,}90$ & хардкод & Калибровка на истории \\
+$w_{\mathrm{vac}}$  & $0{,}80$ & хардкод & Калибровка на истории \\
+$w_{\mathrm{fc}}$   & $0{,}60$ & хардкод & Калибровка на истории \\
+$\tau_\Delta$       & $0{,}15$ & статья  & Калибровка \\
+$\tau_K$            & $0{,}40$ & статья  & Калибровка \\
+$\tau_\Theta$       & $0{,}15$ & статья  & Калибровка \\
+$N_C$               & 25       & хардкод & Из БД (число кластеров программы) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% =============================================================================
+\end{document}

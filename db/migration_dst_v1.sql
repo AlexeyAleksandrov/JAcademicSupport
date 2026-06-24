@@ -1,3 +1,4 @@
+\encoding UTF8
 -- =============================================================================
 -- DST Algorithm Data Structure Migration v1
 -- Adds new tables for ideal DST algorithm WITHOUT modifying existing tables.

@@ -1,0 +1,104 @@
+### DST API — JAcademicSupport
+### Базовый URL: http://localhost:8080
+
+# ==============================================================================
+# ADMIN PIPELINE
+# ==============================================================================
+
+### Фаза 2 — Нормализация навыков
+POST http://localhost:8080/api/admin/dst/normalize-skills
+
+###
+
+### Фаза 3 — Классификация вакансий по профессиям
+POST http://localhost:8080/api/admin/dst/classify-professions
+
+###
+
+### Фаза 4 — Граф зависимостей навыков (threshold по умолчанию 0.30)
+POST http://localhost:8080/api/admin/dst/build-dependency-graph?threshold=0.30
+
+###
+
+### Фаза 5 — Веса кластеров для профессий
+POST http://localhost:8080/api/admin/dst/compute-profession-weights
+
+###
+
+### Фаза 6 — Оценки кластеров для вакансий
+POST http://localhost:8080/api/admin/dst/compute-cluster-scores
+
+###
+
+### Полный пайплайн (фазы 2–6 последовательно) ← ЗАПУСКАТЬ ОТСЮДА
+POST http://localhost:8080/api/admin/dst/run-full-pipeline?dependencyThreshold=0.30
+
+###
+
+# ==============================================================================
+# DST QUERY — Уровень 0: профессии
+# ==============================================================================
+
+### Все профессии (16 штук)
+GET http://localhost:8080/api/dst/professions
+
+###
+
+# ==============================================================================
+# DST QUERY — Уровень 1: кластеры для профессии
+# ==============================================================================
+
+### Кластеры для профессии backend
+GET http://localhost:8080/api/dst/professions/backend/clusters
+
+###
+
+### Кластеры для профессии frontend
+GET http://localhost:8080/api/dst/professions/frontend/clusters
+
+###
+
+### Кластеры для профессии fullstack
+GET http://localhost:8080/api/dst/professions/fullstack/clusters
+
+###
+
+### Кластеры для профессии devops
+GET http://localhost:8080/api/dst/professions/devops/clusters
+
+###
+
+### Кластеры для профессии data_scientist
+GET http://localhost:8080/api/dst/professions/data_scientist/clusters
+
+###
+
+### Кластеры для профессии ml_engineer
+GET http://localhost:8080/api/dst/professions/ml_engineer/clusters
+
+###
+
+# ==============================================================================
+# DST QUERY — Уровень 1 detail: вакансии в кластере
+# Замените {clusterId} на реальный id из предыдущего запроса
+# ==============================================================================
+
+### Вакансии для профессии backend, кластер с id=1
+GET http://localhost:8080/api/dst/professions/backend/clusters/1/vacancies
+
+###
+
+# ==============================================================================
+# DST QUERY — Уровень 2: навыки в кластере
+# Замените {clusterId} на реальный id из запроса /clusters
+# ==============================================================================
+
+### Навыки для профессии backend, кластер с id=1
+GET http://localhost:8080/api/dst/professions/backend/clusters/1/skills
+
+###
+
+### Навыки для профессии data_scientist, кластер с id=1
+GET http://localhost:8080/api/dst/professions/data_scientist/clusters/1/skills
+
+###

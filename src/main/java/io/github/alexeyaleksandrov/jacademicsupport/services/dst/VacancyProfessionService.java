@@ -50,8 +50,10 @@ public class VacancyProfessionService {
         log.info("Classifying {} vacancies into {} professions", vacancies.size(), professions.size());
 
         int classified = 0, skipped = 0, other = 0;
+        int total = vacancies.size(), idx = 0;
 
         for (VacancyEntity vacancy : vacancies) {
+            idx++;
             String title = vacancy.getName();
             if (title == null || title.isBlank()) {
                 skipped++;
@@ -69,9 +71,14 @@ public class VacancyProfessionService {
                 }
                 classified++;
             }
+
+            if (idx % 200 == 0)
+                log.info("Classification progress: {}/{} | classified={}, other={}, skipped={}",
+                        idx, total, classified, other, skipped);
         }
 
-        log.info("Classification done: classified={}, other={}, skipped={}", classified, other, skipped);
+        log.info("Classification DONE: {}/{} | classified={}, other={}, skipped={}",
+                total, total, classified, other, skipped);
         return new ClassificationReport(classified, other, skipped);
     }
 

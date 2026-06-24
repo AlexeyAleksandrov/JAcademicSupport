@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>DST — 2 слайда</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']], tags: 'none' },
+    options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a1a1a;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #f0f0f0;
+    padding: 2rem;
+  }
+  .slide {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 6px;
+    margin-bottom: 2.5rem;
+    padding: 0;
+    max-width: 1100px;
+    margin-left: auto; margin-right: auto;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    page-break-after: always;
+  }
+  .slide-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 2px solid #d4aa28;
+    padding: 0.9rem 1.4rem;
+    background: #161616;
+    border-radius: 6px 6px 0 0;
+  }
+  .slide-num {
+    background: #d4aa28;
+    color: #111;
+    font-weight: 700;
+    font-size: 1.1rem;
+    width: 2rem; height: 2rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .slide-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .slide-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+    padding: 1.2rem 1.4rem;
+  }
+  .slide-body.single { grid-template-columns: 1fr; }
+  .block {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 0.9rem 1rem;
+  }
+  .block-title {
+    color: #f5cc40;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 0.6rem;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.35rem;
+  }
+  ul { list-style: none; padding-left: 0.3rem; }
+  ul li {
+    padding: 0.22rem 0 0.22rem 1.2rem;
+    position: relative;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+  ul li::before {
+    content: '▪';
+    color: #d4aa28;
+    position: absolute; left: 0;
+    font-size: 0.7rem; top: 0.35rem;
+  }
+  .formula-block {
+    background: #232323;
+    border-left: 3px solid #d4aa28;
+    border-radius: 0 4px 4px 0;
+    padding: 0.5rem 0.8rem;
+    margin: 0.4rem 0;
+    font-size: 0.9rem;
+  }
+  .section-label {
+    color: #f5cc40;
+    font-weight: 700;
+    font-size: 0.88rem;
+    margin-top: 0.7rem;
+    margin-bottom: 0.25rem;
+  }
+  .params-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    margin-top: 0.5rem;
+  }
+  .params-table th {
+    background: #333;
+    color: #f5cc40;
+    padding: 0.3rem 0.5rem;
+    text-align: left;
+  }
+  .params-table td {
+    padding: 0.28rem 0.5rem;
+    border-top: 1px solid #3a3a3a;
+  }
+  .params-table tr:nth-child(even) td { background: #272727; }
+  .footnote {
+    font-size: 0.78rem;
+    color: #aaa;
+    padding: 0.6rem 1.4rem 0.8rem;
+    border-top: 1px solid #333;
+    font-style: italic;
+  }
+  .rule-row {
+    display: flex; align-items: baseline;
+    gap: 0.5rem; margin: 0.3rem 0;
+    font-size: 0.87rem;
+  }
+  .rule-cond { flex: 1; }
+  .rule-arrow { color: #d4aa28; font-weight: 700; flex-shrink: 0; }
+  .rule-result { font-weight: 700; color: #f5cc40; flex-shrink: 0; }
+
+  /* ── блок-схема (SVG) ───────────────────────────────────────────────── */
+  .diagram { padding: 0.5rem; text-align: center; }
+  svg text { font-family: 'Segoe UI', Arial, sans-serif; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .slide {
+      background: #fff; color: #000;
+      border: 1px solid #999;
+      box-shadow: none;
+      margin-bottom: 0;
+      page-break-after: always;
+    }
+    .slide-header { background: #222; }
+    .block { background: #f5f5f5; border-color: #ccc; }
+    .formula-block { background: #fafafa; border-left-color: #888; }
+    .block-title, .section-label, .rule-result, .rule-arrow { color: #444 !important; }
+    .slide-num { background: #888; color: #fff; }
+    .params-table th { background: #ddd; color: #333; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ СЛАЙД 1 ═══════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <div class="slide-num">1</div>
+    <div class="slide-title">Паспорт источника и формирование BPA</div>
+  </div>
+
+  <div class="slide-body">
+
+    <!-- Левая колонка -->
+    <div class="block">
+      <div class="block-title">Параметры источника $s \in \mathcal{S} = \{\text{vac},\text{exp},\text{fc}\}$</div>
+      <ul>
+        <li>Входной кортеж: $(n_s^{\text{tot}},\; n_s^{\text{rel}},\; \bar{a}_s,\; \alpha_s,\; w_s,\; \lambda_s)$</li>
+        <li>Эффективный объём: $n_s^{\text{eff}} = n_s^{\text{rel}} \cdot \alpha_s$</li>
+        <li>Коэффициент уверенности (Лаплас):
+          <div class="formula-block">$$\kappa_s = \frac{n_s^{\text{eff}}}{n_s^{\text{eff}} + \lambda_s} \;\in (0,1)$$</div>
+        </li>
+        <li>BPA (единая схема для <b>всех</b> источников):
+          <div class="formula-block">
+            $m_s(\{T\}) = \kappa_s \cdot \bar{a}_s^{+} \cdot \dfrac{n_s^{+}}{n_s^{\text{tot}}}$&nbsp;&mdash;&nbsp;масса «важно»<br>
+            $m_s(\{F\}) = \kappa_s \cdot \bar{a}_s^{-} \cdot \dfrac{n_s^{-}}{n_s^{\text{tot}}}$&nbsp;&mdash;&nbsp;масса «не важно»<br>
+            $m_s(\Theta) = 1 - m_s(\{T\}) - m_s(\{F\})$&nbsp;&mdash;&nbsp;неопределённость
+          </div>
+        </li>
+        <li>Для <b>vac, exp</b>: нет отрицательных сигналов &rarr; $n_s^{-} = 0$ &rarr; $m_s(\{F\}) = 0$</li>
+        <li>Для <b>fc</b> (смешанный): $n_{\text{fc}}^{+} > 0,\; n_{\text{fc}}^{-} > 0$ &rarr; оба слагаемых ненулевые</li>
+      </ul>
+    </div>
+
+    <!-- Правая колонка -->
+    <div>
+      <div class="section-label">Дисконтирование по надёжности $w_s$</div>
+      <div class="formula-block">
+        $m'_s(A) = w_s \cdot m_s(A),\quad A \neq \Theta$
+      </div>
+      <div class="formula-block">
+        $m'_s(\Theta) = (1 - w_s) + w_s \cdot m_s(\Theta)$
+      </div>
+
+      <table class="params-table" style="margin-top:0.8rem">
+        <tr><th>Источник</th><th>$w_s$</th><th>$\lambda_s$</th></tr>
+        <tr><td>Эксперты</td><td>0,90</td><td>5</td></tr>
+        <tr><td>Вакансии</td><td>0,80</td><td>15</td></tr>
+        <tr><td>Прогнозы</td><td>0,60</td><td>2</td></tr>
+      </table>
+
+      <div class="section-label" style="margin-top:1rem">Рамка рассуждений</div>
+      <div class="formula-block">
+        $\Theta = \{T,\,F\},\quad 2^\Theta = \bigl\{\emptyset,\{T\},\{F\},\Theta\bigr\}$
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footnote">
+    <b>Выход:</b> дисконтированные тройки $(m'_s(\{T\}),\; m'_s(\Theta),\; m'_s(\{F\}))$ для каждого источника $s$.
+    Сумма равна 1. Передаются на последовательное комбинирование по правилу Демпстера.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════ СЛАЙД 2 ═══════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <div class="slide-num">2</div>
+    <div class="slide-title">Комбинирование и принятие решения</div>
+  </div>
+
+  <div class="slide-body">
+
+    <!-- Левая колонка — блок-схема -->
+    <div class="block">
+      <div class="block-title">Пайплайн алгоритма</div>
+      <div class="diagram">
+        <svg width="310" height="330" viewBox="0 0 310 330">
+          <!-- Sources -->
+          <rect x="10" y="10"  width="90" height="32" rx="4" fill="#2a2a2a" stroke="#d4aa28" stroke-width="1.5"/>
+          <text x="55" y="30"  text-anchor="middle" fill="#fff" font-size="12">Вакансии</text>
+          <rect x="10" y="55"  width="90" height="32" rx="4" fill="#2a2a2a" stroke="#d4aa28" stroke-width="1.5"/>
+          <text x="55" y="75"  text-anchor="middle" fill="#fff" font-size="12">Стандарты</text>
+          <rect x="10" y="100" width="90" height="32" rx="4" fill="#2a2a2a" stroke="#d4aa28" stroke-width="1.5"/>
+          <text x="55" y="120" text-anchor="middle" fill="#fff" font-size="12">Эксперты</text>
+          <rect x="10" y="145" width="90" height="32" rx="4" fill="#2a2a2a" stroke="#d4aa28" stroke-width="1.5"/>
+          <text x="55" y="165" text-anchor="middle" fill="#fff" font-size="12">Прогноз</text>
+
+          <!-- Arrows to BPA -->
+          <line x1="100" y1="26"  x2="136" y2="78" stroke="#d4aa28" stroke-width="1.5" marker-end="url(#arr)"/>
+          <line x1="100" y1="71"  x2="136" y2="83" stroke="#d4aa28" stroke-width="1.5" marker-end="url(#arr)"/>
+          <line x1="100" y1="116" x2="136" y2="91" stroke="#d4aa28" stroke-width="1.5" marker-end="url(#arr)"/>
+          <line x1="100" y1="161" x2="136" y2="99" stroke="#d4aa28" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- BPA box -->
+          <rect x="136" y="62" width="82" height="50" rx="4" fill="#333" stroke="#aaa" stroke-width="1.5"/>
+          <text x="177" y="82" text-anchor="middle" fill="#fff" font-size="11">Построение</text>
+          <text x="177" y="97" text-anchor="middle" fill="#f5cc40" font-size="12" font-style="italic">m_s</text>
+          <text x="177" y="108" text-anchor="middle" fill="#aaa" font-size="10">(BPA)</text>
+
+          <!-- Arrow BPA → Discount -->
+          <line x1="218" y1="87" x2="248" y2="87" stroke="#d4aa28" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- Discount box -->
+          <rect x="250" y="62" width="55" height="50" rx="4" fill="#333" stroke="#aaa" stroke-width="1.5"/>
+          <text x="277" y="83" text-anchor="middle" fill="#fff" font-size="11">Диск.</text>
+          <text x="277" y="98" text-anchor="middle" fill="#f5cc40" font-size="12" font-style="italic">w_s</text>
+          <text x="277" y="109" text-anchor="middle" fill="#aaa" font-size="10">m'_s</text>
+
+          <!-- Arrow Discount → Combine -->
+          <line x1="277" y1="112" x2="277" y2="148" stroke="#d4aa28" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- Arrow Discount → Output (via right) -->
+          <line x1="305" y1="87"  x2="305" y2="178" stroke="#d4aa28" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <line x1="305" y1="178" x2="254" y2="178" stroke="#d4aa28" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- Combine box -->
+          <rect x="213" y="150" width="128" height="50" rx="4" fill="#333" stroke="#aaa" stroke-width="1.5"/>
+          <text x="277" y="170" text-anchor="middle" fill="#fff" font-size="11">⊕ Демпстер</text>
+          <text x="277" y="186" text-anchor="middle" fill="#f5cc40" font-size="12" font-style="italic">m*</text>
+
+          <!-- Arrow Combine → Output -->
+          <line x1="213" y1="175" x2="178" y2="175" stroke="#d4aa28" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- Output box -->
+          <rect x="110" y="152" width="100" height="46" rx="4" fill="#333" stroke="#aaa" stroke-width="1.5"/>
+          <text x="160" y="172" text-anchor="middle" fill="#f5cc40" font-size="12">BetP, Δ</text>
+          <text x="160" y="189" text-anchor="middle" fill="#aaa" font-size="10">Bel, Pl</text>
+
+          <!-- Arrow Output → Decision -->
+          <line x1="160" y1="198" x2="160" y2="238" stroke="#d4aa28" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- Decision box -->
+          <rect x="80" y="240" width="160" height="46" rx="20" fill="#d4aa28"/>
+          <text x="160" y="259" text-anchor="middle" fill="#111" font-size="11" font-weight="bold">Решение:</text>
+          <text x="160" y="276" text-anchor="middle" fill="#111" font-size="10">УСИЛИТЬ / ВАРИТ. / СТАБ.</text>
+
+          <defs>
+            <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#d4aa28"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Правая колонка -->
+    <div>
+      <div class="section-label">Конфликт и правило Демпстера</div>
+      <div class="formula-block">
+        $$K = m_1(\{T\})\cdot m_2(\{F\}) + m_1(\{F\})\cdot m_2(\{T\})$$
+      </div>
+      <div class="formula-block">
+        $$(m_1 \oplus m_2)(A) =
+          \frac{\displaystyle\sum_{B \cap C = A} m_1(B)\cdot m_2(C)}{1 - K},\quad K < \tau_K$$
+      </div>
+      <div class="formula-block">
+        $$m^* = m'_{\text{vac}} \oplus m'_{\text{exp}} \oplus m'_{\text{fc}}$$
+      </div>
+
+      <div class="section-label">Пигнистическая вероятность и дефицит</div>
+      <div class="formula-block">
+        $$\text{BetP} = m^*(\{T\}) + \frac{m^*(\Theta)}{N_C},\qquad \Delta = \text{BetP} - \sigma$$
+      </div>
+
+      <div class="section-label">Правила принятия решений</div>
+      <div class="formula-block" style="padding:0.6rem 0.8rem">
+        <div class="rule-row">
+          <span class="rule-cond">$\Delta > \tau_\Delta \wedge K \le \tau_K \wedge m^*(\Theta) \le \tau_\Theta$</span>
+          <span class="rule-arrow">⟹</span>
+          <span class="rule-result">УСИЛИТЬ</span>
+        </div>
+        <div class="rule-row">
+          <span class="rule-cond">$\Delta > \tau_\Delta \wedge (K > \tau_K \vee m^*(\Theta) > \tau_\Theta)$</span>
+          <span class="rule-arrow">⟹</span>
+          <span class="rule-result">ВАРИАТИВНОСТЬ</span>
+        </div>
+        <div class="rule-row">
+          <span class="rule-cond">$|\Delta| \le \tau_\Delta$</span>
+          <span class="rule-arrow">⟹</span>
+          <span class="rule-result">СТАБИЛИЗИРОВАТЬ</span>
+        </div>
+      </div>
+      <div style="font-size:0.78rem;color:#aaa;margin-top:0.5rem">
+        $\tau_\Delta = 0{,}15$;&nbsp;&nbsp;$\tau_K = 0{,}40$;&nbsp;&nbsp;$\tau_\Theta = 0{,}15$;&nbsp;&nbsp;$N_C = 25$;&nbsp;&nbsp;$\sigma$ &mdash; текущая доля кластера в РПД
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footnote">
+    <b>Выход:</b> рекомендация по кластеру компетенций — УСИЛИТЬ / ВАРИАТИВНОСТЬ / СТАБИЛИЗИРОВАТЬ / СОКРАТИТЬ.
+    При $K \ge \tau_K$ — переключение на правило Ягера (конфликтная масса уходит в $\Theta$ вместо нормировки).
+  </div>
+</div>
+
+</body>
+</html>

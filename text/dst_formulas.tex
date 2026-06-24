@@ -1,0 +1,289 @@
+\documentclass[12pt]{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{mathtools}
+
+\usetheme{Madrid}
+\usecolortheme{dolphin}
+\setbeamertemplate{navigation symbols}{}
+
+\title{Алгоритм DST для анализа компетентностных дефицитов}
+\subtitle{Формальное описание в предикатной логике\\и логике пересечения множеств}
+\author{}
+\date{}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Основные обозначения}
+  \begin{align*}
+    \Theta &= \{C_1, C_2, \ldots, C_n\}
+      && \text{рамка рассуждений (кластеры компетенций)} \\
+    V,\ & v \in V
+      && \text{множество вакансий} \\
+    U,\ & u \in U
+      && \text{множество канонических навыков} \\
+    P,\ & p \in P
+      && \text{множество профессий} \\
+    G &\subseteq U \times U
+      && \text{ориентированный граф зависимостей навыков} \\
+    S_v &\subseteq U
+      && \text{прямые канонические навыки вакансии } v \\
+    D_v &\subseteq U
+      && \text{навыки } v \text{, расширенные через граф } G \\
+    C_k &\subseteq U
+      && \text{навыки кластера } k \in \Theta \\
+    K_p &
+      && \text{ключевые слова профессии } p \\
+    T_v &
+      && \text{слова названия вакансии } v \\
+    \tau &: \text{WorkSkill} \to U
+      && \text{функция нормализации навыков}
+  \end{align*}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Фаза 2 \textendash{} Нормализация навыков}
+
+  Пусть $\mathcal{L}(s)$ --- множество латинских токенов строки $s$.
+
+  \begin{block}{Предикат нормализации}
+    \[
+      \forall s \in \text{WorkSkill}:\quad
+      \begin{cases}
+        \mathcal{L}(s) = \emptyset
+          & \Rightarrow\quad s \in U_{\text{unknown}} \\[6pt]
+        \mathcal{L}(s) \neq \emptyset
+          & \Rightarrow\quad \exists!\, u \in U :\ \tau(s) = u
+      \end{cases}
+    \]
+  \end{block}
+
+  \bigskip
+  \begin{itemize}
+    \item $U_{\text{unknown}}$ --- навыки без латинских токенов
+          (мягкие, русскоязычные)
+    \item $\exists!$ --- «существует единственный»
+    \item Нормализованное имя: строчные буквы, без версий и суффиксов
+  \end{itemize}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Фаза 3 \textendash{} Классификация вакансий по профессиям}
+
+  \begin{block}{Предикат принадлежности}
+    \[
+      v \sim p \quad\Longleftrightarrow\quad K_p \cap T_v \neq \emptyset
+    \]
+  \end{block}
+
+  \begin{block}{Доверие классификации}
+    \[
+      \mathrm{conf}(v,\,p) =
+      \begin{cases}
+        1
+          & \text{если } \bigl|\{p' \in P : v \sim p'\}\bigr| = 1 \\[6pt]
+        \dfrac{1}{\bigl|\{p' \in P : v \sim p'\}\bigr|}
+          & \text{иначе}
+      \end{cases}
+    \]
+  \end{block}
+
+  \smallskip
+  \textit{Вакансии без совпадений относятся к классу «other».}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Фаза 4 \textendash{} Построение графа зависимостей навыков}
+
+  \begin{block}{Совместная встречаемость}
+    \[
+      \varphi(a,\,b) = \bigl|\{\,v \in V : a \in S_v \wedge b \in S_v\,\}\bigr|
+    \]
+  \end{block}
+
+  \begin{block}{Вес направленного ребра (условная вероятность)}
+    \[
+      w(a,\,b) = \frac{\varphi(a,\,b)}
+                      {\bigl|\{\,v \in V : b \in S_v\,\}\bigr|}
+    \]
+  \end{block}
+
+  \begin{block}{Условие включения ребра в граф}
+    \[
+      (a \to b) \in G \quad\Longleftrightarrow\quad
+      \varphi(a,b) \geq \varphi_{\min} \;\wedge\; w(a,b) \geq \tau_w
+    \]
+  \end{block}
+
+  \smallskip
+  \textit{По умолчанию: $\varphi_{\min} = 2$,\quad $\tau_w = 0{,}30$.}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Фаза 6 \textendash{} Оценка вакансии для кластера (1/2)}
+
+  \begin{block}{Расширение множества навыков через граф $G$}
+    \[
+      D_v = \bigcup_{u \in S_v} \bigl\{\,a \in U : (u \to a) \in G\,\bigr\}
+    \]
+  \end{block}
+
+  \begin{block}{Пересечения навыков вакансии с кластером}
+    \begin{align*}
+      M^d_k(v) &= S_v \cap C_k
+        && \text{(прямое совпадение)} \\[6pt]
+      M^i_k(v) &= \bigl(D_v \cap C_k\bigr) \setminus M^d_k(v)
+        && \text{(косвенное совпадение)}
+    \end{align*}
+  \end{block}
+
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Фаза 6 \textendash{} Оценка вакансии для кластера (2/2)}
+
+  \begin{block}{Сырая оценка}
+    \[
+      \sigma_{\mathrm{raw}}(v,k) =
+        \alpha_t \cdot \mathbf{1}\bigl[C_k \cap T_v \neq \emptyset\bigr]
+        + \alpha_s \cdot \bigl|M^d_k(v)\bigr|
+        + \alpha_d \cdot \mathbf{1}\bigl[C_k \cap \mathrm{Desc}_v \neq \emptyset\bigr]
+        + \alpha_i \cdot \bigl|M^i_k(v)\bigr|
+    \]
+  \end{block}
+
+  \begin{block}{Нормализованная оценка}
+    \[
+      \sigma(v,\,k) = \frac{\sigma_{\mathrm{raw}}(v,\,k)}
+                           {\max_{j \in \Theta}\,\sigma_{\mathrm{raw}}(v,\,j)}
+    \]
+  \end{block}
+
+  \smallskip
+  \textit{$\mathbf{1}[\cdot]$ --- индикаторная функция;\quad
+          $\mathrm{Desc}_v$ --- слова описания вакансии $v$;\quad
+          $\alpha_t,\,\alpha_s,\,\alpha_d,\,\alpha_i$ --- весовые коэффициенты.}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{DST \textendash{} Базовое распределение вероятности (BPA)}
+
+  \begin{block}{Определение}
+    \[
+      m_s : 2^\Theta \to [0,1],\qquad
+      \sum_{A \subseteq \Theta} m_s(A) = 1,\qquad
+      m_s(\emptyset) = 0
+    \]
+  \end{block}
+
+  \begin{block}{Дисконтирование по надёжности источника $s$}
+    \begin{align*}
+      m'_s(A)      &= w_s \cdot m_s(A), \quad A \neq \Theta \\[4pt]
+      m'_s(\Theta) &= 1 - w_s\bigl(1 - m_s(\Theta)\bigr)
+    \end{align*}
+  \end{block}
+
+  \bigskip
+  \begin{tabular}{lll}
+    $w_{\mathrm{vac}} = 0{,}75$ & данные рынка труда \\
+    $w_{\mathrm{exp}} = 0{,}85$ & экспертные оценки \\
+    $w_{\mathrm{fc}}  = 0{,}65$ & прогнозы \\
+  \end{tabular}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{DST \textendash{} Правило комбинирования Демпстера}
+
+  \begin{block}{Коэффициент конфликта}
+    \[
+      K = \sum_{\substack{B,\,C \,\subseteq\, \Theta \\ B \,\cap\, C \,=\, \emptyset}}
+            m_1(B) \cdot m_2(C)
+    \]
+  \end{block}
+
+  \begin{block}{Комбинированное BPA \textnormal{(логика пересечения множеств)}}
+    \[
+      (m_1 \oplus m_2)(A) =
+      \frac{1}{1 - K}
+      \sum_{\substack{B \,\cap\, C \,=\, A \\ A \neq \emptyset}}
+        m_1(B) \cdot m_2(C)
+    \]
+  \end{block}
+
+  \begin{block}{Адаптивное переключение}
+    \[
+      K < \tau_K \;\Rightarrow\; \text{Демпстер};\qquad
+      K \geq \tau_K \;\Rightarrow\; \text{Ягер}
+      \;(\text{масса } K \text{ переходит на } \Theta)
+    \]
+  \end{block}
+
+  \smallskip
+  \textit{Последовательность:
+    $m^* = m_{\mathrm{vac}} \oplus m_{\mathrm{std}} \oplus m_{\mathrm{exp}} \oplus m_{\mathrm{fc}}$}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{DST \textendash{} Вероятностная мера и дефицит}
+
+  \begin{block}{Pignistическая вероятность для кластера $C_i$}
+    \[
+      \mathrm{BetP}(C_i) =
+        \sum_{\substack{A \,\subseteq\, \Theta \\ C_i \,\in\, A}}
+          \frac{m^*(A)}{|A|}
+    \]
+  \end{block}
+
+  \begin{block}{Дефицит кластера $C_i$}
+    \[
+      \Delta_i = \mathrm{BetP}(C_i) - \mathrm{supply}_i
+    \]
+  \end{block}
+
+  \bigskip
+  \textit{$\mathrm{supply}_i$ --- текущая обеспеченность кластера $C_i$
+          (по данным РПД и учебных планов).}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Правила принятия решений}
+
+  \begin{block}{}
+    \[
+      \Delta_i > \tau_\Delta
+        \;\wedge\; K \leq \tau_K
+        \;\wedge\; m^*(\Theta) \leq \tau_\Theta
+      \quad\Longrightarrow\quad
+      \textbf{УСИЛИТЬ}
+    \]
+    \[
+      \Delta_i > \tau_\Delta
+        \;\wedge\; \bigl(K > \tau_K \;\vee\; m^*(\Theta) > \tau_\Theta\bigr)
+      \quad\Longrightarrow\quad
+      \textbf{ВАРИАТИВНОСТЬ}
+    \]
+    \[
+      \Delta_i \leq \tau_\Delta
+      \quad\Longrightarrow\quad
+      \textbf{СТАБИЛИЗАЦИЯ}
+    \]
+  \end{block}
+
+  \bigskip
+  \begin{tabular}{ll}
+    $\tau_\Delta = 0{,}15$ & порог дефицита \\
+    $\tau_K      = 0{,}40$ & порог конфликтности источников \\
+    $\tau_\Theta = 0{,}15$ & порог неопределённости ($m^*(\Theta)$) \\
+  \end{tabular}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\end{document}

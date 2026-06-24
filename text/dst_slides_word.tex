@@ -1,0 +1,170 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb, mathtools}
+\usepackage{array, booktabs}
+\usepackage[hidelinks]{hyperref}
+\usepackage{geometry}
+\geometry{margin=2cm}
+\pagestyle{empty}
+
+\begin{document}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{center}
+{\large\bfseries Слайд 1. Паспорт источника и формирование BPA}
+\end{center}
+\medskip
+\hrule
+\bigskip
+
+\noindent
+\textbf{Рамка рассуждений:}
+\[
+  \Theta = \{T,\,F\}, \qquad
+  2^\Theta = \bigl\{\emptyset,\;\{T\},\;\{F\},\;\Theta\bigr\}
+\]
+
+\noindent
+\textbf{Множество источников:}
+$\mathcal{S} = \{\mathrm{vac},\;\mathrm{exp},\;\mathrm{fc}\}$.
+Каждый источник $s \in \mathcal{S}$ задаётся кортежем
+$(n_s^{\mathrm{tot}},\; n_s^{+},\; \bar{a}_s^{+},\; n_s^{-},\;
+ \bar{a}_s^{-},\; \alpha_s,\; w_s,\; \lambda_s)$.
+
+\bigskip
+\noindent\textbf{Шаг 1. Коэффициент уверенности $\kappa_s$}
+
+\[
+  n_s^{\mathrm{eff}} = n_s^{\mathrm{rel}} \cdot \alpha_s,
+  \qquad
+  \kappa_s = \frac{n_s^{\mathrm{eff}}}{n_s^{\mathrm{eff}} + \lambda_s}
+  \;\in (0,1)
+\]
+
+\bigskip
+\noindent\textbf{Шаг 2. Базовое распределение вероятности (BPA)}\\
+Единая схема для \emph{всех} источников:
+
+\begin{align*}
+  m_s\!\bigl(\{T\}\bigr)
+    &= \kappa_s \cdot \bar{a}_s^{+} \cdot
+       \frac{n_s^{+}}{n_s^{\mathrm{tot}}}
+    &&\text{(масса «важно»)}\\[6pt]
+  m_s\!\bigl(\{F\}\bigr)
+    &= \kappa_s \cdot \bar{a}_s^{-} \cdot
+       \frac{n_s^{-}}{n_s^{\mathrm{tot}}}
+    &&\text{(масса «не важно»)}\\[6pt]
+  m_s(\Theta)
+    &= 1 - m_s\!\bigl(\{T\}\bigr) - m_s\!\bigl(\{F\}\bigr)
+    &&\text{(неопределённость)}
+\end{align*}
+
+\noindent
+Для \textbf{vac, exp}: нет отрицательных сигналов $\Rightarrow$
+$n_s^{-} = 0 \Rightarrow m_s(\{F\}) = 0$ (следствие данных, не аксиома).\\
+Для \textbf{fc} (смешанный): $n_{\mathrm{fc}}^{+} > 0$ и
+$n_{\mathrm{fc}}^{-} > 0$ $\Rightarrow$ оба слагаемых ненулевые.
+
+\bigskip
+\noindent\textbf{Шаг 3. Дисконтирование по надёжности $w_s$}
+
+\begin{align*}
+  m'_s(A)      &= w_s \cdot m_s(A),
+    \quad A \neq \Theta \\[6pt]
+  m'_s(\Theta) &= (1 - w_s) + w_s \cdot m_s(\Theta)
+\end{align*}
+
+\smallskip
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Источник & $w_s$ & $\lambda_s$ \\
+\midrule
+Эксперты & $0{,}90$ & $5$ \\
+Вакансии & $0{,}80$ & $15$ \\
+Прогнозы & $0{,}60$ & $2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\noindent\textit{Выход: дисконтированные тройки
+$(m'_s(\{T\}),\; m'_s(\Theta),\; m'_s(\{F\}))$
+для каждого $s \in \mathcal{S}$; сумма равна 1.
+Передаются на комбинирование по правилу Демпстера.}
+
+\newpage
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{center}
+{\large\bfseries Слайд 2. Комбинирование и принятие решения}
+\end{center}
+\medskip
+\hrule
+\bigskip
+
+\noindent\textbf{Шаг 4. Коэффициент конфликта и правило Демпстера}
+
+\[
+  K(m_1, m_2) =
+    m_1\!\bigl(\{T\}\bigr) \cdot m_2\!\bigl(\{F\}\bigr)
+    + m_1\!\bigl(\{F\}\bigr) \cdot m_2\!\bigl(\{T\}\bigr)
+\]
+
+\[
+  (m_1 \oplus m_2)(A) =
+  \frac{\displaystyle
+    \sum_{\substack{B \cap C = A \\ A \neq \emptyset}}
+      m_1(B) \cdot m_2(C)}{1 - K},
+  \qquad K < \tau_K
+\]
+
+\[
+  m^* = m'_{\mathrm{vac}} \oplus m'_{\mathrm{exp}} \oplus m'_{\mathrm{fc}},
+  \qquad
+  K = \max\!\bigl(K_1,\; K_2\bigr)
+\]
+
+\bigskip
+\noindent\textbf{Шаг 5. Пигнистическая вероятность и дефицит}
+
+\[
+  \mathrm{BetP} = m^*\!\bigl(\{T\}\bigr) + \frac{m^*(\Theta)}{N_C},
+  \qquad
+  \Delta = \mathrm{BetP} - \sigma
+\]
+
+\noindent
+$\sigma \in [0,1]$ --- текущая обеспеченность кластера по РПД/учебному плану.
+
+\bigskip
+\noindent\textbf{Шаг 6. Правила принятия решений}
+
+\begin{align*}
+  \Delta > \tau_\Delta
+    \;\wedge\; K \le \tau_K
+    \;\wedge\; m^*(\Theta) \le \tau_\Theta
+  &\;\Longrightarrow\; \textbf{УСИЛИТЬ}\\[6pt]
+  \Delta > \tau_\Delta
+    \;\wedge\; \bigl(K > \tau_K
+                     \;\vee\; m^*(\Theta) > \tau_\Theta\bigr)
+  &\;\Longrightarrow\; \textbf{ВАРИАТИВНОСТЬ}\\[6pt]
+  |\Delta| \le \tau_\Delta
+  &\;\Longrightarrow\; \textbf{СТАБИЛИЗИРОВАТЬ}
+\end{align*}
+
+\smallskip
+\noindent
+$\tau_\Delta = 0{,}15$;\quad
+$\tau_K = 0{,}40$;\quad
+$\tau_\Theta = 0{,}15$;\quad
+$N_C = 25$.
+
+\medskip
+\noindent\textit{Выход: рекомендация — УСИЛИТЬ / ВАРИАТИВНОСТЬ /
+СТАБИЛИЗИРОВАТЬ / СОКРАТИТЬ.
+При $K \ge \tau_K$ возможно переключение на правило Ягера
+(конфликтная масса переходит на $\Theta$).}
+
+\end{document}

@@ -53,9 +53,16 @@ public class VacancyClusterScoreService {
         // (pre-computed for performance)
         Map<Long, Set<Long>> impliedMap = buildImpliedMap();
 
+        // Pre-load ALL canonicals into memory to avoid N+1 queries inside loops
+        Map<Long, SkillCanonical> canonicalCache = new HashMap<>();
+        canonicalRepository.findAll().forEach(c -> canonicalCache.put(c.getId(), c));
+        log.info("Loaded {} canonical skills into cache", canonicalCache.size());
+
         int saved = 0;
+        int total = vacancies.size(), idx = 0;
 
         for (VacancyEntity vacancy : vacancies) {
+            idx++;
             Map<Long, ScoreAccumulator> accumulators = new HashMap<>();
 
             String titleLower = vacancy.getName() != null
@@ -89,7 +96,7 @@ public class VacancyClusterScoreService {
 
                 for (Long canonId : clusterCanonics) {
                     // Find canonical name for text-matching
-                    SkillCanonical canonical = canonicalRepository.findById(canonId).orElse(null);
+                    SkillCanonical canonical = canonicalCache.get(canonId);
                     if (canonical == null || "unknown".equals(canonical.getTechType())) continue;
 
                     String skillNameLower = canonical.getNormalizedName();
@@ -122,7 +129,11 @@ public class VacancyClusterScoreService {
                 }
             }
 
-            if (accumulators.isEmpty()) continue;
+            if (accumulators.isEmpty()) {
+                if (idx % 100 == 0)
+                    log.info("Cluster scores progress: {}/{} | rows={}", idx, total, saved);
+                continue;
+            }
 
             // Normalise scores within this vacancy
             double maxRaw = accumulators.values().stream()
@@ -141,9 +152,12 @@ public class VacancyClusterScoreService {
                 upsertScore(vacancy, cluster, score, acc);
                 saved++;
             }
+
+            if (idx % 100 == 0)
+                log.info("Cluster scores progress: {}/{} | rows={}", idx, total, saved);
         }
 
-        log.info("Vacancy-cluster scores computed: {} rows upserted", saved);
+        log.info("Cluster scores DONE: {}/{} | rows upserted={}", total, total, saved);
         return new ScoreReport(saved);
     }
 

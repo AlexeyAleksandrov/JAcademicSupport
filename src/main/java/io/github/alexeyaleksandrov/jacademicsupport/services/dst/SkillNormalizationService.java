@@ -41,7 +41,7 @@ public class SkillNormalizationService {
 
     private static final Set<String> QUALIFIER_KEYWORDS = Set.of(
             "junior", "middle", "senior", "lead", "core", "hooks", "native",
-            "junior", "standard", "enterprise", "community", "professional",
+            "standard", "enterprise", "community", "professional",
             "express", "compact", "lite", "classic", "pro"
     );
 
@@ -51,9 +51,14 @@ public class SkillNormalizationService {
         log.info("Starting normalization of {} work_skill entries", skills.size());
 
         int processed = 0, created = 0, linked = 0, unknown = 0;
+        int total = skills.size();
+        int idx = 0;
 
         for (WorkSkill skill : skills) {
+            idx++;
             if (skill.getCanonicalId() != null) {
+                if (idx % 100 == 0)
+                    log.info("Normalization progress: {}/{} (skipped — already linked)", idx, total);
                 continue;
             }
             String raw = skill.getDescription();
@@ -89,10 +94,14 @@ public class SkillNormalizationService {
                 workSkillRepository.save(skill);
             }
             processed++;
+
+            if (idx % 100 == 0)
+                log.info("Normalization progress: {}/{} | processed={}, canonical={}, linked={}, unknown={}",
+                        idx, total, processed, created, linked, unknown);
         }
 
-        log.info("Normalization done: processed={}, canonical_created={}, linked={}, unknown={}",
-                processed, created, linked, unknown);
+        log.info("Normalization DONE: {}/{} | processed={}, canonical_created={}, linked={}, unknown={}",
+                total, total, processed, created, linked, unknown);
         return new NormalizationReport(processed, created, linked, unknown);
     }
 
