@@ -7,8 +7,9 @@ test_atomize.py — Итеративная отладка промпта ато�
     python test_atomize.py --local                # локальная модель через Ollama
     python test_atomize.py --local --no-db        # Ollama + без БД
     python test_atomize.py --local-model qwen2.5:7b  # явно указать модель Ollama
-    python test_atomize.py --batch-size 10        # строк на один запрос (для слабых моделей)
+    python test_atomize.py --batch-size 10        # строк на один запрос (10 по умолчанию, 25 = быстрее но риск сдвига)
     python test_atomize.py --limit 30 --raw       # лимит из БД + сырые ответы
+    python test_atomize.py --all-skills --limit 500 --batch-size 25 --save  # полный прогон + сохранение
 
 Конфигурация через .env:
     GIGACHAT_API_TOKEN  — Base64-токен из кабинета Сбер
@@ -21,6 +22,7 @@ test_atomize.py — Итеративная отладка промпта ато�
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -87,32 +89,39 @@ def get_access_token() -> str:
 
 # ─── Вызов GigaChat ─────────────────────────────────────────────────────────────
 
-def call_gigachat(system_prompt: str, user_message: str) -> str:
-    token = get_access_token()
-    payload = {
-        "model": MODEL,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user",   "content": user_message},
-        ],
-        "temperature": 0.01,
-        "top_p": 0.01,
-        "max_tokens": 4096,
-        "profanity_check": False,
-    }
-    resp = requests.post(
-        API_URL,
-        headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": f"Bearer {token}",
-        },
-        json=payload,
-        verify=False,
-        timeout=90,
-    )
-    resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"]
+def call_gigachat(system_prompt: str, user_message: str, max_retries: int = 5) -> str:
+    for attempt in range(max_retries):
+        token = get_access_token()
+        payload = {
+            "model": MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": user_message},
+            ],
+            "temperature": 0.01,
+            "top_p": 0.01,
+            "max_tokens": 4096,
+            "profanity_check": False,
+        }
+        resp = requests.post(
+            API_URL,
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": f"Bearer {token}",
+            },
+            json=payload,
+            verify=False,
+            timeout=90,
+        )
+        if resp.status_code == 429:
+            wait = 2 ** attempt * 3  # 3, 6, 12, 24, 48 с
+            print(f" [429 rate limit, ждём {wait}s...]  ", end="", flush=True)
+            time.sleep(wait)
+            continue
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+    raise RuntimeError(f"GigaChat 429 после {max_retries} попыток")
 
 
 # ─── Вызов Ollama ──────────────────────────────────────────────────────────────
@@ -264,6 +273,98 @@ HARDCODED_SAMPLES = [
 ]
 
 
+# ─── Вспомогательные утилиты для сохранения ────────────────────────────────────
+
+_VERSION_SUFFIX_RE = re.compile(r'^(.+?)\s+([\d]+(?:\.[\d]+)*)$')
+
+_VALID_DOMAINS = frozenset({
+    'BACKEND', 'FRONTEND', 'AI_ML', 'DATA_SCIENCE', 'DEVOPS',
+    'DATABASE', 'CLOUD', 'SECURITY', 'TESTING', 'MOBILE',
+    '1C', 'IOT', 'SYSTEMS', 'GENERAL',
+})
+
+
+def detect_version_group(skill_name: str) -> str | None:
+    """Если навык вида 'Python 3.10' или '.NET 8' — вернуть базовое имя группы версий."""
+    m = _VERSION_SUFFIX_RE.match(skill_name)
+    return m.group(1) if m else None
+
+
+def save_batch_to_db(conn, batch_inputs: list[str], batch_outputs: list[list[str]],
+                     domains: dict[str, str]) -> tuple[int, int, int]:
+    """Сохраняет один батч и коммитит. Возвращает (saved_canonical, saved_links, skipped_ws)."""
+    cur = conn.cursor()
+    saved_canonical = 0
+    saved_links     = 0
+    skipped_ws      = 0
+
+    for raw_input, skills in zip(batch_inputs, batch_outputs):
+        canonical_ids: list[int] = []
+
+        for skill in skills:
+            if skill.upper() == "NOT_SKILL":
+                continue
+
+            normalized = skill.strip().lower()
+            raw_domain = domains.get(skill)
+            domain     = raw_domain if raw_domain in _VALID_DOMAINS else None
+            vg         = detect_version_group(skill)
+
+            cur.execute("""
+                INSERT INTO skill_canonical (name, normalized_name, version_group, domain, domain_source)
+                VALUES (%s, %s, %s, %s, 'llm')
+                ON CONFLICT (normalized_name) DO UPDATE
+                    SET name          = EXCLUDED.name,
+                        version_group = COALESCE(EXCLUDED.version_group, skill_canonical.version_group),
+                        domain        = CASE
+                            WHEN skill_canonical.domain_source = 'manual' THEN skill_canonical.domain
+                            WHEN EXCLUDED.domain IS NOT NULL              THEN EXCLUDED.domain
+                            ELSE skill_canonical.domain
+                        END,
+                        domain_source = CASE
+                            WHEN skill_canonical.domain_source = 'manual' THEN 'manual'
+                            WHEN EXCLUDED.domain IS NOT NULL              THEN 'llm'
+                            ELSE skill_canonical.domain_source
+                        END
+                RETURNING id
+            """, (skill.strip(), normalized, vg, domain))
+            row = cur.fetchone()
+            if row:
+                canonical_ids.append(row[0])
+                saved_canonical += 1
+
+        if not canonical_ids:
+            continue
+
+        cur.execute(
+            "SELECT id FROM work_skill WHERE TRIM(description) = %s",
+            (raw_input.strip(),)
+        )
+        ws_rows = cur.fetchall()
+        if not ws_rows:
+            skipped_ws += 1
+            continue
+
+        for (ws_id,) in ws_rows:
+            for cid in canonical_ids:
+                cur.execute("""
+                    INSERT INTO work_skill_canonical (work_skill_id, canonical_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT DO NOTHING
+                """, (ws_id, cid))
+                saved_links += 1
+
+    conn.commit()
+    cur.close()
+    return saved_canonical, saved_links, skipped_ws
+
+
+def save_to_db(conn, samples: list[str], outputs: list[list[str]], domains: dict[str, str]) -> None:
+    """Сохраняет все результаты. Используется для финального вывода статистики."""
+    sc, sl, sw = save_batch_to_db(conn, samples, outputs, domains)
+    print(f"[SAVE] skill_canonical: +{sc} upserts | work_skill_canonical: +{sl} links | not found: {sw}")
+
+
 # ─── Загрузка из БД ─────────────────────────────────────────────────────────────
 
 def get_db_samples(limit: int) -> list[str]:
@@ -301,6 +402,62 @@ def get_db_samples(limit: int) -> list[str]:
         return []
 
     return sorted(results)
+
+
+def get_all_db_samples(limit: int, offset: int = 0, skip_done: bool = False) -> list[str]:
+    """Загружает ВСЕ уникальные work_skill.description (для полного прогона --all-skills).
+    skip_done=True: пропускает work_skill, у которых уже есть запись в work_skill_canonical.
+    """
+    if not DB_URL:
+        print("[WARN] DB_URL не задан в .env")
+        return []
+    try:
+        import psycopg2
+    except ImportError:
+        print("[WARN] psycopg2 не установлен")
+        return []
+
+    try:
+        conn = psycopg2.connect(DB_URL)
+        cur  = conn.cursor()
+
+        if skip_done:
+            cur.execute(
+                """
+                SELECT DISTINCT TRIM(ws.description)
+                FROM work_skill ws
+                WHERE ws.description IS NOT NULL
+                  AND TRIM(ws.description) <> ''
+                  AND NOT EXISTS (
+                      SELECT 1 FROM work_skill_canonical wsc
+                      WHERE wsc.work_skill_id = ws.id
+                  )
+                ORDER BY 1
+                LIMIT %s OFFSET %s
+                """,
+                (limit, offset)
+            )
+        else:
+            cur.execute(
+                """
+                SELECT DISTINCT TRIM(description)
+                FROM work_skill
+                WHERE description IS NOT NULL AND TRIM(description) <> ''
+                ORDER BY 1
+                LIMIT %s OFFSET %s
+                """,
+                (limit, offset)
+            )
+
+        rows = [r[0] for r in cur.fetchall()]
+        cur.close()
+        conn.close()
+        mode = "skip-done" if skip_done else "all"
+        print(f"[DB] {len(rows)} строк (all-skills, {mode}, offset={offset})")
+        return rows
+    except Exception as e:
+        print(f"[WARN] Ошибка БД: {e}")
+        return []
 
 
 # ─── Вывод результатов ─────────────────────────────────────────────────────────
@@ -378,12 +535,18 @@ def main() -> None:
         description="Тестирует промпт атомизации навыков против GigaChat"
     )
     parser.add_argument("--no-db",       action="store_true", help="Использовать захардкоженные примеры")
+    parser.add_argument("--all-skills",  action="store_true", help="Загрузить ВСЕ work_skill, не только проблемные")
     parser.add_argument("--limit",       type=int, default=20, help="Макс. строк на SQL-запрос (по умолч. 20)")
-    parser.add_argument("--batch-size",  type=int, default=20, help="Строк в одном запросе к LLM (по умолч. 20)")
+    parser.add_argument("--batch-size",  type=int, default=10, help="Строк в одном запросе к LLM (по умолч. 10)")
     parser.add_argument("--raw",         action="store_true", help="Вывести сырой ответ LLM")
     parser.add_argument("--local",       action="store_true", help="Использовать локальную модель через Ollama")
     parser.add_argument("--local-model", type=str, default=None, help="Модель Ollama (по умолч. из .env или qwen2.5:7b)")
+    parser.add_argument("--model",       type=str, default=None, help="Модель GigaChat (напр. GigaChat-Max; по умолч. из .env)")
     parser.add_argument("--shuffle",     action="store_true", help="Перемешать строки из БД перед батчингом")
+    parser.add_argument("--save",        action="store_true", help="Сохранить результаты в skill_canonical + work_skill_canonical")
+    parser.add_argument("--skip-done",   action="store_true", help="(с --all-skills) Пропускать work_skill с уже существующими canonical-связями")
+    parser.add_argument("--offset",      type=int, default=0,   help="(с --all-skills) Смещение SQL OFFSET для ручной пагинации")
+    parser.add_argument("--delay",        type=float, default=0, help="Задержка между батчами в секундах (по умолч. 0)")
     args = parser.parse_args()
 
     # Загружаем промпт
@@ -394,20 +557,38 @@ def main() -> None:
         system_prompt = f.read()
     print(f"[PROMPT] Загружен {prompt_path} ({len(system_prompt)} символов)")
 
+    # Переопределяем модель GigaChat если задан --model
+    global MODEL
+    if args.model:
+        MODEL = args.model
+
+    # Проверка: --save несовместим с --no-db
+    if args.save and args.no_db:
+        sys.exit("[ERROR] --save несовместим с --no-db: нет work_skill для привязки")
+
     # Получаем образцы
     if args.no_db:
         samples = HARDCODED_SAMPLES
         print(f"[MODE] --no-db: используем {len(samples)} захардкоженных примеров")
+    elif args.all_skills:
+        samples = get_all_db_samples(args.limit, offset=args.offset, skip_done=args.skip_done)
+        if not samples:
+            sys.exit("[ERROR] Нет данных из БД")
+        print(f"[MODE] --all-skills: {len(samples)} строк из work_skill")
     else:
         samples = get_db_samples(args.limit)
         if not samples:
             print("[MODE] Нет данных из БД, используем захардкоженные примеры")
             samples = HARDCODED_SAMPLES
 
-    if args.shuffle and not args.no_db:
+    # При --all-skills включаем shuffle по умолчанию (если явно не отключено --no-shuffle)
+    # Это критично: алфавитная сортировка даёт однородные батчи вида «25 строк на чтение…»
+    # и GigaChat теряет связь между входом и выходом.
+    do_shuffle = args.shuffle or (args.all_skills and not getattr(args, 'no_shuffle', False))
+    if do_shuffle and not args.no_db:
         import random
         random.shuffle(samples)
-        print(f"[SHUFFLE] Строки перемешаны (seed=random)")
+        print(f"[SHUFFLE] Строки перемешаны (алфавитная однородность устранена)")
 
     use_local = args.local
     local_model = args.local_model or OLLAMA_MODEL
@@ -423,6 +604,16 @@ def main() -> None:
     all_domains: dict[str, str]  = {}
     total_elapsed = 0.0
 
+    # Открываем соединение заранее (если --save)
+    db_conn = None
+    total_saved_sc = total_saved_links = total_skipped_ws = 0
+    if args.save and DB_URL:
+        try:
+            import psycopg2
+            db_conn = psycopg2.connect(DB_URL)
+        except Exception as e:
+            print(f"[ERROR] Не удалось подключиться к БД для --save: {e}")
+
     for b_idx in range(n_batches):
         batch = samples[b_idx * batch_size : (b_idx + 1) * batch_size]
         user_message = json.dumps(batch, ensure_ascii=False, indent=None)
@@ -435,26 +626,61 @@ def main() -> None:
                 raw_response = call_gigachat(system_prompt, user_message)
         except requests.HTTPError as e:
             if hasattr(e, 'response') and e.response.status_code == 402:
-                sys.exit("\n[ERROR] 402 Payment Required — лимит токенов GigaChat исчерпан. Подождите обновления квоты.")
+                sys.exit("\n[ERROR] 402 Payment Required — лимит токенов GigaChat исчерпан. Пождите обновления квоты.")
             sys.exit(f"\n[ERROR] HTTP {e.response.status_code}: {e.response.text}")
         except Exception as e:
             sys.exit(f"\n[ERROR] LLM: {e}")
         elapsed = time.time() - t0
         total_elapsed += elapsed
-        print(f"{elapsed:.1f} с")
+        print(f"{elapsed:.1f} с", end="")
 
         if args.raw:
             print(f"\n--- RAW BATCH {b_idx+1} ---\n{raw_response}\n--- END RAW ---\n")
 
+        if args.delay > 0 and b_idx < n_batches - 1:
+            time.sleep(args.delay)
+
         batch_outputs, batch_domains = parse_response(raw_response)
-        if batch_outputs is None:
-            print(f"[ERROR] Батч {b_idx+1}: не удалось разобрать JSON. Сырой ответ:\n{raw_response}")
-            batch_outputs = [[inp] for inp in batch]
-            batch_domains = {}
+        # Валидация: количество ответов должно совпадать с количеством входов
+        if batch_outputs is None or len(batch_outputs) != len(batch):
+            mismatch_reason = "не удалось разобрать JSON" if batch_outputs is None \
+                else f"длина {len(batch_outputs)} ≠ {len(batch)}"
+            print(f"  [RETRY] Батч {b_idx+1}: {mismatch_reason}, повторяем...")
+            try:
+                if use_local:
+                    raw_response = call_ollama(system_prompt, user_message, local_model)
+                else:
+                    raw_response = call_gigachat(system_prompt, user_message)
+                batch_outputs, batch_domains = parse_response(raw_response)
+            except Exception:
+                batch_outputs = None
+            if batch_outputs is None or len(batch_outputs) != len(batch):
+                print(f"  [FALLBACK] Батч {b_idx+1}: оставляем как есть (identity)")
+                batch_outputs = [[inp] for inp in batch]
+                batch_domains = {}
         all_outputs.extend(batch_outputs)
         all_domains.update(batch_domains)
 
+        # Пер-батч сохранение: коммит после каждого батча
+        if args.save and db_conn:
+            try:
+                sc, sl, sw = save_batch_to_db(db_conn, batch, batch_outputs, batch_domains)
+                total_saved_sc    += sc
+                total_saved_links += sl
+                total_skipped_ws  += sw
+                print(f"  [сохр. +{sc} canonical, +{sl} links]")
+            except Exception as e:
+                db_conn.rollback()
+                print(f"  [ERROR] --save батч {b_idx+1}: {e}")
+        else:
+            print()
+
+    if db_conn:
+        db_conn.close()
+
     print(f"[OK] Итого за {total_elapsed:.1f} с")
+    if args.save and DB_URL:
+        print(f"[SAVE ИТОГ] skill_canonical: +{total_saved_sc} | links: +{total_saved_links} | not found: {total_skipped_ws}")
 
     # Выводим результаты
     print_results(samples, all_outputs, all_domains)
