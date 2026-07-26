@@ -45,64 +45,17 @@ public class SkillNormalizationService {
             "express", "compact", "lite", "classic", "pro"
     );
 
+    /**
+     * @deprecated Regex-based normalization is superseded by the LLM pipeline.
+     *             Run skill-atomize-test/test_atomize.py to populate skill_canonical
+     *             and work_skill_canonical via GigaChat.
+     */
+    @Deprecated(since = "2.0", forRemoval = false)
     @Transactional
     public NormalizationReport normalizeAll() {
-        List<WorkSkill> skills = workSkillRepository.findAll();
-        log.info("Starting normalization of {} work_skill entries", skills.size());
-
-        int processed = 0, created = 0, linked = 0, unknown = 0;
-        int total = skills.size();
-        int idx = 0;
-
-        for (WorkSkill skill : skills) {
-            idx++;
-            if (skill.getCanonicalId() != null) {
-                if (idx % 100 == 0)
-                    log.info("Normalization progress: {}/{} (skipped — already linked)", idx, total);
-                continue;
-            }
-            String raw = skill.getDescription();
-            if (raw == null || raw.isBlank()) {
-                continue;
-            }
-
-            List<ParsedSkill> parsed = parseRawSkill(raw);
-
-            if (parsed.isEmpty()) {
-                unknown++;
-                continue;
-            }
-
-            SkillCanonical firstCanonical = null;
-            for (ParsedSkill ps : parsed) {
-                if ("unknown".equals(ps.techType)) {
-                    unknown++;
-                    continue;
-                }
-                SkillCanonical canonical = findOrCreateCanonical(ps);
-                saveVersionIfNeeded(canonical, raw, ps);
-
-                if (firstCanonical == null) {
-                    firstCanonical = canonical;
-                    created++;
-                }
-                linked++;
-            }
-
-            if (firstCanonical != null) {
-                skill.setCanonicalId(firstCanonical.getId());
-                workSkillRepository.save(skill);
-            }
-            processed++;
-
-            if (idx % 100 == 0)
-                log.info("Normalization progress: {}/{} | processed={}, canonical={}, linked={}, unknown={}",
-                        idx, total, processed, created, linked, unknown);
-        }
-
-        log.info("Normalization DONE: {}/{} | processed={}, canonical_created={}, linked={}, unknown={}",
-                total, total, processed, created, linked, unknown);
-        return new NormalizationReport(processed, created, linked, unknown);
+        log.warn("normalizeAll() is deprecated. Skill normalization is handled by the Python " +
+                 "LLM pipeline (test_atomize.py). Returning empty report.");
+        return new NormalizationReport(0, 0, 0, 0);
     }
 
     /**

@@ -1,15 +1,7 @@
 package io.github.alexeyaleksandrov.jacademicsupport.services.dst;
 
-import io.github.alexeyaleksandrov.jacademicsupport.models.Profession;
-import io.github.alexeyaleksandrov.jacademicsupport.models.ProfessionCluster;
-import io.github.alexeyaleksandrov.jacademicsupport.models.SkillsGroup;
-import io.github.alexeyaleksandrov.jacademicsupport.models.VacancyClusterScore;
-import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.ProfessionClusterRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.ProfessionRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillsGroupRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.VacancyClusterScoreRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
+import io.github.alexeyaleksandrov.jacademicsupport.models.*;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,11 +18,16 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DstQueryService {
 
-    private final ProfessionRepository         professionRepository;
-    private final ProfessionClusterRepository  professionClusterRepository;
+    private final ProfessionRepository          professionRepository;
+    private final ProfessionClusterRepository   professionClusterRepository;
     private final VacancyClusterScoreRepository scoreRepository;
-    private final WorkSkillRepository          workSkillRepository;
-    private final SkillsGroupRepository        skillsGroupRepository;
+    private final WorkSkillRepository           workSkillRepository;
+    private final SkillsGroupRepository         skillsGroupRepository;
+    private final WorkSkillCanonicalRepository  workSkillCanonicalRepository;
+    private final SkillCanonicalRepository      canonicalRepository;
+    private final SkillDomainStatsRepository    domainStatsRepository;
+    private final VacancyDomainRepository       vacancyDomainRepository;
+    private final SkillDependencyRepository     dependencyRepository;
 
     private static final BigDecimal MIN_SCORE = new BigDecimal("0.01");
 
@@ -86,50 +83,128 @@ public class DstQueryService {
 
     /**
      * Level 2: skills for a given profession + cluster, with frequency and dependency info.
-     * Returns direct skills (in cluster) + implied skills (via dependency graph).
+     * Uses work_skill_canonical M:N table populated by the Python LLM pipeline.
+     * Each SkillInfo is enriched with domain and top co-occurrences.
      */
     @Transactional(readOnly = true)
     public List<SkillInfo> getSkillsForProfessionAndCluster(String profCode, Long clusterId) {
-        SkillsGroup cluster = skillsGroupRepository.findById(clusterId).orElseThrow();
-        List<WorkSkill> clusterSkills = workSkillRepository.findBySkillsGroupBySkillsGroupId(cluster);
-
         // All vacancy scores for this profession + cluster
         List<VacancyClusterScore> relevantScores = scoreRepository
                 .findByProfessionAndCluster(profCode, clusterId, MIN_SCORE);
         long totalVacancies = relevantScores.size();
 
-        // Count how often each canonical appears in the relevant vacancies
+        // Collect all work_skill IDs from relevant vacancies
+        List<Long> workSkillIds = relevantScores.stream()
+                .flatMap(vcs -> {
+                    List<WorkSkill> skills = vcs.getVacancy().getSkills();
+                    return skills == null ? java.util.stream.Stream.empty()
+                                         : skills.stream().map(WorkSkill::getId);
+                })
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (workSkillIds.isEmpty()) return List.of();
+
+        // Pre-load M:N map for all relevant work_skills in one query
+        Set<Long> allWorkSkillIds = new HashSet<>();
+        for (VacancyClusterScore vcs : relevantScores) {
+            List<WorkSkill> vacSkills = vcs.getVacancy().getSkills();
+            if (vacSkills != null) vacSkills.forEach(ws -> allWorkSkillIds.add(ws.getId()));
+        }
+        Map<Long, Set<Long>> wsToCanonicals = new HashMap<>();
+        workSkillCanonicalRepository.findByWorkSkillIdIn(new ArrayList<>(allWorkSkillIds))
+                .forEach(wsc -> wsToCanonicals
+                        .computeIfAbsent(wsc.getWorkSkillId(), k -> new HashSet<>())
+                        .add(wsc.getCanonicalId()));
+
+        // Count how often each canonical_id appears across relevant vacancies (via M:N cache)
         Map<Long, Long> canonicalFrequency = new HashMap<>();
         for (VacancyClusterScore vcs : relevantScores) {
             List<WorkSkill> vacSkills = vcs.getVacancy().getSkills();
             if (vacSkills == null) continue;
-            for (WorkSkill s : vacSkills) {
-                if (s.getCanonicalId() != null) {
-                    canonicalFrequency.merge(s.getCanonicalId(), 1L, Long::sum);
-                }
+            Set<Long> vacancyCanonicals = new HashSet<>();
+            for (WorkSkill ws : vacSkills) {
+                Set<Long> cids = wsToCanonicals.get(ws.getId());
+                if (cids != null) vacancyCanonicals.addAll(cids);
             }
+            vacancyCanonicals.forEach(cid -> canonicalFrequency.merge(cid, 1L, Long::sum));
         }
 
+        // Build SkillInfo for every canonical that appeared at least once
         List<SkillInfo> result = new ArrayList<>();
+        canonicalFrequency.forEach((canonicalId, freq) -> {
+            double relFreq = (double) freq / totalVacancies;
+            SkillCanonical sc = canonicalRepository.findById(canonicalId).orElse(null);
+            if (sc == null) return;
 
-        for (WorkSkill skill : clusterSkills) {
-            if (skill.getCanonicalId() == null) continue;
-
-            long freq      = canonicalFrequency.getOrDefault(skill.getCanonicalId(), 0L);
-            double relFreq = totalVacancies > 0 ? (double) freq / totalVacancies : 0.0;
+            SkillDomainStats stats = domainStatsRepository.findByCanonicalId(canonicalId).orElse(null);
+            List<Map<String, Object>> topCooc = stats != null ? stats.getTopCooccurrences() : List.of();
 
             result.add(new SkillInfo(
-                    skill.getId(),
-                    skill.getDescription(),
-                    skill.getCanonicalId(),
+                    canonicalId,
+                    sc.getName(),
+                    canonicalId,
                     relFreq,
                     freq,
-                    false
+                    false,
+                    sc.getDomain(),
+                    topCooc
             ));
-        }
+        });
 
         result.sort(Comparator.comparingDouble(SkillInfo::relativeFrequency).reversed());
         return result;
+    }
+
+    /**
+     * Level 2 (strict mode): canonical skills that actually belong to this cluster's skills_group,
+     * filtered by profession. Uses native SQL for efficiency.
+     */
+    @Transactional(readOnly = true)
+    public List<SkillInfo> getStrictSkillsForCluster(String profCode, Long clusterId) {
+        List<Object[]> rows = canonicalRepository.findStrictClusterSkills(profCode, clusterId);
+        return rows.stream().map(r -> {
+            long   canonicalId = ((Number) r[0]).longValue();
+            String description = (String) r[1];
+            String domain      = (String) r[2];
+            long   absCount    = ((Number) r[3]).longValue();
+            double relFreq     = r[4] != null ? ((Number) r[4]).doubleValue() : 0.0;
+            return new SkillInfo(canonicalId, description, canonicalId, relFreq, absCount, false, domain, List.of());
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Returns top co-occurring skills for a given canonical skill.
+     */
+    @Transactional(readOnly = true)
+    public List<RelatedSkillInfo> getRelatedSkills(Long canonicalId) {
+        SkillCanonical skill = canonicalRepository.findById(canonicalId)
+                .orElseThrow(() -> new NoSuchElementException("Canonical skill not found: " + canonicalId));
+
+        List<SkillDependency> asParent = dependencyRepository.findByParent(skill);
+        List<SkillDependency> asChild  = dependencyRepository.findByChild(skill);
+
+        List<RelatedSkillInfo> result = new ArrayList<>();
+        for (SkillDependency dep : asParent) {
+            SkillCanonical other = dep.getChild();
+            result.add(new RelatedSkillInfo(other.getId(), other.getName(), other.getDomain(), dep.getCoOccurrenceCnt()));
+        }
+        for (SkillDependency dep : asChild) {
+            SkillCanonical other = dep.getParent();
+            result.add(new RelatedSkillInfo(other.getId(), other.getName(), other.getDomain(), dep.getCoOccurrenceCnt()));
+        }
+        result.sort(Comparator.comparingInt(RelatedSkillInfo::coOccurrenceCount).reversed());
+        return result;
+    }
+
+    /**
+     * Returns domain info for a vacancy.
+     */
+    @Transactional(readOnly = true)
+    public Optional<VacancyDomainInfo> getVacancyDomain(Long vacancyId) {
+        return vacancyDomainRepository.findByVacancyId(vacancyId)
+                .map(vd -> new VacancyDomainInfo(vd.getVacancyId(), vd.getPrimaryDomain(),
+                        vd.getDomainScore(), vd.getComputedAt()));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -160,6 +235,64 @@ public class DstQueryService {
             Long   canonicalId,
             double relativeFrequency,
             long   absoluteCount,
-            boolean isImplied
+            boolean isImplied,
+            String domain,
+            List<Map<String, Object>> topCooccurrences
     ) {}
+
+    public record RelatedSkillInfo(
+            Long   canonicalId,
+            String name,
+            String domain,
+            int    coOccurrenceCount
+    ) {}
+
+    public record VacancyDomainInfo(
+            Long       vacancyId,
+            String     primaryDomain,
+            java.math.BigDecimal domainScore,
+            java.time.LocalDateTime computedAt
+    ) {}
+
+    public record DomainClusterInfo(
+            String domain,
+            long   vacancyCount,
+            double weight
+    ) {}
+
+    /**
+     * Domain-based Level 1: distribution of skill domains for a profession.
+     * Uses skill_canonical.domain instead of skills_group.
+     */
+    @Transactional(readOnly = true)
+    public List<DomainClusterInfo> getDomainsForProfession(String profCode) {
+        return canonicalRepository.findDomainDistributionForProfession(profCode)
+                .stream()
+                .map(r -> new DomainClusterInfo(
+                        (String) r[0],
+                        ((Number) r[1]).longValue(),
+                        r[2] != null ? ((Number) r[2]).doubleValue() : 0.0
+                ))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Domain-based Level 2: canonical skills for a profession within a specific domain.
+     */
+    @Transactional(readOnly = true)
+    public List<SkillInfo> getSkillsForProfessionAndDomain(String profCode, String domain) {
+        return canonicalRepository.findSkillsByDomainAndProfession(profCode, domain)
+                .stream()
+                .map(r -> new SkillInfo(
+                        ((Number) r[0]).longValue(),
+                        (String) r[1],
+                        ((Number) r[0]).longValue(),
+                        r[4] != null ? ((Number) r[4]).doubleValue() : 0.0,
+                        ((Number) r[3]).longValue(),
+                        false,
+                        (String) r[2],
+                        List.of()
+                ))
+                .collect(Collectors.toList());
+    }
 }

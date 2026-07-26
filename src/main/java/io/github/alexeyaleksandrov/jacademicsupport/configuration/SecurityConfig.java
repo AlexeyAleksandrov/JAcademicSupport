@@ -68,6 +68,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/dst/**").permitAll()
                         // DST query endpoints (read-only, used by frontend)
                         .requestMatchers("/api/dst/**").permitAll()
+                        // Static frontend pages
+                        .requestMatchers("/*.html", "/static/**", "/css/**", "/js/**", "/images/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

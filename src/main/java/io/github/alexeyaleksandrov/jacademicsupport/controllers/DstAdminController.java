@@ -3,6 +3,7 @@ package io.github.alexeyaleksandrov.jacademicsupport.controllers;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,16 +26,19 @@ public class DstAdminController {
     private final ProfessionClusterService   professionClusterService;
     private final VacancyClusterScoreService scoreService;
 
+    /**
+     * @deprecated Skill normalization is now handled by the Python LLM pipeline.
+     *             Run: python skill-atomize-test/test_atomize.py --all-skills --save
+     */
+    @SuppressWarnings("deprecation")
     @PostMapping("/normalize-skills")
     public ResponseEntity<Map<String, Object>> normalizeSkills() {
-        log.info("Admin: starting skill normalisation");
-        SkillNormalizationService.NormalizationReport report = normalizationService.normalizeAll();
-        return ResponseEntity.ok(reportMap("normalise-skills", Map.of(
-                "processed",        report.processed(),
-                "canonicalCreated", report.canonicalCreated(),
-                "linked",           report.linked(),
-                "unknown",          report.unknown()
-        )));
+        log.warn("POST /normalize-skills called — endpoint is deprecated (410 Gone). Use Python LLM pipeline.");
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", "gone");
+        body.put("message", "Regex normalization is deprecated. " +
+                "Use the Python LLM pipeline: python skill-atomize-test/test_atomize.py --all-skills --save");
+        return ResponseEntity.status(HttpStatus.GONE).body(body);
     }
 
     @PostMapping("/classify-professions")
@@ -84,11 +88,9 @@ public class DstAdminController {
         log.info("Admin: running full DST pipeline");
 
         Map<String, Object> results = new LinkedHashMap<>();
-
-        SkillNormalizationService.NormalizationReport r1 = normalizationService.normalizeAll();
         results.put("phase2_normalize", Map.of(
-                "processed", r1.processed(), "canonicalCreated", r1.canonicalCreated(),
-                "linked", r1.linked(), "unknown", r1.unknown()));
+                "status", "skipped",
+                "reason", "Normalization handled by Python LLM pipeline (test_atomize.py)"));
 
         VacancyProfessionService.ClassificationReport r2 = professionService.classifyAll();
         results.put("phase3_classify", Map.of(

@@ -27,12 +27,13 @@ import java.util.*;
 @Slf4j
 public class VacancyClusterScoreService {
 
-    private final VacancyEntityRepository       vacancyRepository;
-    private final SkillsGroupRepository         skillsGroupRepository;
-    private final WorkSkillRepository           workSkillRepository;
-    private final VacancyClusterScoreRepository scoreRepository;
-    private final SkillCanonicalRepository      canonicalRepository;
-    private final SkillDependencyRepository     dependencyRepository;
+    private final VacancyEntityRepository          vacancyRepository;
+    private final SkillsGroupRepository            skillsGroupRepository;
+    private final WorkSkillRepository              workSkillRepository;
+    private final VacancyClusterScoreRepository    scoreRepository;
+    private final SkillCanonicalRepository         canonicalRepository;
+    private final SkillDependencyRepository        dependencyRepository;
+    private final WorkSkillCanonicalRepository     workSkillCanonicalRepository;
 
     private static final double WEIGHT_TITLE      = 1.0;
     private static final double WEIGHT_SKILLS     = 0.8;
@@ -58,6 +59,14 @@ public class VacancyClusterScoreService {
         canonicalRepository.findAll().forEach(c -> canonicalCache.put(c.getId(), c));
         log.info("Loaded {} canonical skills into cache", canonicalCache.size());
 
+        // Pre-load ALL work_skill_canonical M:N mappings (workSkillId → Set<canonicalId>)
+        Map<Long, Set<Long>> workSkillToCanonicals = new HashMap<>();
+        workSkillCanonicalRepository.findAll().forEach(wsc ->
+                workSkillToCanonicals
+                        .computeIfAbsent(wsc.getWorkSkillId(), k -> new HashSet<>())
+                        .add(wsc.getCanonicalId()));
+        log.info("Loaded {} work_skill→canonical M:N links into cache", workSkillToCanonicals.values().stream().mapToInt(Set::size).sum());
+
         int saved = 0;
         int total = vacancies.size(), idx = 0;
 
@@ -72,12 +81,13 @@ public class VacancyClusterScoreService {
             List<WorkSkill> skills = vacancy.getSkills() != null
                     ? vacancy.getSkills() : Collections.emptyList();
 
-            // Collect canonical IDs from skill list
+            // Collect canonical IDs from skill list via M:N cache
             Set<Long> directCanonicals = new HashSet<>();
             for (WorkSkill skill : skills) {
-                if (skill.getCanonicalId() != null) {
-                    directCanonicals.add(skill.getCanonicalId());
-                }
+                Set<Long> mnCanonicals = workSkillToCanonicals.get(skill.getId());
+                if (mnCanonicals != null) directCanonicals.addAll(mnCanonicals);
+                // fallback: old 1:1 canonical_id if M:N not populated
+                if (skill.getCanonicalId() != null) directCanonicals.add(skill.getCanonicalId());
             }
 
             // Expand via dependencies
@@ -164,11 +174,22 @@ public class VacancyClusterScoreService {
     // ─────────────────────────────────────────────────────────────────────────
 
     private Map<Long, Set<Long>> buildClusterCanonicalMap(List<SkillsGroup> clusters) {
+        // Pre-load M:N map once
+        Map<Long, Set<Long>> workSkillToCanonicals = new HashMap<>();
+        workSkillCanonicalRepository.findAll().forEach(wsc ->
+                workSkillToCanonicals
+                        .computeIfAbsent(wsc.getWorkSkillId(), k -> new HashSet<>())
+                        .add(wsc.getCanonicalId()));
+
         Map<Long, Set<Long>> map = new HashMap<>();
         for (SkillsGroup cluster : clusters) {
             List<WorkSkill> skills = workSkillRepository.findBySkillsGroupBySkillsGroupId(cluster);
             Set<Long> ids = new HashSet<>();
             for (WorkSkill s : skills) {
+                // Primary: M:N work_skill_canonical (LLM pipeline)
+                Set<Long> mnIds = workSkillToCanonicals.get(s.getId());
+                if (mnIds != null) ids.addAll(mnIds);
+                // Fallback: old 1:1 canonical_id
                 if (s.getCanonicalId() != null) ids.add(s.getCanonicalId());
             }
             if (!ids.isEmpty()) map.put(cluster.getId(), ids);

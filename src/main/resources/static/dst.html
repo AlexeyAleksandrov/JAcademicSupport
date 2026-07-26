@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DST — Анализ рынка навыков</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    .domain-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; }
+    .freq-bar { transition: width 0.4s ease; }
+    .panel-item { transition: background 0.15s; cursor: pointer; }
+    .panel-item:hover { background: #eff6ff; }
+    .panel-item.active { background: #dbeafe; border-left: 3px solid #2563eb; }
+    .skill-row:hover { background: #f8fafc; }
+    ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden">
+
+<!-- Header -->
+<header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 shadow-sm flex-shrink-0">
+  <div class="flex items-center gap-2">
+    <span class="text-2xl">🎯</span>
+    <div>
+      <h1 class="text-lg font-bold text-gray-900 leading-tight">DST — Анализ рынка навыков</h1>
+      <p class="text-xs text-gray-500">Digital Skills Tracker · vacancy market data</p>
+    </div>
+  </div>
+  <div class="ml-auto flex items-center gap-3 text-sm text-gray-500">
+    <span id="hdr-prof">—</span>
+    <span class="text-gray-300">›</span>
+    <span id="hdr-cluster">—</span>
+  </div>
+</header>
+
+<!-- Main 3-panel layout -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- Panel 1: Профессии -->
+  <div class="w-56 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Профессии</p>
+    </div>
+    <div id="prof-list" class="flex-1 overflow-y-auto py-1">
+      <div class="px-4 py-8 text-center text-gray-400 text-sm">Загрузка…</div>
+    </div>
+  </div>
+
+  <!-- Panel 2: Кластеры -->
+  <div class="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+    <div class="px-3 py-2 border-b border-gray-100 bg-gray-50">
+      <div class="flex items-center justify-between mb-1.5">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Кластеры</p>
+        <span id="cluster-count" class="text-xs text-gray-400"></span>
+      </div>
+      <div class="flex rounded border border-gray-200 overflow-hidden text-xs font-medium">
+        <button id="l1-groups" onclick="setL1Mode('groups')"
+          class="flex-1 py-1 bg-blue-500 text-white transition-colors">По группам</button>
+        <button id="l1-domain" onclick="setL1Mode('domain')"
+          class="flex-1 py-1 bg-white text-gray-500 hover:bg-gray-50 transition-colors">По доменам</button>
+      </div>
+    </div>
+    <div id="cluster-list" class="flex-1 overflow-y-auto py-1">
+      <div class="px-4 py-8 text-center text-gray-400 text-sm">Выберите профессию</div>
+    </div>
+  </div>
+
+  <!-- Panel 3: Навыки -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-shrink-0">
+      <div>
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Навыки кластера</p>
+        <p id="skills-subtitle" class="text-xs text-gray-400 mt-0.5"></p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+          <button id="mode-all" onclick="setMode('all')"
+            class="px-3 py-1.5 bg-blue-500 text-white transition-colors">Все вакансий</button>
+          <button id="mode-strict" onclick="setMode('strict')"
+            class="px-3 py-1.5 bg-white text-gray-500 hover:bg-gray-50 transition-colors">Только кластера</button>
+        </div>
+        <input id="skill-filter" type="text" placeholder="Поиск навыка…"
+               class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 w-40 focus:outline-none focus:ring-2 focus:ring-blue-300"/>
+        <span id="skills-count" class="text-xs text-gray-400 whitespace-nowrap"></span>
+      </div>
+    </div>
+    <div id="skills-list" class="flex-1 overflow-y-auto">
+      <div class="px-5 py-12 text-center text-gray-400">Выберите кластер</div>
+    </div>
+  </div>
+
+  <!-- Panel 4: Related (collapsed by default) -->
+  <div id="related-panel" class="w-0 bg-white border-l border-gray-200 flex flex-col flex-shrink-0 overflow-hidden transition-all duration-300">
+    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Связанные навыки</p>
+      <button id="close-related" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+    </div>
+    <div id="related-name" class="px-4 py-2 text-sm font-semibold text-blue-700 border-b border-gray-100"></div>
+    <div id="related-list" class="flex-1 overflow-y-auto py-1"></div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let allSkills = [];
+let selectedProfCode = null;
+let selectedClusterId = null;
+let selectedDomain = null;
+let currentMode = 'all';
+let l1Mode = 'groups';
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('mode-all').className    = mode === 'all'
+    ? 'px-3 py-1.5 bg-blue-500 text-white transition-colors'
+    : 'px-3 py-1.5 bg-white text-gray-500 hover:bg-gray-50 transition-colors';
+  document.getElementById('mode-strict').className = mode === 'strict'
+    ? 'px-3 py-1.5 bg-blue-500 text-white transition-colors'
+    : 'px-3 py-1.5 bg-white text-gray-500 hover:bg-gray-50 transition-colors';
+  if (selectedClusterId !== null) reloadSkills();
+}
+
+function setL1Mode(mode) {
+  l1Mode = mode;
+  document.getElementById('l1-groups').className = mode === 'groups'
+    ? 'flex-1 py-1 bg-blue-500 text-white transition-colors'
+    : 'flex-1 py-1 bg-white text-gray-500 hover:bg-gray-50 transition-colors';
+  document.getElementById('l1-domain').className = mode === 'domain'
+    ? 'flex-1 py-1 bg-blue-500 text-white transition-colors'
+    : 'flex-1 py-1 bg-white text-gray-500 hover:bg-gray-50 transition-colors';
+  // Hide "Только кластера" toggle when in domain mode (not relevant)
+  document.getElementById('mode-strict').style.display = mode === 'domain' ? 'none' : '';
+  if (selectedProfCode) reloadClusters();
+}
+
+async function reloadClusters() {
+  selectedClusterId = null; selectedDomain = null;
+  document.getElementById('skills-list').innerHTML = '<div class="px-5 py-12 text-center text-gray-400">Выберите кластер</div>';
+  document.getElementById('skills-subtitle').textContent = '';
+  document.getElementById('skills-count').textContent = '';
+  closeRelated();
+  if (l1Mode === 'domain') {
+    await loadDomainClusters(selectedProfCode);
+  } else {
+    await loadGroupClusters(selectedProfCode);
+  }
+}
+
+async function loadDomainClusters(profCode) {
+  try {
+    const domains = await fetchJSON(`/api/dst/professions/${profCode}/domain-clusters`);
+    document.getElementById('cluster-count').textContent = domains.length;
+    document.getElementById('cluster-list').innerHTML = domains.map(d => {
+      const cfg = domainCfg(d.domain);
+      const w = Math.round(d.weight * 100);
+      return `
+        <div class="panel-item px-3 py-2.5 border-b border-gray-50"
+             onclick="selectDomainCluster('${d.domain}', this)">
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-1.5">
+              <span class="domain-badge ${cfg.bg} ${cfg.text} px-1.5 py-0.5 rounded">${cfg.label}</span>
+            </div>
+            <span class="text-xs text-gray-400">${w}%</span>
+          </div>
+          <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full ${cfg.bar} rounded-full freq-bar" style="width:${w}%"></div>
+          </div>
+          <div class="text-xs text-gray-400 mt-0.5">${d.vacancyCount} вакансий</div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    document.getElementById('cluster-list').innerHTML = `<div class="p-4 text-red-400 text-sm">Ошибка: ${e.message}</div>`;
+  }
+}
+
+async function selectDomainCluster(domain, el) {
+  selectedDomain = domain;
+  selectedClusterId = null;
+  document.querySelectorAll('#cluster-list .panel-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  const cfg = domainCfg(domain);
+  document.getElementById('hdr-cluster').textContent = cfg.label;
+  document.getElementById('skills-subtitle').textContent = cfg.label;
+  document.getElementById('skill-filter').value = '';
+  closeRelated();
+  document.getElementById('skills-list').innerHTML = '<div class="px-5 py-12 text-center text-gray-400">Загрузка…</div>';
+  document.getElementById('skills-count').textContent = '';
+  try {
+    allSkills = await fetchJSON(`/api/dst/professions/${selectedProfCode}/domain-clusters/${domain}/skills`);
+    document.getElementById('skills-count').textContent = `${allSkills.length} навыков`;
+    renderSkills(allSkills);
+  } catch(e) {
+    document.getElementById('skills-list').innerHTML = `<div class="p-5 text-red-400 text-sm">Ошибка: ${e.message}</div>`;
+  }
+}
+
+// ── Domain config ──────────────────────────────────────────
+const DOMAIN_CONFIG = {
+  BACKEND:      { label:'Backend',      bg:'bg-blue-100',    text:'text-blue-700',    bar:'bg-blue-400' },
+  FRONTEND:     { label:'Frontend',     bg:'bg-green-100',   text:'text-green-700',   bar:'bg-green-400' },
+  DATABASE:     { label:'Database',     bg:'bg-orange-100',  text:'text-orange-700',  bar:'bg-orange-400' },
+  DEVOPS:       { label:'DevOps',       bg:'bg-purple-100',  text:'text-purple-700',  bar:'bg-purple-400' },
+  AI_ML:        { label:'AI/ML',        bg:'bg-red-100',     text:'text-red-700',     bar:'bg-red-400' },
+  DATA_SCIENCE: { label:'Data Science', bg:'bg-teal-100',    text:'text-teal-700',    bar:'bg-teal-400' },
+  GENERAL:      { label:'General',      bg:'bg-gray-100',    text:'text-gray-600',    bar:'bg-gray-400' },
+  SYSTEMS:      { label:'Systems',      bg:'bg-yellow-100',  text:'text-yellow-700',  bar:'bg-yellow-400' },
+  MOBILE:       { label:'Mobile',       bg:'bg-pink-100',    text:'text-pink-700',    bar:'bg-pink-400' },
+  SECURITY:     { label:'Security',     bg:'bg-rose-100',    text:'text-rose-700',    bar:'bg-rose-400' },
+  TESTING:      { label:'Testing',      bg:'bg-cyan-100',    text:'text-cyan-700',    bar:'bg-cyan-400' },
+  CLOUD:        { label:'Cloud',        bg:'bg-sky-100',     text:'text-sky-700',     bar:'bg-sky-400' },
+  EMBEDDED:     { label:'Embedded',     bg:'bg-amber-100',   text:'text-amber-700',   bar:'bg-amber-400' },
+  BLOCKCHAIN:   { label:'Blockchain',   bg:'bg-indigo-100',  text:'text-indigo-700',  bar:'bg-indigo-400' },
+};
+const DOMAIN_DEFAULT = { label:'—', bg:'bg-gray-50', text:'text-gray-400', bar:'bg-gray-200' };
+
+function domainCfg(d) { return DOMAIN_CONFIG[d] || DOMAIN_DEFAULT; }
+
+function domainBadge(domain) {
+  const cfg = domainCfg(domain);
+  return `<span class="domain-badge ${cfg.bg} ${cfg.text} px-1.5 py-0.5 rounded">${cfg.label}</span>`;
+}
+
+// ── Fetch helpers ──────────────────────────────────────────
+async function fetchJSON(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+// ── Level 0: Professions ───────────────────────────────────
+async function loadProfessions() {
+  try {
+    const profs = await fetchJSON('/api/dst/professions');
+    const list = document.getElementById('prof-list');
+    list.innerHTML = profs.map(p => `
+      <div class="panel-item px-4 py-2.5 border-b border-gray-50 flex items-center gap-2"
+           data-code="${p.code}" onclick="selectProfession('${p.code}', this)">
+        <span class="text-xs text-gray-500">${p.code}</span>
+        <span class="text-sm font-medium text-gray-800 leading-snug">${p.name}</span>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('prof-list').innerHTML = `<div class="p-4 text-red-400 text-sm">Ошибка: ${e.message}</div>`;
+  }
+}
+
+// ── Level 1: Clusters ──────────────────────────────────────
+async function selectProfession(code, el) {
+  selectedProfCode = code;
+  selectedClusterId = null;
+  selectedDomain = null;
+  document.querySelectorAll('#prof-list .panel-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('hdr-prof').textContent = code;
+  document.getElementById('hdr-cluster').textContent = '—';
+  document.getElementById('skills-list').innerHTML = '<div class="px-5 py-12 text-center text-gray-400">Выберите кластер</div>';
+  document.getElementById('skills-subtitle').textContent = '';
+  document.getElementById('skills-count').textContent = '';
+  closeRelated();
+  await reloadClusters();
+}
+
+async function loadGroupClusters(profCode) {
+  document.getElementById('cluster-list').innerHTML = '<div class="px-4 py-6 text-gray-400 text-sm">Загрузка…</div>';
+  try {
+    const clusters = await fetchJSON(`/api/dst/professions/${profCode}/clusters`);
+    document.getElementById('cluster-count').textContent = clusters.length;
+    document.getElementById('cluster-list').innerHTML = clusters.map(c => {
+      const w = Math.round((c.professionWeight || 0) * 100);
+      return `
+        <div class="panel-item px-3 py-2.5 border-b border-gray-50"
+             data-cluster="${c.clusterId}" onclick="selectCluster(${c.clusterId}, '${escHtml(c.clusterName)}', this)">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-sm font-medium text-gray-800">${escHtml(c.clusterName)}</span>
+            <span class="text-xs text-gray-400">${w}%</span>
+          </div>
+          <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full bg-blue-400 rounded-full freq-bar" style="width:${w}%"></div>
+          </div>
+          <div class="text-xs text-gray-400 mt-0.5">avgScore: ${(c.marketDemandAvg||0).toFixed(3)}</div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    document.getElementById('cluster-list').innerHTML = `<div class="p-4 text-red-400 text-sm">Ошибка: ${e.message}</div>`;
+  }
+}
+
+// ── Level 2: Skills ────────────────────────────────────────
+async function selectCluster(clusterId, clusterName, el) {
+  selectedClusterId = clusterId;
+  document.querySelectorAll('#cluster-list .panel-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('hdr-cluster').textContent = clusterName;
+  document.getElementById('skills-subtitle').textContent = clusterName;
+  document.getElementById('skill-filter').value = '';
+  closeRelated();
+  await reloadSkills();
+}
+
+async function reloadSkills() {
+  document.getElementById('skills-list').innerHTML = '<div class="px-5 py-12 text-center text-gray-400">Загрузка…</div>';
+  document.getElementById('skills-count').textContent = '';
+  try {
+    allSkills = await fetchJSON(
+      `/api/dst/professions/${selectedProfCode}/clusters/${selectedClusterId}/skills?mode=${currentMode}`
+    );
+    document.getElementById('skills-count').textContent = `${allSkills.length} навыков`;
+    document.getElementById('skill-filter').value = '';
+    renderSkills(allSkills);
+  } catch(e) {
+    document.getElementById('skills-list').innerHTML = `<div class="p-5 text-red-400 text-sm">Ошибка: ${e.message}</div>`;
+  }
+}
+
+function renderSkills(skills) {
+  if (!skills.length) {
+    document.getElementById('skills-list').innerHTML = '<div class="px-5 py-10 text-center text-gray-400">Нет данных</div>';
+    return;
+  }
+  const maxFreq = skills[0].relativeFrequency || 1;
+  document.getElementById('skills-list').innerHTML = skills.map((s, i) => {
+    const pct = Math.round(s.relativeFrequency * 100);
+    const barW = Math.round((s.relativeFrequency / maxFreq) * 100);
+    const cfg = domainCfg(s.domain);
+    return `
+      <div class="skill-row flex items-center gap-3 px-5 py-2 border-b border-gray-50 cursor-pointer"
+           onclick="openRelated(${s.canonicalId}, '${escHtml(s.description)}')">
+        <div class="w-6 text-right text-xs text-gray-400 flex-shrink-0">${i+1}</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-0.5">
+            <span class="text-sm font-medium text-gray-800 truncate">${escHtml(s.description)}</span>
+            ${domainBadge(s.domain)}
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden flex-1">
+              <div class="h-full ${cfg.bar} rounded-full freq-bar" style="width:${barW}%"></div>
+            </div>
+            <span class="text-xs text-gray-500 w-10 text-right">${pct}%</span>
+            <span class="text-xs text-gray-400">${s.absoluteCount}x</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Filter ─────────────────────────────────────────────────
+document.getElementById('skill-filter').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  const filtered = allSkills.filter(s => s.description.toLowerCase().includes(q));
+  document.getElementById('skills-count').textContent = `${filtered.length} / ${allSkills.length}`;
+  renderSkills(filtered);
+});
+
+// ── Related panel ──────────────────────────────────────────
+async function openRelated(canonicalId, name) {
+  const panel = document.getElementById('related-panel');
+  panel.style.width = '280px';
+  document.getElementById('related-name').textContent = name;
+  document.getElementById('related-list').innerHTML = '<div class="px-4 py-6 text-gray-400 text-sm">Загрузка…</div>';
+
+  try {
+    const related = await fetchJSON(`/api/dst/skills/${canonicalId}/related`);
+    const top = related.slice(0, 50);
+    const maxCnt = top[0]?.coOccurrenceCount || 1;
+    document.getElementById('related-list').innerHTML = top.map(r => {
+      const barW = Math.round((r.coOccurrenceCount / maxCnt) * 100);
+      const cfg = domainCfg(r.domain);
+      return `
+        <div class="px-4 py-2 border-b border-gray-50">
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <span class="text-xs font-medium text-gray-800 truncate">${escHtml(r.name)}</span>
+            <span class="domain-badge ${cfg.bg} ${cfg.text} px-1 py-0.5 rounded text-xs">${cfg.label}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="h-1 bg-gray-100 rounded-full overflow-hidden flex-1">
+              <div class="h-full ${cfg.bar} rounded-full" style="width:${barW}%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-8 text-right">${r.coOccurrenceCount}</span>
+          </div>
+        </div>
+      `;
+    }).join('') + (related.length > 50 ? `<div class="px-4 py-2 text-xs text-gray-400">... ещё ${related.length-50}</div>` : '');
+  } catch(e) {
+    document.getElementById('related-list').innerHTML = `<div class="p-4 text-red-400 text-sm">${e.message}</div>`;
+  }
+}
+
+function closeRelated() {
+  document.getElementById('related-panel').style.width = '0';
+}
+document.getElementById('close-related').addEventListener('click', closeRelated);
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Init ───────────────────────────────────────────────────
+loadProfessions();
+</script>
+</body>
+</html>

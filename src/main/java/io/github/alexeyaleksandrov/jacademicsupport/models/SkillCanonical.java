@@ -27,4 +27,10 @@ public class SkillCanonical {
 
     @Column(name = "version_group", length = 100)
     private String versionGroup;
+
+    @Column(name = "domain", length = 20)
+    private String domain;
+
+    @Column(name = "domain_source", length = 20)
+    private String domainSource;
 }
