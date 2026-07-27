@@ -28,6 +28,7 @@ public class DstQueryService {
     private final SkillDomainStatsRepository    domainStatsRepository;
     private final VacancyDomainRepository       vacancyDomainRepository;
     private final SkillDependencyRepository     dependencyRepository;
+    private final SkillVersionRepository        versionRepository;
 
     private static final BigDecimal MIN_SCORE = new BigDecimal("0.01");
 
@@ -148,7 +149,9 @@ public class DstQueryService {
                     freq,
                     false,
                     sc.getDomain(),
-                    topCooc
+                    topCooc,
+                    sc.getTechType(),
+                    sc.getVersionGroup()
             ));
         });
 
@@ -169,7 +172,9 @@ public class DstQueryService {
             String domain      = (String) r[2];
             long   absCount    = ((Number) r[3]).longValue();
             double relFreq     = r[4] != null ? ((Number) r[4]).doubleValue() : 0.0;
-            return new SkillInfo(canonicalId, description, canonicalId, relFreq, absCount, false, domain, List.of());
+            String techType    = (String) r[5];
+            String versionGrp  = (String) r[6];
+            return new SkillInfo(canonicalId, description, canonicalId, relFreq, absCount, false, domain, List.of(), techType, versionGrp);
         }).collect(Collectors.toList());
     }
 
@@ -237,7 +242,18 @@ public class DstQueryService {
             long   absoluteCount,
             boolean isImplied,
             String domain,
-            List<Map<String, Object>> topCooccurrences
+            List<Map<String, Object>> topCooccurrences,
+            String techType,
+            String versionGroup
+    ) {}
+
+    public record VersionInfo(
+            Long    id,
+            String  rawString,
+            String  versionMin,
+            String  versionMax,
+            boolean isPlus,
+            long    absoluteCount
     ) {}
 
     public record RelatedSkillInfo(
@@ -291,8 +307,39 @@ public class DstQueryService {
                         ((Number) r[3]).longValue(),
                         false,
                         (String) r[2],
-                        List.of()
+                        List.of(),
+                        (String) r[5],
+                        (String) r[6]
                 ))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Version variants for a canonical skill with global vacancy counts.
+     * Uses skill_canonical siblings that share the same version_group family,
+     * sorted by popularity (absoluteCount) descending.
+     */
+    @Transactional(readOnly = true)
+    public List<VersionInfo> getVersionsForSkill(Long canonicalId) {
+        List<Object[]> rows = canonicalRepository.findVersionSiblingsWithCounts(canonicalId);
+        if (rows.isEmpty()) return List.of();
+
+        SkillCanonical self = canonicalRepository.findById(canonicalId).orElse(null);
+        String familyName = self != null
+                ? (self.getVersionGroup() != null ? self.getVersionGroup() : self.getName())
+                : "";
+        String prefix = familyName + " ";
+
+        return rows.stream()
+                .map(r -> {
+                    long   sibId = ((Number) r[0]).longValue();
+                    String name  = (String)  r[1];
+                    long   count = r[3] != null ? ((Number) r[3]).longValue() : 0L;
+                    String versionStr = name.startsWith(prefix)
+                            ? name.substring(prefix.length()).trim()
+                            : name;
+                    return new VersionInfo(sibId, name, versionStr, null, false, count);
+                })
                 .collect(Collectors.toList());
     }
 }

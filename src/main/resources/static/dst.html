@@ -97,6 +97,7 @@
       <button id="close-related" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
     </div>
     <div id="related-name" class="px-4 py-2 text-sm font-semibold text-blue-700 border-b border-gray-100"></div>
+    <div id="related-versions" class="border-b border-gray-100"></div>
     <div id="related-list" class="flex-1 overflow-y-auto py-1"></div>
   </div>
 </div>
@@ -194,6 +195,28 @@ async function selectDomainCluster(domain, el) {
   } catch(e) {
     document.getElementById('skills-list').innerHTML = `<div class="p-5 text-red-400 text-sm">Ошибка: ${e.message}</div>`;
   }
+}
+
+// ── Tech type config ──────────────────────────────────────
+const TECH_TYPE_CONFIG = {
+  lang:        { label:'lang',      bg:'bg-blue-50',    text:'text-blue-600' },
+  framework:   { label:'framework', bg:'bg-green-50',   text:'text-green-600' },
+  tool:        { label:'tool',      bg:'bg-orange-50',  text:'text-orange-600' },
+  lib:         { label:'lib',       bg:'bg-purple-50',  text:'text-purple-600' },
+  platform:    { label:'platform',  bg:'bg-cyan-50',    text:'text-cyan-600' },
+  cloud:       { label:'cloud',     bg:'bg-sky-50',     text:'text-sky-600' },
+  database:    { label:'db',        bg:'bg-amber-50',   text:'text-amber-600' },
+  protocol:    { label:'protocol',  bg:'bg-teal-50',    text:'text-teal-600' },
+  standard:    { label:'standard',  bg:'bg-indigo-50',  text:'text-indigo-600' },
+};
+function techTypeBadge(t) {
+  if (!t) return '';
+  const cfg = TECH_TYPE_CONFIG[t.toLowerCase()] || { label: t, bg:'bg-gray-50', text:'text-gray-500' };
+  return `<span class="domain-badge ${cfg.bg} ${cfg.text} px-1.5 py-0.5 rounded border border-current border-opacity-20">${cfg.label}</span>`;
+}
+function versionGroupChip(vg) {
+  if (!vg) return '';
+  return `<span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-mono">${escHtml(vg)}</span>`;
 }
 
 // ── Domain config ──────────────────────────────────────────
@@ -330,9 +353,11 @@ function renderSkills(skills) {
            onclick="openRelated(${s.canonicalId}, '${escHtml(s.description)}')">
         <div class="w-6 text-right text-xs text-gray-400 flex-shrink-0">${i+1}</div>
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-0.5">
+          <div class="flex items-center gap-2 mb-0.5 flex-wrap">
             <span class="text-sm font-medium text-gray-800 truncate">${escHtml(s.description)}</span>
             ${domainBadge(s.domain)}
+            ${techTypeBadge(s.techType)}
+            ${versionGroupChip(s.versionGroup)}
           </div>
           <div class="flex items-center gap-2">
             <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden flex-1">
@@ -356,14 +381,53 @@ document.getElementById('skill-filter').addEventListener('input', function() {
 });
 
 // ── Related panel ──────────────────────────────────────────
+function formatVersion(v) {
+  if (v.versionMin && v.versionMax) return `${v.versionMin}–${v.versionMax}`;
+  if (v.versionMin && v.isPlus)     return `${v.versionMin}+`;
+  if (v.versionMin)                 return v.versionMin;
+  if (v.rawString)                  return v.rawString;
+  return '?';
+}
+
 async function openRelated(canonicalId, name) {
   const panel = document.getElementById('related-panel');
   panel.style.width = '280px';
   document.getElementById('related-name').textContent = name;
+  document.getElementById('related-versions').innerHTML = '';
   document.getElementById('related-list').innerHTML = '<div class="px-4 py-6 text-gray-400 text-sm">Загрузка…</div>';
 
-  try {
-    const related = await fetchJSON(`/api/dst/skills/${canonicalId}/related`);
+  const [relatedResult, versionsResult] = await Promise.allSettled([
+    fetchJSON(`/api/dst/skills/${canonicalId}/related`),
+    fetchJSON(`/api/dst/skills/${canonicalId}/versions`)
+  ]);
+
+  // ── Versions section ───────────────────────────────────
+  const versionsEl = document.getElementById('related-versions');
+  if (versionsResult.status === 'fulfilled' && versionsResult.value.length > 0) {
+    const versions = versionsResult.value;
+    const maxCnt = versions[0]?.absoluteCount || 1;
+    versionsEl.innerHTML = `
+      <div class="px-4 pt-2 pb-1 border-b border-gray-100">
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Версии</div>
+        ${versions.map(v => {
+          const barW = maxCnt > 0 ? Math.round((v.absoluteCount / maxCnt) * 100) : 0;
+          const ver  = escHtml(formatVersion(v));
+          return `
+            <div class="flex items-center gap-2 mb-1.5" title="${escHtml(v.rawString||'')}">
+              <span class="text-xs font-mono text-blue-600 w-10 text-right shrink-0">${ver}</span>
+              <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden flex-1">
+                <div class="h-full bg-blue-400 rounded-full" style="width:${barW}%"></div>
+              </div>
+              <span class="text-xs text-gray-400 w-10 text-right shrink-0">${v.absoluteCount}</span>
+            </div>`;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  // ── Related skills section ─────────────────────────────
+  if (relatedResult.status === 'fulfilled') {
+    const related = relatedResult.value;
     const top = related.slice(0, 50);
     const maxCnt = top[0]?.coOccurrenceCount || 1;
     document.getElementById('related-list').innerHTML = top.map(r => {
@@ -384,8 +448,8 @@ async function openRelated(canonicalId, name) {
         </div>
       `;
     }).join('') + (related.length > 50 ? `<div class="px-4 py-2 text-xs text-gray-400">... ещё ${related.length-50}</div>` : '');
-  } catch(e) {
-    document.getElementById('related-list').innerHTML = `<div class="p-4 text-red-400 text-sm">${e.message}</div>`;
+  } else {
+    document.getElementById('related-list').innerHTML = `<div class="p-4 text-red-400 text-sm">${relatedResult.reason?.message || 'Ошибка'}</div>`;
   }
 }
 

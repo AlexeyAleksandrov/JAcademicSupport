@@ -82,6 +82,12 @@ public class DstQueryController {
         }
     }
 
+    @GetMapping("/skills/{canonicalId}/versions")
+    public ResponseEntity<List<DstQueryService.VersionInfo>> getSkillVersions(
+            @PathVariable Long canonicalId) {
+        return ResponseEntity.ok(dstQueryService.getVersionsForSkill(canonicalId));
+    }
+
     @GetMapping("/vacancies/{vacancyId}/domain")
     public ResponseEntity<DstQueryService.VacancyDomainInfo> getVacancyDomain(
             @PathVariable Long vacancyId) {
