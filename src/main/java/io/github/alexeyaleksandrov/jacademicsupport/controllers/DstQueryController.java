@@ -72,6 +72,21 @@ public class DstQueryController {
         return ResponseEntity.ok(dstQueryService.getSkillsForProfessionAndDomain(profCode, domain));
     }
 
+    @GetMapping("/professions/{profCode}/domains/{domain}/families")
+    public ResponseEntity<List<DstQueryService.FamilyInfo>> getFamiliesForDomain(
+            @PathVariable String profCode,
+            @PathVariable String domain) {
+        return ResponseEntity.ok(dstQueryService.getFamiliesForDomain(profCode, domain));
+    }
+
+    @GetMapping("/professions/{profCode}/domains/{domain}/families/{techFamily}/skills")
+    public ResponseEntity<List<DstQueryService.SkillInfo>> getSkillsByDomainAndFamily(
+            @PathVariable String profCode,
+            @PathVariable String domain,
+            @PathVariable String techFamily) {
+        return ResponseEntity.ok(dstQueryService.getSkillsByDomainAndFamily(profCode, domain, techFamily));
+    }
+
     @GetMapping("/skills/{canonicalId}/related")
     public ResponseEntity<List<DstQueryService.RelatedSkillInfo>> getRelatedSkills(
             @PathVariable Long canonicalId) {

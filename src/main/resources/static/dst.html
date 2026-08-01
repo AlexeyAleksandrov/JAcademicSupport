@@ -12,6 +12,7 @@
     .panel-item { transition: background 0.15s; cursor: pointer; }
     .panel-item:hover { background: #eff6ff; }
     .panel-item.active { background: #dbeafe; border-left: 3px solid #2563eb; }
+    .stub-badge { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
     .skill-row:hover { background: #f8fafc; }
     ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
   </style>
@@ -38,7 +39,7 @@
 <div class="flex flex-1 overflow-hidden">
 
   <!-- Panel 1: Профессии -->
-  <div class="w-56 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+  <div class="w-48 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
     <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
       <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Профессии</p>
     </div>
@@ -48,7 +49,7 @@
   </div>
 
   <!-- Panel 2: Кластеры -->
-  <div class="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+  <div class="w-56 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
     <div class="px-3 py-2 border-b border-gray-100 bg-gray-50">
       <div class="flex items-center justify-between mb-1.5">
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Кластеры</p>
@@ -66,11 +67,23 @@
     </div>
   </div>
 
-  <!-- Panel 3: Навыки -->
+  <!-- Panel 3: Семейства (stub, domain mode only) -->
+  <div id="family-panel" class="w-0 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 overflow-hidden transition-all duration-300">
+    <div class="px-3 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0 min-w-0">
+      <div class="flex items-center justify-between gap-1 mb-0.5">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Семейство</p>
+        <span id="family-count" class="text-xs text-gray-400"></span>
+      </div>
+      <p id="family-domain-label" class="text-xs text-gray-400 truncate"></p>
+    </div>
+    <div id="family-list" class="flex-1 overflow-y-auto py-1"></div>
+  </div>
+
+  <!-- Panel 4: Навыки -->
   <div class="flex-1 flex flex-col overflow-hidden">
     <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-shrink-0">
       <div>
-        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Навыки кластера</p>
+        <p id="skills-panel-title" class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Навыки</p>
         <p id="skills-subtitle" class="text-xs text-gray-400 mt-0.5"></p>
       </div>
       <div class="flex items-center gap-3">
@@ -108,8 +121,74 @@ let allSkills = [];
 let selectedProfCode = null;
 let selectedClusterId = null;
 let selectedDomain = null;
+let selectedFamily = null;
 let currentMode = 'all';
 let l1Mode = 'groups';
+
+// ── Family panel helpers ───────────────────────────────
+
+function openFamilyPanel(domain, families) {
+  const cfg = domainCfg(domain);
+  document.getElementById('family-domain-label').textContent = cfg.label;
+  document.getElementById('family-count').textContent = families.length;
+  const maxCount = Math.max(...families.map(f => f.vacancyCount));
+  document.getElementById('family-list').innerHTML =
+    `<div class="panel-item px-3 py-2 border-b border-gray-100 bg-gray-50 italic"
+          data-family="" onclick="handleFamilyClick(this)">
+       <span class="text-xs text-gray-400">Все навыки домена</span>
+     </div>` +
+    families.map(f => {
+      const barW = Math.round((f.vacancyCount / maxCount) * 100);
+      return `
+        <div class="panel-item px-3 py-2.5 border-b border-gray-50"
+             data-family="${escHtml(f.techFamily)}" onclick="handleFamilyClick(this)">
+          <div class="text-sm font-medium text-gray-800 mb-1.5 truncate">${escHtml(f.techFamily)}</div>
+          <div class="flex items-center gap-2">
+            <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden flex-1">
+              <div class="h-full bg-blue-400 rounded-full freq-bar" style="width:${barW}%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-10 text-right shrink-0">${f.vacancyCount}</span>
+          </div>
+        </div>`;
+    }).join('');
+  document.getElementById('family-panel').style.width = '214px';
+  document.getElementById('skills-panel-title').textContent = 'Стек';
+}
+
+function closeFamilyPanel() {
+  document.getElementById('family-panel').style.width = '0';
+  document.getElementById('family-list').innerHTML = '';
+  selectedFamily = null;
+  document.getElementById('skills-panel-title').textContent = 'Навыки';
+}
+
+function handleFamilyClick(el) {
+  const family = el.dataset.family || null;
+  selectFamily(family, el);
+}
+
+async function selectFamily(family, el) {
+  selectedFamily = family;
+  document.querySelectorAll('#family-list .panel-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('skill-filter').value = '';
+  closeRelated();
+  const label = family ? family : 'Все навыки домена';
+  document.getElementById('skills-subtitle').textContent = label;
+  document.getElementById('hdr-cluster').textContent = label;
+  document.getElementById('skills-list').innerHTML = '<div class="px-5 py-12 text-center text-gray-400">Загрузка…</div>';
+  document.getElementById('skills-count').textContent = '';
+  const url = family
+    ? `/api/dst/professions/${selectedProfCode}/domains/${selectedDomain}/families/${encodeURIComponent(family)}/skills`
+    : `/api/dst/professions/${selectedProfCode}/domain-clusters/${selectedDomain}/skills`;
+  try {
+    allSkills = await fetchJSON(url);
+    document.getElementById('skills-count').textContent = `${allSkills.length} навыков`;
+    renderSkills(allSkills);
+  } catch(e) {
+    document.getElementById('skills-list').innerHTML = `<div class="p-5 text-red-400 text-sm">Ошибка: ${e.message}</div>`;
+  }
+}
 
 function setMode(mode) {
   currentMode = mode;
@@ -137,6 +216,7 @@ function setL1Mode(mode) {
 
 async function reloadClusters() {
   selectedClusterId = null; selectedDomain = null;
+  closeFamilyPanel();
   document.getElementById('skills-list').innerHTML = '<div class="px-5 py-12 text-center text-gray-400">Выберите кластер</div>';
   document.getElementById('skills-subtitle').textContent = '';
   document.getElementById('skills-count').textContent = '';
@@ -179,14 +259,31 @@ async function loadDomainClusters(profCode) {
 async function selectDomainCluster(domain, el) {
   selectedDomain = domain;
   selectedClusterId = null;
+  selectedFamily = null;
   document.querySelectorAll('#cluster-list .panel-item').forEach(e => e.classList.remove('active'));
   el.classList.add('active');
   const cfg = domainCfg(domain);
   document.getElementById('hdr-cluster').textContent = cfg.label;
-  document.getElementById('skills-subtitle').textContent = cfg.label;
   document.getElementById('skill-filter').value = '';
   closeRelated();
+
+  // Fetch tech families for this domain from real API
   document.getElementById('skills-list').innerHTML = '<div class="px-5 py-12 text-center text-gray-400">Загрузка…</div>';
+  try {
+    const families = await fetchJSON(`/api/dst/professions/${selectedProfCode}/domains/${domain}/families`);
+    if (families.length > 0) {
+      // Level 3: show family panel with real data
+      openFamilyPanel(domain, families);
+      document.getElementById('skills-subtitle').textContent = '';
+      document.getElementById('skills-list').innerHTML = '<div class="px-5 py-12 text-center text-gray-400">Выберите семейство →</div>';
+      document.getElementById('skills-count').textContent = '';
+      return;
+    }
+  } catch(_) {}
+
+  // No families for this domain — skip Level 3, load skills directly
+  closeFamilyPanel();
+  document.getElementById('skills-subtitle').textContent = cfg.label;
   document.getElementById('skills-count').textContent = '';
   try {
     allSkills = await fetchJSON(`/api/dst/professions/${selectedProfCode}/domain-clusters/${domain}/skills`);
@@ -235,6 +332,8 @@ const DOMAIN_CONFIG = {
   CLOUD:        { label:'Cloud',        bg:'bg-sky-100',     text:'text-sky-700',     bar:'bg-sky-400' },
   EMBEDDED:     { label:'Embedded',     bg:'bg-amber-100',   text:'text-amber-700',   bar:'bg-amber-400' },
   BLOCKCHAIN:   { label:'Blockchain',   bg:'bg-indigo-100',  text:'text-indigo-700',  bar:'bg-indigo-400' },
+  IOT:          { label:'IoT',          bg:'bg-lime-100',    text:'text-lime-700',    bar:'bg-lime-400' },
+  '1C':         { label:'1С',           bg:'bg-red-50',      text:'text-red-600',     bar:'bg-red-300' },
 };
 const DOMAIN_DEFAULT = { label:'—', bg:'bg-gray-50', text:'text-gray-400', bar:'bg-gray-200' };
 

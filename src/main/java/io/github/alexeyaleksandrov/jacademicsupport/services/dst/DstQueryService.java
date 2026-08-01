@@ -276,6 +276,12 @@ public class DstQueryService {
             double weight
     ) {}
 
+    public record FamilyInfo(
+            String techFamily,
+            long   vacancyCount,
+            double weight
+    ) {}
+
     /**
      * Domain-based Level 1: distribution of skill domains for a profession.
      * Uses skill_canonical.domain instead of skills_group.
@@ -298,6 +304,45 @@ public class DstQueryService {
     @Transactional(readOnly = true)
     public List<SkillInfo> getSkillsForProfessionAndDomain(String profCode, String domain) {
         return canonicalRepository.findSkillsByDomainAndProfession(profCode, domain)
+                .stream()
+                .map(r -> new SkillInfo(
+                        ((Number) r[0]).longValue(),
+                        (String) r[1],
+                        ((Number) r[0]).longValue(),
+                        r[4] != null ? ((Number) r[4]).doubleValue() : 0.0,
+                        ((Number) r[3]).longValue(),
+                        false,
+                        (String) r[2],
+                        List.of(),
+                        (String) r[5],
+                        (String) r[6]
+                ))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Level 2.5: tech families within a domain for a given profession.
+     * Returns families sorted by vacancy count descending.
+     * Only families with at least one tagged skill are returned.
+     */
+    @Transactional(readOnly = true)
+    public List<FamilyInfo> getFamiliesForDomain(String profCode, String domain) {
+        return canonicalRepository.findFamilyDistributionByDomainAndProfession(profCode, domain)
+                .stream()
+                .map(r -> new FamilyInfo(
+                        (String) r[0],
+                        ((Number) r[1]).longValue(),
+                        r[2] != null ? ((Number) r[2]).doubleValue() : 0.0
+                ))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Level 3: canonical skills for a profession within a specific domain + tech family.
+     */
+    @Transactional(readOnly = true)
+    public List<SkillInfo> getSkillsByDomainAndFamily(String profCode, String domain, String techFamily) {
+        return canonicalRepository.findSkillsByDomainAndFamilyAndProfession(profCode, domain, techFamily)
                 .stream()
                 .map(r -> new SkillInfo(
                         ((Number) r[0]).longValue(),

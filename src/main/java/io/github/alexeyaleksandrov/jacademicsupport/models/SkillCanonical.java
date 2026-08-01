@@ -33,4 +33,7 @@ public class SkillCanonical {
 
     @Column(name = "domain_source", length = 20)
     private String domainSource;
+
+    @Column(name = "tech_family", length = 100)
+    private String techFamily;
 }

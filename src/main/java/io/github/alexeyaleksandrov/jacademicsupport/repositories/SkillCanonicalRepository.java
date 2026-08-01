@@ -78,6 +78,50 @@ public interface SkillCanonicalRepository extends JpaRepository<SkillCanonical, 
                                                     @Param("domain") String domain);
 
     @Query(nativeQuery = true, value = """
+        SELECT sc.tech_family,
+               COUNT(DISTINCT vp.vacancy_id)                                   AS vacancyCount,
+               COUNT(DISTINCT vp.vacancy_id)::double precision
+                   / NULLIF((SELECT COUNT(DISTINCT vp2.vacancy_id)
+                              FROM vacancy_profession vp2
+                              JOIN profession p2 ON p2.id = vp2.profession_id
+                              WHERE p2.code = :profCode), 0)                   AS weight
+        FROM skill_canonical sc
+        JOIN work_skill_canonical wsc ON wsc.canonical_id = sc.id
+        JOIN work_skill ws             ON ws.id = wsc.work_skill_id
+        JOIN vacancy_skills vs         ON vs.skills_id = ws.id
+        JOIN vacancy_profession vp     ON vp.vacancy_id = vs.vacancy_entity_id
+        JOIN profession p              ON p.id = vp.profession_id AND p.code = :profCode
+        WHERE sc.domain = :domain AND sc.tech_family IS NOT NULL
+        GROUP BY sc.tech_family
+        ORDER BY COUNT(DISTINCT vp.vacancy_id) DESC
+        """)
+    List<Object[]> findFamilyDistributionByDomainAndProfession(@Param("profCode") String profCode,
+                                                               @Param("domain")   String domain);
+
+    @Query(nativeQuery = true, value = """
+        SELECT sc.id, sc.name, sc.domain,
+               COUNT(DISTINCT vp.vacancy_id)                                   AS absoluteCount,
+               COUNT(DISTINCT vp.vacancy_id)::double precision
+                   / NULLIF((SELECT COUNT(DISTINCT vp2.vacancy_id)
+                              FROM vacancy_profession vp2
+                              JOIN profession p2 ON p2.id = vp2.profession_id
+                              WHERE p2.code = :profCode), 0)                   AS relativeFrequency,
+               sc.tech_type, sc.version_group
+        FROM skill_canonical sc
+        JOIN work_skill_canonical wsc ON wsc.canonical_id = sc.id
+        JOIN work_skill ws             ON ws.id = wsc.work_skill_id
+        JOIN vacancy_skills vs         ON vs.skills_id = ws.id
+        JOIN vacancy_profession vp     ON vp.vacancy_id = vs.vacancy_entity_id
+        JOIN profession p              ON p.id = vp.profession_id AND p.code = :profCode
+        WHERE sc.domain = :domain AND sc.tech_family = :techFamily
+        GROUP BY sc.id, sc.name, sc.domain, sc.tech_type, sc.version_group
+        ORDER BY COUNT(DISTINCT vp.vacancy_id) DESC
+        """)
+    List<Object[]> findSkillsByDomainAndFamilyAndProfession(@Param("profCode")   String profCode,
+                                                            @Param("domain")     String domain,
+                                                            @Param("techFamily") String techFamily);
+
+    @Query(nativeQuery = true, value = """
         SELECT sc.id            AS canonicalId,
                sc.name          AS description,
                sc.domain,
