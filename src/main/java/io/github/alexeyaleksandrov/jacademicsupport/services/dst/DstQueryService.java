@@ -31,6 +31,7 @@ public class DstQueryService {
     private final SkillVersionRepository        versionRepository;
     private final ExpertOpinionRepository       expertOpinionRepository;
     private final ForesightRepository           foresightRepository;
+    private final VacancyEntityRepository       vacancyEntityRepository;
 
     private static final BigDecimal MIN_SCORE = new BigDecimal("0.01");
 
@@ -285,17 +286,21 @@ public class DstQueryService {
      */
     public record BpaResult(
             long   relevantCount,
+            long   totalCount,
+            double lambda,
             double averageScore,
             double mT,
             double mTheta
     ) {
         public static BpaResult empty() {
-            return new BpaResult(0, 0.0, 0.0, 1.0);
+            return new BpaResult(0, 0, 0.0, 0.0, 0.0, 1.0);
         }
     }
 
-    private static final double LAMBDA_EXP  = 5.0;
-    private static final double LAMBDA_FC   = 2.0;
+    private static final double LAMBDA_EXP         = 5.0;
+    private static final double LAMBDA_FC          = 2.0;
+    private static final double LAMBDA_EXP_DOMAIN  = 1.0;  // domain-level: cross-prof entries shouldn't saturate
+    private static final double LAMBDA_FC_DOMAIN   = 0.5;  // domain-level: 4/4 cross-prof AI tools → κ≈0.39, not 0.86
     private static final long   TOTAL_EXPERTS  = 12L;
     private static final long   TOTAL_SOURCES  = 4L;
 
@@ -303,7 +308,7 @@ public class DstQueryService {
         if (total == 0 || relevantCount == 0) return BpaResult.empty();
         double kappa = 1.0 - Math.exp(-lambda * (double) relevantCount / total);
         double mT    = kappa * avgScore;
-        return new BpaResult(relevantCount, avgScore, mT, 1.0 - mT);
+        return new BpaResult(relevantCount, total, lambda, avgScore, mT, 1.0 - mT);
     }
 
     private BpaResult extractBpa(List<Object[]> rows, long total, double lambda) {
@@ -317,7 +322,7 @@ public class DstQueryService {
 
     @Transactional(readOnly = true)
     public BpaResult getExpBpaByDomain(String profCode, String domain) {
-        return extractBpa(expertOpinionRepository.aggregateByDomain(domain, profCode), TOTAL_EXPERTS, LAMBDA_EXP);
+        return extractBpa(expertOpinionRepository.aggregateByDomain(domain, profCode), TOTAL_EXPERTS, LAMBDA_EXP_DOMAIN);
     }
 
     @Transactional(readOnly = true)
@@ -332,7 +337,45 @@ public class DstQueryService {
 
     @Transactional(readOnly = true)
     public BpaResult getFcBpaByDomain(String profCode, String domain) {
-        return extractBpa(foresightRepository.aggregateByDomain(domain, profCode), TOTAL_SOURCES, LAMBDA_FC);
+        return extractBpa(foresightRepository.aggregateByDomain(domain, profCode), TOTAL_SOURCES, LAMBDA_FC_DOMAIN);
+    }
+
+    public record ProfessionWeight(String professionCode, String professionName, double weight) {}
+
+    @Transactional(readOnly = true)
+    public BpaResult getWeightedVacBpaByDomain(List<ProfessionWeight> profs, String domain) {
+        return weightedAverage(profs, p -> getVacBpaByDomain(p.professionCode(), domain));
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getWeightedExpBpaByDomain(List<ProfessionWeight> profs, String domain) {
+        return weightedAverage(profs, p -> getExpBpaByDomain(p.professionCode(), domain));
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getWeightedFcBpaByDomain(List<ProfessionWeight> profs, String domain) {
+        return weightedAverage(profs, p -> getFcBpaByDomain(p.professionCode(), domain));
+    }
+
+    private BpaResult weightedAverage(List<ProfessionWeight> profs,
+                                      java.util.function.Function<ProfessionWeight, BpaResult> fn) {
+        double sumW = 0.0, sumMT = 0.0, sumCnt = 0.0, sumTotal = 0.0;
+        double lambda = 0.0;
+        for (ProfessionWeight pw : profs) {
+            BpaResult r = fn.apply(pw);
+            if (r.relevantCount() > 0) {
+                sumMT    += pw.weight() * r.mT();
+                sumCnt   += pw.weight() * r.relevantCount();
+                sumTotal += pw.weight() * r.totalCount();
+                lambda    = r.lambda();
+                sumW     += pw.weight();
+            }
+        }
+        if (sumW == 0) return BpaResult.empty();
+        double mT = sumMT / sumW;
+        long cnt  = (long) (sumCnt / sumW);
+        long tot  = (long) (sumTotal / sumW);
+        return new BpaResult(cnt, tot, lambda, mT, mT, 1.0 - mT);
     }
 
     @Transactional(readOnly = true)
@@ -426,6 +469,35 @@ public class DstQueryService {
                         (String) r[6]
                 ))
                 .collect(Collectors.toList());
+    }
+
+    private static final double LAMBDA_VAC        = 15.0;
+    private static final double LAMBDA_VAC_DOMAIN = 2.0;   // domain ratios are 0.5-0.9; λ=15 saturates
+
+    @Transactional(readOnly = true)
+    public BpaResult getVacBpaByDomain(String profCode, String domain) {
+        if (profCode == null) return BpaResult.empty();
+        long total    = canonicalRepository.countTotalVacanciesForProfession(profCode);
+        long relevant = canonicalRepository.countVacanciesByProfessionAndDomain(profCode, domain);
+        if (total == 0 || relevant == 0) return BpaResult.empty();
+        return computeBpa(relevant, 1.0, total, LAMBDA_VAC_DOMAIN);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getVacBpaByFamily(String profCode, String domain, String techFamily) {
+        long total    = vacancyEntityRepository.count();
+        long relevant = domainStatsRepository.countVacanciesByTechFamily(techFamily);
+        if (total == 0 || relevant == 0) return BpaResult.empty();
+        return computeBpa(relevant, 1.0, total, LAMBDA_VAC);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getVacBpaByCanonical(String profCode, Long canonicalId) {
+        long total = vacancyEntityRepository.count();
+        SkillDomainStats stats = domainStatsRepository.findByCanonicalId(canonicalId).orElse(null);
+        if (stats == null || total == 0) return BpaResult.empty();
+        double avgScore = stats.getPctInDomain() != null ? stats.getPctInDomain().doubleValue() : 1.0;
+        return computeBpa(stats.getVacancyCount(), avgScore, total, LAMBDA_VAC);
     }
 
     /**

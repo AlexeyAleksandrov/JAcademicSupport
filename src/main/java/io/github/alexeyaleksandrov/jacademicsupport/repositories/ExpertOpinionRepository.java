@@ -18,7 +18,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         JOIN expert e ON e.id = eo.expert_id
         WHERE eo.domain = :domain
           AND eo.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR eo.profession_code IS NULL)
+          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
     """)
     List<Object[]> aggregateByDomain(@Param("domain") String domain,
                                     @Param("professionCode") String professionCode);
@@ -31,7 +31,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         WHERE eo.domain = :domain
           AND eo.tech_family = :techFamily
           AND eo.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR eo.profession_code IS NULL)
+          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
     """)
     List<Object[]> aggregateByDomainAndFamily(@Param("domain") String domain,
                                              @Param("techFamily") String techFamily,
@@ -44,7 +44,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         JOIN expert e ON e.id = eo.expert_id
         WHERE eo.canonical_id = :canonicalId
           AND eo.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR eo.profession_code IS NULL)
+          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
     """)
     List<Object[]> aggregateByCanonical(@Param("canonicalId") Long canonicalId,
                                        @Param("professionCode") String professionCode);

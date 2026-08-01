@@ -16,6 +16,20 @@ public interface SkillCanonicalRepository extends JpaRepository<SkillCanonical, 
 
     boolean existsByNormalizedName(String normalizedName);
 
+    @Query("SELECT sc FROM SkillCanonical sc WHERE LOWER(sc.name) LIKE LOWER(CONCAT('%',:q,'%')) ORDER BY sc.name")
+    List<SkillCanonical> searchByName(@Param("q") String q, org.springframework.data.domain.Pageable pageable);
+
+    @Query(nativeQuery = true, value = "SELECT DISTINCT domain FROM skill_canonical WHERE domain IS NOT NULL ORDER BY domain")
+    List<String> findDistinctDomains();
+
+    @Query(nativeQuery = true, value = """
+        SELECT DISTINCT tech_family FROM skill_canonical
+        WHERE tech_family IS NOT NULL
+          AND (:domain IS NULL OR domain = :domain)
+        ORDER BY tech_family
+        """)
+    List<String> findDistinctFamilies(@Param("domain") String domain);
+
     @Query(nativeQuery = true, value = """
         SELECT sc.id,
                sc.name,
@@ -54,6 +68,26 @@ public interface SkillCanonicalRepository extends JpaRepository<SkillCanonical, 
         ORDER BY COUNT(DISTINCT vp.vacancy_id) DESC
         """)
     List<Object[]> findDomainDistributionForProfession(@Param("profCode") String profCode);
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT vp.vacancy_id)
+        FROM skill_canonical sc
+        JOIN work_skill_canonical wsc ON wsc.canonical_id = sc.id
+        JOIN work_skill ws             ON ws.id = wsc.work_skill_id
+        JOIN vacancy_skills vs         ON vs.skills_id = ws.id
+        JOIN vacancy_profession vp     ON vp.vacancy_id = vs.vacancy_entity_id
+        JOIN profession p              ON p.id = vp.profession_id AND p.code = :profCode
+        WHERE sc.domain = :domain
+        """)
+    long countVacanciesByProfessionAndDomain(@Param("profCode") String profCode,
+                                             @Param("domain") String domain);
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT vp.vacancy_id)
+        FROM vacancy_profession vp
+        JOIN profession p ON p.id = vp.profession_id AND p.code = :profCode
+        """)
+    long countTotalVacanciesForProfession(@Param("profCode") String profCode);
 
     @Query(nativeQuery = true, value = """
         SELECT sc.id, sc.name, sc.domain,

@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>УП + РПД — Учебные планы и дисциплины</title>
+<style>
+:root{
+  --bg:#0f1117;--panel:#1a1d27;--border:#2a2d3a;--accent:#4f8ef7;--accent2:#7c5cbf;
+  --green:#3ecf7e;--red:#e05252;--yellow:#f0c040;--text:#e0e4f0;--muted:#7a7f9a;
+  --hover:#22263a;--card:#202333;--purple:#9b6deb;--bg2:#171a25;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* Header */
+.header{padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.header h1{font-size:15px;font-weight:600;color:var(--text);}
+.nav-links{display:flex;gap:8px;margin-left:auto;}
+.nav-links a{text-decoration:none;color:var(--muted);font-size:12px;padding:4px 10px;border-radius:4px;border:1px solid var(--border);}
+.nav-links a:hover{color:var(--text);border-color:var(--accent);}
+
+/* 3-panel layout */
+.panels{display:flex;flex:1;overflow:hidden;}
+.panel{display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden;}
+.panel-left{width:240px;flex-shrink:0;}
+.panel-center{width:280px;flex-shrink:0;}
+.panel-right{flex:1;min-width:0;}
+.panel-header{padding:10px 12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;}
+.panel-body{flex:1;overflow-y:auto;padding:8px;}
+
+/* Items */
+.item{padding:9px 10px;border-radius:6px;cursor:pointer;border:1px solid transparent;margin-bottom:3px;transition:.15s;}
+.item:hover{background:var(--hover);border-color:var(--border);}
+.item.active{background:#1e2a45;border-color:var(--accent);}
+.item-title{font-size:13px;font-weight:500;}
+.item-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* Buttons */
+.btn{padding:5px 12px;border-radius:5px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--text);transition:.15s;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{background:#3a7ae0;}
+.btn-sm{padding:3px 8px;font-size:11px;}
+.btn-danger{color:var(--red);border-color:transparent;}
+.btn-danger:hover{border-color:var(--red);}
+
+/* Add bar */
+.add-bar{padding:8px;border-top:1px solid var(--border);flex-shrink:0;}
+.add-bar input{width:100%;padding:5px 8px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:12px;}
+.add-bar input:focus{outline:none;border-color:var(--accent);}
+
+/* Right panel blocks */
+.right-header{padding:12px 14px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;}
+.disc-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.disc-meta input{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--text);font-size:12px;}
+.disc-meta input.name-inp{flex:1;min-width:120px;}
+.disc-meta input.num-inp{width:70px;}
+.disc-meta .save-btn{flex-shrink:0;}
+
+.block{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;}
+.block-title{padding:8px 12px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+.block-title span.icon{font-size:13px;}
+.block-add{padding:8px 10px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;}
+.block-add input,.block-add select{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--text);font-size:12px;}
+.block-add select option{background:var(--bg);}
+.block-add input:focus,.block-add select:focus{outline:none;border-color:var(--accent);}
+.block-add .hours-inp{width:60px;flex:none;}
+.autocomplete-wrapper{position:relative;flex:1;}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--border);border-radius:5px;z-index:100;max-height:180px;overflow-y:auto;}
+.autocomplete-list div{padding:6px 10px;font-size:12px;cursor:pointer;}
+.autocomplete-list div:hover{background:var(--hover);}
+.autocomplete-list div small{color:var(--muted);margin-left:6px;}
+.block-list{padding:6px 10px;}
+.coverage-item{display:flex;align-items:center;gap:8px;padding:5px 4px;border-bottom:1px solid #1e2133;}
+.coverage-item:last-child{border-bottom:none;}
+.coverage-item .label{flex:1;font-size:12px;}
+.coverage-item .hours{font-size:11px;color:var(--muted);white-space:nowrap;}
+.coverage-item .dst-btn{font-size:10px;padding:2px 6px;border-radius:3px;cursor:pointer;background:#1e2533;border:1px solid var(--border);color:var(--accent);white-space:nowrap;}
+.coverage-item .dst-btn:hover{background:#2a3555;}
+
+/* Empty state */
+.empty{text-align:center;color:var(--muted);font-size:12px;padding:24px 8px;}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;width:360px;max-width:95vw;}
+.modal h3{font-size:14px;margin-bottom:14px;}
+.modal label{font-size:12px;color:var(--muted);display:block;margin-bottom:3px;margin-top:8px;}
+.modal input{width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:13px;}
+.modal input:focus{outline:none;border-color:var(--accent);}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+
+/* DST Drawer */
+.dst-drawer{position:fixed;top:0;right:0;height:100vh;width:440px;max-width:95vw;background:var(--panel);border-left:1px solid var(--border);z-index:300;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;display:flex;flex-direction:column;}
+.dst-drawer.open{transform:translateX(0);}
+.dst-drawer-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--panel);position:sticky;top:0;z-index:1;}
+.dst-drawer-header h3{font-size:13px;font-weight:600;}
+.dst-drawer-body{padding:14px;flex:1;}
+
+.trace-step{margin-bottom:14px;}
+.trace-step-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.trace-table{width:100%;border-collapse:collapse;font-size:11px;}
+.trace-table th{color:var(--muted);font-weight:600;padding:3px 6px;text-align:left;border-bottom:1px solid var(--border);}
+.trace-table td{padding:4px 6px;border-bottom:1px solid #1a1d27;}
+.trace-table tr:hover td{background:var(--hover);}
+.disabled-row td{color:var(--muted) !important;opacity:.5;}
+.trace-formula{font-size:11px;color:var(--text);background:#171a25;border-radius:5px;padding:6px 10px;margin:4px 0;font-family:monospace;}
+.trace-highlight{font-size:11px;color:var(--muted);margin:3px 0;}
+.recommendation-card{border-radius:8px;padding:12px 14px;margin-top:14px;border:1px solid;}
+.rec-strong{background:#1f2f1f;border-color:var(--green);color:var(--green);}
+.rec-moderate{background:#2a2810;border-color:var(--yellow);color:var(--yellow);}
+.rec-preserve{background:#1a2233;border-color:var(--accent);color:var(--accent);}
+.rec-reduce{background:#2a1f20;border-color:var(--red);color:var(--red);}
+.dual-bar{height:8px;background:var(--border);border-radius:4px;position:relative;overflow:visible;margin-bottom:2px;min-width:80px;}
+.bar-betp{position:absolute;top:0;left:0;height:8px;background:var(--purple);border-radius:4px;opacity:.8;}
+.bar-supply{position:absolute;top:0;left:0;height:8px;background:var(--green);border-radius:4px;opacity:.5;}
+.l0-table td{vertical-align:middle;}
+.l0-domain-row:hover td{background:var(--hover);}
+.rec-expertise{background:#22163a;border-color:#c07fef;color:#c07fef;}
+.rec-title{font-size:13px;font-weight:600;margin-bottom:6px;}
+.rec-metrics{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);}
+.rec-metrics span b{color:var(--text);}
+
+.spinner{text-align:center;padding:24px;color:var(--muted);font-size:12px;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📚 Учебные планы и дисциплины</h1>
+  <div class="nav-links">
+    <a href="dst.html">DST Анализ</a>
+    <a href="foresight.html">Прогнозы</a>
+  </div>
+</div>
+
+<div class="panels">
+  <!-- LEFT: УП -->
+  <div class="panel panel-left">
+    <div class="panel-header">Учебные планы</div>
+    <div class="panel-body" id="curriculumList"><div class="empty">Загрузка...</div></div>
+    <div class="add-bar">
+      <button class="btn btn-primary" style="width:100%" onclick="openCurriculumModal(null)">+ Новый УП</button>
+    </div>
+  </div>
+
+  <!-- LEFT-BOTTOM: Профессии УП -->
+  <div class="panel panel-left" id="profPanel" style="display:none;max-height:420px;margin-top:8px;">
+    <div class="panel-header" style="font-size:12px;">Профессии УП <span id="profSumNote" style="color:var(--muted);font-weight:400"></span></div>
+    <div class="panel-body" id="profList" style="min-height:40px;"></div>
+    <div class="add-bar" style="display:block;padding:8px;border-top:1px solid var(--border);">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.5px;">ДОБАВИТЬ ПРОФЕССИЮ</div>
+      <div style="display:flex;gap:6px;margin-bottom:4px;">
+        <div style="flex:1;">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Код профессии <span style="color:var(--red)">*</span></div>
+          <input id="inp_prof_code" placeholder="backend" style="width:100%;box-sizing:border-box;"/>
+        </div>
+        <div style="width:64px;">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Вес %</div>
+          <input id="inp_prof_weight" type="number" min="0" step="5" placeholder="70" style="width:100%;box-sizing:border-box;"/>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px;padding:4px 6px;background:var(--bg2);border-radius:4px;line-height:1.5;">
+        Код — технический идентификатор из БД (напр. <b style="color:var(--text);">backend</b>, <b style="color:var(--text);">frontend</b>, <b style="color:var(--text);">database</b>).
+        Определяет, по каким вакансиям считается спрос.
+      </div>
+      <div style="margin-bottom:8px;">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Отображаемое название (необязательно)</div>
+        <input id="inp_prof_name" placeholder="Backend-разработчик" style="width:100%;box-sizing:border-box;"/>
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="addCurriculumProfession()">+ Добавить профессию</button>
+    </div>
+    <div style="padding:6px 8px 8px;">
+      <button class="btn btn-sm" style="width:100%;background:var(--purple);color:#fff;" onclick="runDstL0Curriculum()">🔬 DST Анализ УП</button>
+    </div>
+  </div>
+
+  <!-- CENTER: Дисциплины -->
+  <div class="panel panel-center">
+    <div class="panel-header">Дисциплины <span id="discCount" style="color:var(--muted);font-weight:400"></span></div>
+    <div class="panel-body" id="disciplineList"><div class="empty">← Выберите УП</div></div>
+    <div class="add-bar" id="discAddBar" style="display:none">
+      <button class="btn" style="width:100%" onclick="openDisciplineModal(null)">+ Новая дисциплина</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Покрытие -->
+  <div class="panel panel-right">
+    <div class="right-header" id="rightHeader">
+      <div class="empty" style="padding:8px 0;">← Выберите дисциплину</div>
+    </div>
+    <div class="panel-body" id="coveragePanel">
+    </div>
+  </div>
+</div>
+
+<!-- Modal: УП -->
+<div class="modal-overlay" id="curriculumModal">
+  <div class="modal">
+    <h3 id="curriculumModalTitle">Новый учебный план</h3>
+    <label>Название *</label>
+    <input id="cm_name" placeholder="Fullstack-разработка"/>
+    <label>Специальность</label>
+    <input id="cm_spec" placeholder="09.03.02"/>
+    <label>Профиль</label>
+    <input id="cm_profile" placeholder="Разработка ПО"/>
+    <label>Год</label>
+    <input id="cm_year" type="number" placeholder="2026"/>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeCurriculumModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveCurriculum()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Дисциплина -->
+<div class="modal-overlay" id="disciplineModal">
+  <div class="modal">
+    <h3 id="disciplineModalTitle">Новая дисциплина</h3>
+    <label>Название *</label>
+    <input id="dm_name" placeholder="Технологии разработки серверных приложений"/>
+    <label>Всего часов</label>
+    <input id="dm_hours" type="number" placeholder="108"/>
+    <label>Семестр</label>
+    <input id="dm_semester" type="number" placeholder="3"/>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeDisciplineModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveDiscipline()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- DST Drawer -->
+<div class="dst-drawer" id="dstDrawer">
+  <div class="dst-drawer-header">
+    <h3 id="dstDrawerTitle">DST-расчёт</h3>
+    <button class="btn btn-sm" onclick="closeDstDrawer()">✕</button>
+  </div>
+  <div class="dst-drawer-body" id="dstDrawerBody">
+    <div class="spinner">Загрузка...</div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let curricula = [];
+let selectedCurriculumId = null;
+let selectedDisciplineId = null;
+let editingCurriculumId = null;
+let editingDisciplineId = null;
+let domains = [];
+let families = [];
+
+// ─── INIT ──────────────────────────────────────────────────────────
+async function init() {
+  await loadDomains();
+  await loadCurricula();
+}
+
+async function loadDomains() {
+  try {
+    [domains, families] = await Promise.all([
+      fetch(`${API}/api/skill-canonical/domains`).then(r=>r.json()),
+      fetch(`${API}/api/skill-canonical/families`).then(r=>r.json())
+    ]);
+  } catch(e) { console.warn('Failed to load domains/families', e); }
+}
+
+// ─── CURRICULA ─────────────────────────────────────────────────────
+async function loadCurricula() {
+  const res = await fetch(`${API}/api/curriculum`);
+  curricula = await res.json();
+  renderCurriculumList();
+}
+
+function renderCurriculumList() {
+  const el = document.getElementById('curriculumList');
+  if (!curricula.length) { el.innerHTML = '<div class="empty">Нет учебных планов</div>'; return; }
+  el.innerHTML = curricula.map(c => `
+    <div class="item ${c.id===selectedCurriculumId?'active':''}" onclick="selectCurriculum(${c.id})">
+      <div class="item-title">${esc(c.name)}</div>
+      <div class="item-sub">${c.specialization||''} ${c.academicYear?'· '+c.academicYear:''}</div>
+      <div style="margin-top:4px;display:flex;gap:4px">
+        <button class="btn btn-sm" onclick="event.stopPropagation();openCurriculumModal(${c.id})">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteCurriculum(${c.id})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function selectCurriculum(id) {
+  selectedCurriculumId = id;
+  selectedDisciplineId = null;
+  renderCurriculumList();
+  document.getElementById('discAddBar').style.display = '';
+  document.getElementById('rightHeader').innerHTML = '<div class="empty" style="padding:8px 0;">← Выберите дисциплину</div>';
+  document.getElementById('coveragePanel').innerHTML = '';
+  document.getElementById('profPanel').style.display = '';
+  await loadCurriculumProfessions(id);
+  await loadDisciplines(id);
+}
+
+let curriculumProfessions = [];
+
+async function loadCurriculumProfessions(curriculumId) {
+  const res = await fetch(`${API}/api/curriculum/${curriculumId}/professions`);
+  curriculumProfessions = await res.json();
+  renderCurriculumProfessions();
+}
+
+function renderCurriculumProfessions() {
+  const el = document.getElementById('profList');
+  if (!curriculumProfessions.length) {
+    el.innerHTML = '<div class="empty" style="font-size:11px;">Нет профессий — добавьте ниже</div>';
+    document.getElementById('profSumNote').textContent = '';
+    return;
+  }
+  const totalW = curriculumProfessions.reduce((s,p)=>s+p.weight,0);
+  document.getElementById('profSumNote').textContent = `(сумма ${Math.round(totalW)}%)`;
+  el.innerHTML = curriculumProfessions.map(p => {
+    const pct = totalW > 0 ? Math.round(p.weight / totalW * 100) : 0;
+    const codeAttr = esc(p.professionCode).replace(/'/g, "&apos;");
+    return `<div class="coverage-item" id="prof-row-${esc(p.professionCode)}" style="gap:4px;flex-wrap:nowrap;overflow:hidden;">
+      <span class="label" style="flex-shrink:0;">${esc(p.professionCode)}</span>
+      <span style="font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(p.professionName||'')}</span>
+      <span style="font-size:11px;color:var(--purple);flex-shrink:0;white-space:nowrap;">${p.weight}% <span style="color:var(--muted)">(${pct}%)</span></span>
+      <button class="btn btn-sm" onclick="editProfRow('${codeAttr}','${esc(p.professionName||'').replace(/'/g,"&apos;")}',${p.weight})" style="flex-shrink:0;">Изм.</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteCurriculumProfession('${codeAttr}')" style="flex-shrink:0;">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function editProfRow(code, name, weight) {
+  const row = document.getElementById(`prof-row-${code}`);
+  if (!row) return;
+  row.style.flexDirection = 'column';
+  row.style.alignItems    = 'stretch';
+  row.style.gap = '6px';
+  row.style.padding = '8px';
+  row.innerHTML = `
+    <div style="font-size:11px;color:var(--muted);">Редактирование: <b style="color:var(--text);">${esc(code)}</b></div>
+    <div style="display:flex;gap:6px;">
+      <div style="flex:1;">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Название</div>
+        <input id="edit_pname_${code}" value="${esc(name)}" placeholder="Backend Developer" style="width:100%;box-sizing:border-box;"/>
+      </div>
+      <div style="width:72px;">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Вес %</div>
+        <input id="edit_pw_${code}" type="number" min="0" step="5" value="${weight}" placeholder="70" style="width:100%;box-sizing:border-box;"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="btn btn-primary btn-sm" style="flex:1;" onclick="saveProfRow('${code}')">\u2713 Сохранить</button>
+      <button class="btn btn-sm" onclick="renderCurriculumProfessions()">Отмена</button>
+    </div>
+  `;
+  document.getElementById(`edit_pname_${code}`)?.focus();
+}
+
+async function saveProfRow(code) {
+  const name   = document.getElementById(`edit_pname_${code}`)?.value.trim() || code;
+  const weight = parseFloat(document.getElementById(`edit_pw_${code}`)?.value) || 1;
+  await fetch(`${API}/api/curriculum/${selectedCurriculumId}/professions`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({professionCode: code, professionName: name, weight})
+  });
+  await loadCurriculumProfessions(selectedCurriculumId);
+}
+
+async function addCurriculumProfession() {
+  const code   = document.getElementById('inp_prof_code').value.trim().toLowerCase();
+  const name   = document.getElementById('inp_prof_name').value.trim();
+  const weight = parseFloat(document.getElementById('inp_prof_weight').value)||1;
+  if (!code) { alert('Укажите код профессии'); return; }
+  await fetch(`${API}/api/curriculum/${selectedCurriculumId}/professions`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({professionCode:code, professionName:name||code, weight})
+  });
+  document.getElementById('inp_prof_code').value='';
+  document.getElementById('inp_prof_name').value='';
+  document.getElementById('inp_prof_weight').value='';
+  await loadCurriculumProfessions(selectedCurriculumId);
+}
+
+async function deleteCurriculumProfession(code) {
+  if (!confirm(`Удалить профессию «${code}»?`)) return;
+  await fetch(`${API}/api/curriculum/${selectedCurriculumId}/professions/${encodeURIComponent(code)}`, {method:'DELETE'});
+  await loadCurriculumProfessions(selectedCurriculumId);
+}
+
+async function runDstL0Curriculum() {
+  if (!selectedCurriculumId) return;
+  const c = curricula.find(x=>x.id===selectedCurriculumId);
+  document.getElementById('dstDrawerTitle').textContent = `🔬 DST Level 0 — УП`;
+  document.getElementById('dstDrawerBody').innerHTML = '<div class="spinner">Вычисляется...</div>';
+  document.getElementById('dstDrawer').classList.add('open');
+  try {
+    const resp = await fetch(`${API}/api/dst/curriculum/${selectedCurriculumId}/level0`).then(r=>r.json());
+    renderL0(resp);
+  } catch(e) {
+    document.getElementById('dstDrawerBody').innerHTML = `<div class="empty" style="color:var(--red)">Ошибка: ${e.message}</div>`;
+  }
+}
+
+function openCurriculumModal(id) {
+  editingCurriculumId = id;
+  const c = id ? curricula.find(x=>x.id===id) : null;
+  document.getElementById('curriculumModalTitle').textContent = id ? 'Редактировать УП' : 'Новый учебный план';
+  document.getElementById('cm_name').value = c?.name||'';
+  document.getElementById('cm_spec').value = c?.specialization||'';
+  document.getElementById('cm_profile').value = c?.profile||'';
+  document.getElementById('cm_year').value = c?.academicYear||'';
+  document.getElementById('curriculumModal').classList.add('show');
+  setTimeout(()=>document.getElementById('cm_name').focus(),50);
+}
+function closeCurriculumModal() { document.getElementById('curriculumModal').classList.remove('show'); }
+
+async function saveCurriculum() {
+  const body = {
+    name: document.getElementById('cm_name').value.trim(),
+    specialization: document.getElementById('cm_spec').value.trim()||null,
+    profile: document.getElementById('cm_profile').value.trim()||null,
+    academicYear: parseInt(document.getElementById('cm_year').value)||null
+  };
+  if (!body.name) { alert('Укажите название'); return; }
+  const url = editingCurriculumId ? `${API}/api/curriculum/${editingCurriculumId}` : `${API}/api/curriculum`;
+  const method = editingCurriculumId ? 'PUT' : 'POST';
+  await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  closeCurriculumModal();
+  await loadCurricula();
+  if (selectedCurriculumId) await loadDisciplines(selectedCurriculumId);
+}
+
+async function deleteCurriculum(id) {
+  if (!confirm('Удалить УП и все его дисциплины?')) return;
+  await fetch(`${API}/api/curriculum/${id}`, {method:'DELETE'});
+  if (selectedCurriculumId === id) { selectedCurriculumId=null; selectedDisciplineId=null; }
+  await loadCurricula();
+  if (!selectedCurriculumId) {
+    document.getElementById('disciplineList').innerHTML = '<div class="empty">← Выберите УП</div>';
+    document.getElementById('discAddBar').style.display = 'none';
+    document.getElementById('rightHeader').innerHTML = '<div class="empty" style="padding:8px 0;">← Выберите дисциплину</div>';
+    document.getElementById('coveragePanel').innerHTML = '';
+  }
+}
+
+// ─── DISCIPLINES ───────────────────────────────────────────────────
+let disciplines = [];
+async function loadDisciplines(curriculumId) {
+  const res = await fetch(`${API}/api/curriculum/${curriculumId}/disciplines`);
+  disciplines = await res.json();
+  const count = disciplines.length;
+  document.getElementById('discCount').textContent = count ? `(${count})` : '';
+  renderDisciplineList();
+}
+
+function renderDisciplineList() {
+  const el = document.getElementById('disciplineList');
+  if (!disciplines.length) { el.innerHTML = '<div class="empty">Нет дисциплин</div>'; return; }
+  el.innerHTML = disciplines.map(d => `
+    <div class="item ${d.id===selectedDisciplineId?'active':''}" onclick="selectDiscipline(${d.id})">
+      <div class="item-title">${esc(d.name)}</div>
+      <div class="item-sub">
+        ${d.semester?'Сем. '+d.semester+' · ':''}${d.totalHours?d.totalHours+' ч.':''}
+        ${d.coverage&&d.coverage.length?'· '+d.coverage.length+' блоков покрытия':''}
+      </div>
+      <div style="margin-top:4px;display:flex;gap:4px">
+        <button class="btn btn-sm" onclick="event.stopPropagation();openDisciplineModal(${d.id})">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteDiscipline(${d.id})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectDiscipline(id) {
+  selectedDisciplineId = id;
+  renderDisciplineList();
+  const d = disciplines.find(x=>x.id===id);
+  if (d) renderCoveragePanel(d);
+}
+
+function openDisciplineModal(id) {
+  editingDisciplineId = id;
+  const d = id ? disciplines.find(x=>x.id===id) : null;
+  document.getElementById('disciplineModalTitle').textContent = id ? 'Редактировать дисциплину' : 'Новая дисциплина';
+  document.getElementById('dm_name').value = d?.name||'';
+  document.getElementById('dm_hours').value = d?.totalHours||'';
+  document.getElementById('dm_semester').value = d?.semester||'';
+  document.getElementById('disciplineModal').classList.add('show');
+  setTimeout(()=>document.getElementById('dm_name').focus(),50);
+}
+function closeDisciplineModal() { document.getElementById('disciplineModal').classList.remove('show'); }
+
+async function saveDiscipline() {
+  const body = {
+    curriculumId: selectedCurriculumId,
+    name: document.getElementById('dm_name').value.trim(),
+    totalHours: parseInt(document.getElementById('dm_hours').value)||null,
+    semester: parseInt(document.getElementById('dm_semester').value)||null
+  };
+  if (!body.name) { alert('Укажите название'); return; }
+  const url = editingDisciplineId ? `${API}/api/disciplines/${editingDisciplineId}` : `${API}/api/disciplines`;
+  const method = editingDisciplineId ? 'PUT' : 'POST';
+  const saved = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}).then(r=>r.json());
+  closeDisciplineModal();
+  await loadDisciplines(selectedCurriculumId);
+  if (selectedDisciplineId === (editingDisciplineId||saved.id)) {
+    const d = disciplines.find(x=>x.id===(editingDisciplineId||saved.id));
+    if (d) renderCoveragePanel(d);
+  }
+}
+
+async function deleteDiscipline(id) {
+  if (!confirm('Удалить дисциплину и все записи покрытия?')) return;
+  await fetch(`${API}/api/disciplines/${id}`, {method:'DELETE'});
+  if (selectedDisciplineId===id) {
+    selectedDisciplineId=null;
+    document.getElementById('rightHeader').innerHTML = '<div class="empty" style="padding:8px 0;">← Выберите дисциплину</div>';
+    document.getElementById('coveragePanel').innerHTML = '';
+  }
+  await loadDisciplines(selectedCurriculumId);
+}
+
+// ─── COVERAGE PANEL ────────────────────────────────────────────────
+function renderCoveragePanel(d) {
+  document.getElementById('rightHeader').innerHTML = `
+    <div class="disc-meta">
+      <input class="name-inp" id="edit_name" value="${esc(d.name)}"/>
+      <input class="num-inp" id="edit_hours" type="number" placeholder="часов" value="${d.totalHours||''}"/>
+      <input class="num-inp" id="edit_sem" type="number" placeholder="сем." value="${d.semester||''}"/>
+      <button class="btn btn-primary save-btn btn-sm" onclick="saveDiscInline(${d.id})">Сохранить</button>
+      <button class="btn btn-sm" style="background:var(--purple);color:#fff;margin-left:8px;" onclick="runDstL0Curriculum()">🔬 DST Анализ УП</button>
+    </div>`;
+
+  const coverage = d.coverage || [];
+  const doms   = coverage.filter(c=>c.domain    && !c.techFamily && !c.canonicalId);
+  const fams   = coverage.filter(c=>c.techFamily && !c.canonicalId);
+  const skills = coverage.filter(c=>c.canonicalId);
+
+  document.getElementById('coveragePanel').innerHTML = `
+    ${buildBlock('domain','🗂','ДОМЕН','domain', doms, d.id)}
+    ${buildBlock('techFamily','🔧','СЕМЕЙСТВО','techFamily', fams, d.id)}
+    ${buildBlock('skill','⚡','НАВЫК (skill_canonical)','skill', skills, d.id)}
+  `;
+}
+
+function buildBlock(type, icon, title, inputType, items, discId) {
+  const itemsHtml = items.length ? items.map(c => `
+    <div class="coverage-item">
+      <span class="label">${esc(getLabel(c, type))}</span>
+      <span class="hours">${c.hours||0} ч.</span>
+      <button class="dst-btn" onclick="runDst(${discId},'${type}','${getKey(c,type)}',this)">🔬 DST</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteCoverage(${c.id},${discId})">✕</button>
+    </div>`).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px 0;">Нет записей</div>';
+
+  let inputHtml = '';
+  if (inputType === 'profession') {
+    inputHtml = `<div class="autocomplete-wrapper">
+      <input id="inp_prof_${discId}" placeholder="Код или название профессии..." oninput="acProfession(this,${discId})"/>
+      <div class="autocomplete-list" id="ac_prof_${discId}" style="display:none"></div>
+    </div>`;
+  } else if (inputType === 'domain') {
+    inputHtml = `<select id="inp_dom_${discId}">
+      <option value="">— выберите домен —</option>
+      ${domains.map(d=>`<option value="${d}">${d}</option>`).join('')}
+    </select>`;
+  } else if (inputType === 'techFamily') {
+    inputHtml = `<select id="inp_fam_${discId}">
+      <option value="">— выберите семейство —</option>
+      ${families.map(f=>`<option value="${f}">${f}</option>`).join('')}
+    </select>`;
+  } else {
+    inputHtml = `<div class="autocomplete-wrapper">
+      <input id="inp_skill_${discId}" placeholder="Поиск навыка..." oninput="acSkill(this,${discId})"/>
+      <div class="autocomplete-list" id="ac_skill_${discId}" style="display:none"></div>
+    </div>`;
+  }
+
+  return `<div class="block">
+    <div class="block-title"><span class="icon">${icon}</span>${title}</div>
+    <div class="block-add">
+      ${inputHtml}
+      <input class="hours-inp" id="inp_hrs_${type}_${discId}" type="number" placeholder="ч." min="0"/>
+      <button class="btn btn-sm" onclick="addCoverage('${type}',${discId})">+</button>
+    </div>
+    <div class="block-list" id="list_${type}_${discId}">${itemsHtml}</div>
+  </div>`;
+}
+
+function getLabel(c, type) {
+  if (type==='profession') return c.professionName ? `${c.professionCode} — ${c.professionName}` : c.professionCode;
+  if (type==='domain') return c.domain;
+  if (type==='techFamily') return c.techFamily;
+  return c.canonicalName || `#${c.canonicalId}`;
+}
+function getKey(c, type) {
+  if (type==='profession') return c.professionCode;
+  if (type==='domain') return c.domain;
+  if (type==='techFamily') return c.techFamily;
+  return String(c.canonicalId);
+}
+
+async function saveDiscInline(id) {
+  const body = {
+    curriculumId: selectedCurriculumId,
+    name: document.getElementById('edit_name').value.trim(),
+    totalHours: parseInt(document.getElementById('edit_hours').value)||null,
+    semester: parseInt(document.getElementById('edit_sem').value)||null
+  };
+  await fetch(`${API}/api/disciplines/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  await loadDisciplines(selectedCurriculumId);
+  const d = disciplines.find(x=>x.id===id);
+  if (d) renderCoveragePanel(d);
+}
+
+// ─── COVERAGE CRUD ─────────────────────────────────────────────────
+let acSkillMap = {}; // id -> {id, name, domain, techFamily}
+
+async function addCoverage(type, discId) {
+  let professionCode=null, domain=null, techFamily=null, canonicalId=null;
+  const hoursEl = document.getElementById(`inp_hrs_${type}_${discId}`);
+  const hours = parseInt(hoursEl?.value)||0;
+
+  if (type==='profession') {
+    const v = document.getElementById(`inp_prof_${discId}`).value.trim();
+    if (!v) { alert('Укажите профессию'); return; }
+    professionCode = v.split(' ')[0]; // берём code (первое слово)
+  } else if (type==='domain') {
+    domain = document.getElementById(`inp_dom_${discId}`).value;
+    if (!domain) { alert('Выберите домен'); return; }
+  } else if (type==='techFamily') {
+    techFamily = document.getElementById(`inp_fam_${discId}`).value;
+    if (!techFamily) { alert('Выберите семейство'); return; }
+  } else {
+    const inp = document.getElementById(`inp_skill_${discId}`);
+    const selected = acSkillMap[`skill_${discId}`];
+    if (!selected) { alert('Выберите навык из списка'); return; }
+    canonicalId = selected.id;
+    inp.value = '';
+    delete acSkillMap[`skill_${discId}`];
+  }
+
+  await fetch(`${API}/api/disciplines/${discId}/coverage`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({professionCode, domain, techFamily, canonicalId, hours})
+  });
+  if (hoursEl) hoursEl.value = '';
+  await reloadDiscipline(discId);
+}
+
+async function deleteCoverage(covId, discId) {
+  await fetch(`${API}/api/coverage/${covId}`, {method:'DELETE'});
+  await reloadDiscipline(discId);
+}
+
+async function reloadDiscipline(discId) {
+  await loadDisciplines(selectedCurriculumId);
+  const d = disciplines.find(x=>x.id===discId);
+  if (d) renderCoveragePanel(d);
+  selectedDisciplineId = discId;
+  renderDisciplineList();
+}
+
+// ─── AUTOCOMPLETE ──────────────────────────────────────────────────
+let acTimer = null;
+async function acSkill(inp, discId) {
+  clearTimeout(acTimer);
+  const q = inp.value.trim();
+  const listEl = document.getElementById(`ac_skill_${discId}`);
+  if (q.length < 2) { listEl.style.display='none'; return; }
+  acTimer = setTimeout(async () => {
+    const results = await fetch(`${API}/api/skill-canonical/search?q=${encodeURIComponent(q)}&limit=15`).then(r=>r.json());
+    if (!results.length) { listEl.style.display='none'; return; }
+    listEl.innerHTML = results.map(s=>`
+      <div onclick="selectSkill(${discId},${s.id},'${esc(s.name)}')">
+        ${esc(s.name)} <small>${s.domain||''} ${s.techFamily?'/ '+s.techFamily:''}</small>
+      </div>`).join('');
+    listEl.style.display = '';
+  }, 200);
+}
+
+function selectSkill(discId, id, name) {
+  acSkillMap[`skill_${discId}`] = {id, name};
+  document.getElementById(`inp_skill_${discId}`).value = name;
+  document.getElementById(`ac_skill_${discId}`).style.display='none';
+}
+
+let professions = [];
+async function acProfession(inp, discId) {
+  if (!professions.length) {
+    professions = await fetch(`${API}/api/professions`).then(r=>r.json());
+  }
+  const q = inp.value.toLowerCase();
+  const listEl = document.getElementById(`ac_prof_${discId}`);
+  const matches = professions.filter(p=>p.code.toLowerCase().includes(q)||p.name.toLowerCase().includes(q)).slice(0,10);
+  if (!matches.length) { listEl.style.display='none'; return; }
+  listEl.innerHTML = matches.map(p=>`
+    <div onclick="selectProf(${discId},'${p.code}','${esc(p.name)}')">
+      <b>${p.code}</b> <small>${esc(p.name)}</small>
+    </div>`).join('');
+  listEl.style.display = '';
+}
+
+function selectProf(discId, code, name) {
+  document.getElementById(`inp_prof_${discId}`).value = `${code} — ${name}`;
+  document.getElementById(`ac_prof_${discId}`).style.display='none';
+}
+
+// ─── DST TRACE ────────────────────────────────────────────────────
+async function runDst(discId, type, key, btn) {
+  const d = disciplines.find(x=>x.id===discId);
+  const title = `${type.toUpperCase()}: ${key}`;
+  document.getElementById('dstDrawerTitle').textContent = `🔬 DST — ${title}`;
+  document.getElementById('dstDrawerBody').innerHTML = '<div class="spinner">Вычисляется...</div>';
+  document.getElementById('dstDrawer').classList.add('open');
+
+  // Build query params
+  const c = d?.coverage?.find(x=>getKey(x,type)===key);
+  const prof = d?.coverage?.find(x=>x.professionCode)?.professionCode;
+  const coverageHours = c?.hours || 0;
+  const totalHours    = d?.totalHours || 0;
+  const supply = (totalHours > 0 && coverageHours > 0) ? coverageHours / totalHours : 0;
+  const params = new URLSearchParams();
+  if (type==='profession') params.set('profCode', key);
+  if (type==='domain') { params.set('domain', key); if(prof) params.set('profCode',prof); }
+  if (type==='techFamily') { params.set('techFamily', key); if(prof) params.set('profCode',prof); }
+  if (type==='skill') { params.set('canonicalId', key); if(prof) params.set('profCode',prof); }
+  params.set('supply', supply.toFixed(4));
+
+  try {
+    const trace = await fetch(`${API}/api/dst/trace?${params.toString()}`).then(r=>r.json());
+    renderDstTrace(trace);
+  } catch(e) {
+    document.getElementById('dstDrawerBody').innerHTML = `<div class="empty" style="color:var(--red)">Ошибка: ${e.message}</div>`;
+  }
+}
+
+// ─── DST LEVEL 0 ─────────────────────────────────────────────────
+
+function renderL0(r) {
+  if (!r || r.error) {
+    document.getElementById('dstDrawerBody').innerHTML = `<div class="empty" style="color:var(--red)">${r?.error||'Нет данных'}</div>`;
+    return;
+  }
+
+  const recClass = d => ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',expertise:'rec-expertise'}[d]||'rec-preserve');
+  const recIcon  = d => ({strong:'🔴',moderate:'🟡',preserve:'✅',reduce:'🟢',expertise:'🔵'}[d]||'⚪');
+  const deltaStyle = v => v>0.15?'color:var(--red)':v<-0.15?'color:var(--green)':'color:var(--muted)';
+
+  const domainRows = (r.domains||[]).map((d,i) => {
+    const betpPct    = Math.round(d.betp*100);
+    const supplyPct  = Math.round(d.supply*100);
+    const deltaFmt   = (d.delta>=0?'+':'')+fmt(d.delta);
+    const traceId    = `l0trace_${i}`;
+    const traceFn    = `toggleL0Trace('${traceId}')`;
+    return `
+    <tr class="l0-domain-row" onclick="${traceFn}" style="cursor:pointer;">
+      <td><b>${esc(d.domain)}</b></td>
+      <td>
+        <div class="dual-bar">
+          <div class="bar-betp" style="width:${betpPct}%" title="BetP=${fmt(d.betp)}"></div>
+          <div class="bar-supply" style="width:${supplyPct}%" title="supply=${fmt(d.supply)}"></div>
+        </div>
+        <span style="font-size:10px;color:var(--muted)">${betpPct}% / ${supplyPct}%</span>
+      </td>
+      <td style="${deltaStyle(d.delta)}"><b>${deltaFmt}</b></td>
+      <td>${d.supplyHours} ч.</td>
+      <td><span class="${recClass(d.recommendation)}" style="padding:2px 6px;border-radius:4px;font-size:11px;">${recIcon(d.recommendation)} ${d.recommendation||'—'}</span></td>
+      <td style="font-size:11px;color:var(--muted)">▶</td>
+    </tr>
+    <tr id="${traceId}" style="display:none;"><td colspan="6">
+      <div style="padding:8px 4px;background:var(--bg2);border-radius:4px;margin:4px 0;">
+        ${buildInlineTrace(d)}
+      </div>
+    </td></tr>`;
+  }).join('');
+
+  const profsHtml = (r.professions||[]).map(p=>`<span style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--purple);">${esc(p.professionCode)} ${Math.round(p.weight*100)}%</span>`).join(' ');
+
+  document.getElementById('dstDrawerTitle').textContent =
+    `🔬 DST Level 0 — ${esc(r.curriculumName||'УП')} | ${r.totalCurriculumHours} ч.`;
+
+  document.getElementById('dstDrawerBody').innerHTML = `
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
+      Профессии: ${profsHtml} &nbsp;|&nbsp;
+      Суммарные часы УП: <b>${r.totalCurriculumHours}</b> ч. &nbsp;|&nbsp;
+      Доменов: <b>${(r.domains||[]).length}</b>
+      &nbsp;<span style="font-size:10px;">(supply = часы домена во всём УП / всего часов)</span>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">
+      <span style="display:inline-block;width:12px;height:8px;background:var(--purple);border-radius:2px;margin-right:4px;"></span>BetP (рынок)
+      <span style="display:inline-block;width:12px;height:8px;background:var(--green);border-radius:2px;margin:0 4px 0 12px;"></span>supply (УП)
+    </div>
+    <table class="trace-table l0-table">
+      <thead><tr><th>Домен</th><th>BetP / supply</th><th>Δ</th><th>Часов в УП</th><th>Решение</th><th></th></tr></thead>
+      <tbody>${domainRows}</tbody>
+    </table>`;
+}
+
+function toggleL0Trace(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display==='none' ? 'table-row' : 'none';
+}
+
+function buildInlineTrace(d) {
+  const sources = d.sources || [];
+  const combos  = d.combinations || [];
+  const N_CLUSTERS = 25;
+
+  const srcColor = {VAC:'var(--purple)', EXP:'var(--yellow)', FC:'var(--accent)'};
+
+  // ─── Шаг 1: Входные данные ────────────────────────────────────────────────
+  const step1 = sources.map(s => {
+    const col = srcColor[s.sourceName] || 'var(--muted)';
+    if (!s.enabled) return `
+      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
+          <td colspan="5" style="color:var(--muted)">⊘ нет данных</td></tr>`;
+    return `
+      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
+          <td>total=${s.totalCount}</td>
+          <td>relevant=${s.relevantCount}</td>
+          <td>avgScore=${fmt(s.averageScore)}</td>
+          <td>λ=${fmt(s.lambda)}</td>
+          <td>w=${fmt(s.weight)}</td></tr>`;
+  }).join('');
+
+  // ─── Шаг 2: BPA (κ, m(T), m(Θ)) ─────────────────────────────────────────
+  const step2 = sources.map(s => {
+    const col = srcColor[s.sourceName] || 'var(--muted)';
+    if (!s.enabled) return `
+      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
+          <td colspan="4" style="color:var(--muted)">⊘</td></tr>`;
+    const kappaFormula = `1−e^(−${fmt(s.lambda)}×${s.relevantCount}/${s.totalCount})`;
+    return `
+      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
+          <td>κ = ${kappaFormula} = <b>${fmt(s.kappa)}</b></td>
+          <td>m(T) = κ·score = <b>${fmt(s.mT)}</b></td>
+          <td>m(Θ) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
+          <td>m(∅) = <b>${fmt(s.mF)}</b></td></tr>`;
+  }).join('');
+
+  // ─── Шаг 3: Дисконтирование ───────────────────────────────────────────────
+  const step3 = sources.filter(s=>s.enabled).map(s => {
+    const col = srcColor[s.sourceName] || 'var(--muted)';
+    return `
+      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b> w=${fmt(s.weight)}</td>
+          <td>m'(T) = ${fmt(s.mT)}·${fmt(s.weight)} = <b>${fmt(s.mTDiscounted)}</b></td>
+          <td>m'(Θ) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b></td>
+          <td>m'(∅) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
+  }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
+
+  // ─── Шаг 4: Комбинирование ───────────────────────────────────────────────
+  const enabledCount = sources.filter(s=>s.enabled).length;
+  let step4;
+  if (enabledCount <= 1) {
+    const only = sources.find(s=>s.enabled);
+    step4 = only
+      ? `<tr><td colspan="4">Один источник — комбинирование не нужно. m*(T)=<b>${fmt(only.mTDiscounted)}</b> m*(Θ)=<b>${fmt(only.mUDiscounted)}</b></td></tr>`
+      : `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
+  } else {
+    step4 = combos.map(c => {
+      const ruleColor = c.rule==='Yager' ? 'var(--yellow)' : 'var(--green)';
+      return `<tr>
+        <td>${esc(c.label)}</td>
+        <td>K=${fmt(c.K)} → <b style="color:${ruleColor}">${c.rule||'Dempster'}</b></td>
+        <td>m*(T)=<b>${fmt(c.output?.mT)}</b></td>
+        <td>m*(Θ)=<b>${fmt(c.output?.mU)}</b> m*(∅)=<b>${fmt(c.output?.mF)}</b></td></tr>`;
+    }).join('') || `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
+  }
+
+  // ─── Шаг 5: Итог BetP ────────────────────────────────────────────────────
+  const betpFormula = `m*(T) + m*(Θ)/${N_CLUSTERS} = ${fmt(d.mT)} + ${fmt(d.mU)}/${N_CLUSTERS}`;
+  const deltaColor  = d.delta > 0.15 ? 'var(--red)' : d.delta < -0.15 ? 'var(--green)' : 'var(--muted)';
+
+  const tStyle = 'border-collapse:collapse;width:100%;font-size:11px;margin-bottom:6px;';
+  const hStyle = 'background:var(--bg2);color:var(--muted);padding:3px 6px;font-weight:600;font-size:10px;text-align:left;';
+  const tdStyle = 'padding:2px 6px;border-bottom:1px solid var(--border);vertical-align:middle;';
+
+  return `
+    <style>.it td{${tdStyle}}</style>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
+      Домен: <b style="color:var(--text)">${esc(d.domain)}</b>
+    </div>
+    <table class="it" style="${tStyle}">
+      <thead><tr><th colspan="6" style="${hStyle}">Шаг 1 — Входные данные источников</th></tr></thead>
+      <tbody>${step1}</tbody>
+    </table>
+    <table class="it" style="${tStyle}">
+      <thead><tr><th colspan="5" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
+      <tbody>${step2}</tbody>
+    </table>
+    <table class="it" style="${tStyle}">
+      <thead><tr><th colspan="4" style="${hStyle}">Шаг 3 — Дисконтирование: m'(T)=m(T)·w, m'(Θ)=m(Θ)·w+(1−w)</th></tr></thead>
+      <tbody>${step3}</tbody>
+    </table>
+    <table class="it" style="${tStyle}">
+      <thead><tr><th colspan="4" style="${hStyle}">Шаг 4 — Комбинирование (Демпстер K&lt;0.4 / Ягер K≥0.4)</th></tr></thead>
+      <tbody>${step4}</tbody>
+    </table>
+    <table class="it" style="${tStyle}">
+      <thead><tr><th colspan="2" style="${hStyle}">Шаг 5 — Итог: BetP = ${betpFormula}</th></tr></thead>
+      <tbody>
+        <tr><td>BetP = <b style="color:var(--purple)">${fmt(d.betp)}</b> (${Math.round(d.betp*100)}%)</td>
+            <td>supply = <b>${fmt(d.supply)}</b> (${Math.round(d.supply*100)}%, ${d.supplyHours} ч.)</td></tr>
+        <tr><td>Δ = BetP − supply = <b style="color:${deltaColor}">${(d.delta>=0?'+':'')+fmt(d.delta)}</b></td>
+            <td>K конфликт = <b>${fmt(d.K)}</b> &nbsp; Ягер: ${d.usedYager?'да':'нет'}</td></tr>
+      </tbody>
+    </table>`;
+}
+
+function renderDstTrace(t) {
+  if (!t || t.error) {
+    document.getElementById('dstDrawerBody').innerHTML = `<div class="empty" style="color:var(--red)">${t?.error||'Нет данных'}</div>`;
+    return;
+  }
+  const sources = t.sources || [];
+  const combos  = t.combinations || [];
+
+  const srcRows = sources.map(s => s.enabled===false
+    ? `<tr class="disabled-row"><td>${s.sourceName}</td><td colspan="6">⊘ Отключён</td></tr>`
+    : `<tr><td><b>${s.sourceName}</b></td><td>${s.totalCount||0}</td><td>${s.relevantCount||0}</td>
+       <td>${fmt(s.averageScore)}</td><td>${fmt(s.kappa)}</td><td>${fmt(s.weight)}</td><td>${fmt(s.lambda)}</td></tr>`
+  ).join('');
+
+  const bpaRows = sources.filter(s=>s.enabled!==false).map(s=>
+    `<tr><td><b>${s.sourceName}</b></td><td>κ=${fmt(s.kappa)}</td>
+     <td>m(T)=${fmt(s.mT)}</td><td>m(U)=${fmt(s.mU)}</td><td>m(F)=${fmt(s.mF)}</td></tr>`
+  ).join('');
+
+  const discRows = sources.filter(s=>s.enabled!==false).map(s=>
+    `<tr><td><b>${s.sourceName}</b></td><td>w=${fmt(s.weight)}</td>
+     <td>m'(T)=${fmt(s.mTDiscounted)}</td><td>m'(U)=${fmt(s.mUDiscounted)}</td><td>m'(F)=${fmt(s.mFDiscounted)}</td></tr>`
+  ).join('');
+
+  const comboHtml = combos.map(c=>`
+    <div class="trace-formula">
+      ${c.label}: K=${fmt(c.K)} → <b style="color:${c.rule==='Yager'?'var(--yellow)':'var(--green)'}">${c.rule||'Dempster'}</b>
+      → m(T)=${fmt(c.output?.mT)} m(U)=${fmt(c.output?.mU)} m(F)=${fmt(c.output?.mF)}
+    </div>`).join('');
+
+  const recClass = {strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',expertise:'rec-expertise'}[t.recommendation]||'rec-preserve';
+  const recText  = {strong:'🔴 УСИЛИТЬ ЗНАЧИТЕЛЬНО',moderate:'🟡 УСИЛИТЬ УМЕРЕННО',preserve:'✅ СОХРАНИТЬ',reduce:'🟢 СОКРАТИТЬ / ИСКЛЮЧИТЬ',expertise:'🔵 ВАРИАТИВНОСТЬ + ЭКСПЕРТИЗА'}[t.recommendation]||t.recommendation;
+
+  document.getElementById('dstDrawerBody').innerHTML = `
+    <div class="trace-step">
+      <div class="trace-step-title">ШАГ 0 — Входные данные</div>
+      <table class="trace-table"><thead><tr><th>Источник</th><th>Всего</th><th>По теме</th><th>Оценка</th><th>κ</th><th>w</th><th>λ</th></tr></thead>
+      <tbody>${srcRows}</tbody></table>
+    </div>
+    <div class="trace-step">
+      <div class="trace-step-title">ШАГ 1 — BPA (κ × score × ratio)</div>
+      <table class="trace-table"><thead><tr><th>Источник</th><th>κ</th><th>m(T)</th><th>m(U)</th><th>m(F)</th></tr></thead>
+      <tbody>${bpaRows}</tbody></table>
+    </div>
+    <div class="trace-step">
+      <div class="trace-step-title">ШАГ 2 — Дисконтирование (w)</div>
+      <table class="trace-table"><thead><tr><th>Источник</th><th>w</th><th>m'(T)</th><th>m'(U)</th><th>m'(F)</th></tr></thead>
+      <tbody>${discRows}</tbody></table>
+    </div>
+    <div class="trace-step">
+      <div class="trace-step-title">ШАГ 3 — Комбинирование${t.usedYager?' <span style="color:var(--yellow)">⚡ Ягер</span>':''}</div>
+      ${comboHtml||'<div class="trace-highlight">Только один источник — комбинирование не требуется</div>'}
+    </div>
+    <div class="trace-step">
+      <div class="trace-step-title">ШАГ 4 — Итог</div>
+      <div class="trace-formula">m*(T)=${fmt(t.mT)}  m*(U)=${fmt(t.mU)}  m*(F)=${fmt(t.mF)}</div>
+      <div class="trace-formula">BetP = ${fmt(t.mT)} + ${fmt(t.mU)}/${t.nClusters||'N'} = <b>${fmt(t.betp)}</b></div>
+      <div class="trace-formula">supply = ${fmt(t.supply)}  →  Δ = ${fmt(t.delta)}</div>
+      <div class="trace-formula">K = ${fmt(t.K)}  (τK=0.40)  m(U) = ${fmt(t.mU)}  (τΘ=0.15)</div>
+    </div>
+    <div class="recommendation-card ${recClass}">
+      <div class="rec-title">${recText}</div>
+      <div class="rec-metrics">
+        <span>Δ=<b>${fmt(t.delta)}</b></span>
+        <span>K=<b>${fmt(t.K)}</b></span>
+        <span>m(U)=<b>${fmt(t.mU)}</b></span>
+        <span>BetP=<b>${fmt(t.betp)}</b></span>
+        <span>supply=<b>${fmt(t.supply)}</b></span>
+      </div>
+    </div>`;
+}
+
+function closeDstDrawer() { document.getElementById('dstDrawer').classList.remove('open'); }
+
+// ─── UTILS ────────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(v) { return v!=null ? parseFloat(v).toFixed(4) : '—'; }
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.autocomplete-wrapper')) {
+    document.querySelectorAll('.autocomplete-list').forEach(el=>el.style.display='none');
+  }
+});
+
+init();
+</script>
+</body>
+</html>

@@ -17,7 +17,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         FROM foresight f
         WHERE f.domain = :domain
           AND f.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR f.profession_code IS NULL)
+          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
     """)
     List<Object[]> aggregateByDomain(@Param("domain") String domain,
                                     @Param("professionCode") String professionCode);
@@ -29,7 +29,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         WHERE f.domain = :domain
           AND f.tech_family = :techFamily
           AND f.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR f.profession_code IS NULL)
+          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
     """)
     List<Object[]> aggregateByDomainAndFamily(@Param("domain") String domain,
                                              @Param("techFamily") String techFamily,
@@ -41,7 +41,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         FROM foresight f
         WHERE f.canonical_id = :canonicalId
           AND f.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR f.profession_code IS NULL)
+          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
     """)
     List<Object[]> aggregateByCanonical(@Param("canonicalId") Long canonicalId,
                                        @Param("professionCode") String professionCode);

@@ -71,6 +71,12 @@ public class SecurityConfig {
                         // EXP & FC viewer endpoints (read-only, used by foresight.html)
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/foresights/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/expert-opinions/**").permitAll()
+                        // Curriculum / Discipline / Coverage CRUD (used by curriculum.html)
+                        .requestMatchers("/api/curriculum/**").permitAll()
+                        .requestMatchers("/api/disciplines/**").permitAll()
+                        .requestMatchers("/api/coverage/**").permitAll()
+                        .requestMatchers("/api/professions/**").permitAll()
+                        .requestMatchers("/api/skill-canonical/**").permitAll()
                         // Static frontend pages
                         .requestMatchers("/*.html", "/static/**", "/css/**", "/js/**", "/images/**").permitAll()
                         .anyRequest().authenticated()
