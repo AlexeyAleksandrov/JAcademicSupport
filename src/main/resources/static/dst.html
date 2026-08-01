@@ -28,10 +28,15 @@
       <p class="text-xs text-gray-500">Digital Skills Tracker · vacancy market data</p>
     </div>
   </div>
-  <div class="ml-auto flex items-center gap-3 text-sm text-gray-500">
-    <span id="hdr-prof">—</span>
-    <span class="text-gray-300">›</span>
-    <span id="hdr-cluster">—</span>
+  <div class="ml-auto flex items-center gap-4">
+    <a href="/foresight.html" class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Просмотр прогнозов и экспертных мнений">
+      🔭 EXP &amp; FC
+    </a>
+    <div class="flex items-center gap-3 text-sm text-gray-500">
+      <span id="hdr-prof">—</span>
+      <span class="text-gray-300">›</span>
+      <span id="hdr-cluster">—</span>
+    </div>
   </div>
 </header>
 
@@ -56,10 +61,10 @@
         <span id="cluster-count" class="text-xs text-gray-400"></span>
       </div>
       <div class="flex rounded border border-gray-200 overflow-hidden text-xs font-medium">
-        <button id="l1-groups" onclick="setL1Mode('groups')"
-          class="flex-1 py-1 bg-blue-500 text-white transition-colors">По группам</button>
         <button id="l1-domain" onclick="setL1Mode('domain')"
-          class="flex-1 py-1 bg-white text-gray-500 hover:bg-gray-50 transition-colors">По доменам</button>
+          class="flex-1 py-1 bg-blue-500 text-white transition-colors">По доменам</button>
+        <button id="l1-groups" onclick="setL1Mode('groups')"
+          class="flex-1 py-1 bg-white text-gray-500 hover:bg-gray-50 transition-colors">По группам</button>
       </div>
     </div>
     <div id="cluster-list" class="flex-1 overflow-y-auto py-1">
@@ -123,7 +128,7 @@ let selectedClusterId = null;
 let selectedDomain = null;
 let selectedFamily = null;
 let currentMode = 'all';
-let l1Mode = 'groups';
+let l1Mode = 'domain';
 
 // ── Family panel helpers ───────────────────────────────
 

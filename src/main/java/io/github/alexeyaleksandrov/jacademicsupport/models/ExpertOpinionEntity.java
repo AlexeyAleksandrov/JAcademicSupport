@@ -18,11 +18,26 @@ public class ExpertOpinionEntity {
     private CompetencyAchievementIndicator competencyAchievementIndicator;
 
     @ManyToOne
-    @JoinColumn(name = "work_skill_id")
+    @JoinColumn(name = "work_skill_id", nullable = true)
     private WorkSkill workSkill;
 
-    @Column(name = "skill_importance", nullable = false, columnDefinition = "double precision default 0.0")
-    private double skillImportance; // New field: importance of the skill, between 0 and 1
+    @Column(name = "skill_importance", nullable = false)
+    private double skillImportance;
+
+    @Column(name = "canonical_id")
+    private Long canonicalId;
+
+    @Column(name = "direction", nullable = false, length = 10)
+    private String direction = "POSITIVE";
+
+    @Column(name = "profession_code")
+    private String professionCode;
+
+    @Column(name = "domain")
+    private String domain;
+
+    @Column(name = "tech_family")
+    private String techFamily;
 
     public ExpertOpinionEntity() {
     }
@@ -65,5 +80,45 @@ public class ExpertOpinionEntity {
 
     public void setSkillImportance(double skillImportance) {
         this.skillImportance = skillImportance;
+    }
+
+    public Long getCanonicalId() {
+        return canonicalId;
+    }
+
+    public void setCanonicalId(Long canonicalId) {
+        this.canonicalId = canonicalId;
+    }
+
+    public String getDirection() {
+        return direction;
+    }
+
+    public void setDirection(String direction) {
+        this.direction = direction;
+    }
+
+    public String getProfessionCode() {
+        return professionCode;
+    }
+
+    public void setProfessionCode(String professionCode) {
+        this.professionCode = professionCode;
+    }
+
+    public String getDomain() {
+        return domain;
+    }
+
+    public void setDomain(String domain) {
+        this.domain = domain;
+    }
+
+    public String getTechFamily() {
+        return techFamily;
+    }
+
+    public void setTechFamily(String techFamily) {
+        this.techFamily = techFamily;
     }
 }

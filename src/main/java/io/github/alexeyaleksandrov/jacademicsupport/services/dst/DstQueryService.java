@@ -29,6 +29,8 @@ public class DstQueryService {
     private final VacancyDomainRepository       vacancyDomainRepository;
     private final SkillDependencyRepository     dependencyRepository;
     private final SkillVersionRepository        versionRepository;
+    private final ExpertOpinionRepository       expertOpinionRepository;
+    private final ForesightRepository           foresightRepository;
 
     private static final BigDecimal MIN_SCORE = new BigDecimal("0.01");
 
@@ -275,6 +277,73 @@ public class DstQueryService {
             long   vacancyCount,
             double weight
     ) {}
+
+    /**
+     * BPA result for a single DST source (EXP or FC) at a given level.
+     * mT = m(T) = κ × averageScore (support for hypothesis "relevant")
+     * mTheta = m(Θ) = 1 - mT (ignorance mass)
+     */
+    public record BpaResult(
+            long   relevantCount,
+            double averageScore,
+            double mT,
+            double mTheta
+    ) {
+        public static BpaResult empty() {
+            return new BpaResult(0, 0.0, 0.0, 1.0);
+        }
+    }
+
+    private static final double LAMBDA_EXP  = 5.0;
+    private static final double LAMBDA_FC   = 2.0;
+    private static final long   TOTAL_EXPERTS  = 12L;
+    private static final long   TOTAL_SOURCES  = 4L;
+
+    private BpaResult computeBpa(long relevantCount, double avgScore, long total, double lambda) {
+        if (total == 0 || relevantCount == 0) return BpaResult.empty();
+        double kappa = 1.0 - Math.exp(-lambda * (double) relevantCount / total);
+        double mT    = kappa * avgScore;
+        return new BpaResult(relevantCount, avgScore, mT, 1.0 - mT);
+    }
+
+    private BpaResult extractBpa(List<Object[]> rows, long total, double lambda) {
+        if (rows.isEmpty()) return BpaResult.empty();
+        Object[] row = rows.get(0);
+        if (row[0] == null) return BpaResult.empty();
+        long   cnt = ((Number) row[0]).longValue();
+        double avg = row[1] != null ? ((Number) row[1]).doubleValue() : 0.0;
+        return computeBpa(cnt, avg, total, lambda);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getExpBpaByDomain(String profCode, String domain) {
+        return extractBpa(expertOpinionRepository.aggregateByDomain(domain, profCode), TOTAL_EXPERTS, LAMBDA_EXP);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getExpBpaByFamily(String profCode, String domain, String techFamily) {
+        return extractBpa(expertOpinionRepository.aggregateByDomainAndFamily(domain, techFamily, profCode), TOTAL_EXPERTS, LAMBDA_EXP);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getExpBpaByCanonical(String profCode, Long canonicalId) {
+        return extractBpa(expertOpinionRepository.aggregateByCanonical(canonicalId, profCode), TOTAL_EXPERTS, LAMBDA_EXP);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getFcBpaByDomain(String profCode, String domain) {
+        return extractBpa(foresightRepository.aggregateByDomain(domain, profCode), TOTAL_SOURCES, LAMBDA_FC);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getFcBpaByFamily(String profCode, String domain, String techFamily) {
+        return extractBpa(foresightRepository.aggregateByDomainAndFamily(domain, techFamily, profCode), TOTAL_SOURCES, LAMBDA_FC);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getFcBpaByCanonical(String profCode, Long canonicalId) {
+        return extractBpa(foresightRepository.aggregateByCanonical(canonicalId, profCode), TOTAL_SOURCES, LAMBDA_FC);
+    }
 
     public record FamilyInfo(
             String techFamily,

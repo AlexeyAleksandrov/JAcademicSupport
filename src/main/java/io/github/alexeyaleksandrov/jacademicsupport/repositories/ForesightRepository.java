@@ -8,6 +8,46 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface ForesightRepository extends JpaRepository<ForesightEntity, Long> {
+
+    // ─── DST aggregation queries (L0/L1/L2) ───────────────────────────────────
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT f.source_url) AS relevantCount,
+               AVG(f.confidence)            AS avgConfidence
+        FROM foresight f
+        WHERE f.domain = :domain
+          AND f.direction = 'POSITIVE'
+          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR f.profession_code IS NULL)
+    """)
+    List<Object[]> aggregateByDomain(@Param("domain") String domain,
+                                    @Param("professionCode") String professionCode);
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT f.source_url) AS relevantCount,
+               AVG(f.confidence)            AS avgConfidence
+        FROM foresight f
+        WHERE f.domain = :domain
+          AND f.tech_family = :techFamily
+          AND f.direction = 'POSITIVE'
+          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR f.profession_code IS NULL)
+    """)
+    List<Object[]> aggregateByDomainAndFamily(@Param("domain") String domain,
+                                             @Param("techFamily") String techFamily,
+                                             @Param("professionCode") String professionCode);
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT f.source_url) AS relevantCount,
+               AVG(f.confidence)            AS avgConfidence
+        FROM foresight f
+        WHERE f.canonical_id = :canonicalId
+          AND f.direction = 'POSITIVE'
+          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR f.profession_code IS NULL)
+    """)
+    List<Object[]> aggregateByCanonical(@Param("canonicalId") Long canonicalId,
+                                       @Param("professionCode") String professionCode);
+
+    // ─── Legacy queries (backward compat) ────────────────────────────────────
+
     boolean existsByWorkSkillIdAndSourceUrl(Long workSkillId, String sourceUrl);
     
     // Найти все прогнозы по конкретному навыку

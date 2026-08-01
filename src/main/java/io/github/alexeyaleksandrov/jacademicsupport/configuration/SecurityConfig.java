@@ -68,6 +68,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/dst/**").permitAll()
                         // DST query endpoints (read-only, used by frontend)
                         .requestMatchers("/api/dst/**").permitAll()
+                        // EXP & FC viewer endpoints (read-only, used by foresight.html)
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/foresights/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/expert-opinions/**").permitAll()
                         // Static frontend pages
                         .requestMatchers("/*.html", "/static/**", "/css/**", "/js/**", "/images/**").permitAll()
                         .anyRequest().authenticated()

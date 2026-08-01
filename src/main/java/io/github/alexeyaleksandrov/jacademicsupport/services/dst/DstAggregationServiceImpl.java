@@ -2,101 +2,79 @@ package io.github.alexeyaleksandrov.jacademicsupport.services.dst;
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.DstAggregationResponseDto;
 import io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkill;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.ExpertOpinionRepository;
-import io.github.alexeyaleksandrov.jacademicsupport.repositories.ForesightRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.RpdSkillRepository;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillCanonicalRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.WorkSkillRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
- * Реализация сервиса для расчета DST-агрегации
+ * Реализация сервиса для расчета DST-агрегации.
+ * EXP и FC источники теперь используют DST BPA (κ × avgScore) вместо простых процентов.
  */
 @Service
 @AllArgsConstructor
 public class DstAggregationServiceImpl implements DstAggregationService {
-    
-    private final RpdSkillRepository rpdSkillRepository;
-    private final WorkSkillRepository workSkillRepository;
-    private final ExpertOpinionRepository expertOpinionRepository;
-    private final ForesightRepository foresightRepository;
-    
+
+    private final RpdSkillRepository         rpdSkillRepository;
+    private final WorkSkillRepository         workSkillRepository;
+    private final WorkSkillCanonicalRepository workSkillCanonicalRepository;
+    private final DstQueryService             dstQueryService;
+
     @Override
     public DstAggregationResponseDto calculateDstAggregation(Long workSkillId) {
-        // Проверяем существование WorkSkill
-        System.out.println("Проверяем существование WorkSkill");
         Optional<WorkSkill> workSkillOpt = workSkillRepository.findById(workSkillId);
         if (workSkillOpt.isEmpty()) {
             throw new IllegalArgumentException("WorkSkill с ID " + workSkillId + " не найден");
         }
-        
         WorkSkill workSkill = workSkillOpt.get();
-        
-        // 1. Расчет покрытия в РПД (процент часов данного навыка от общего количества часов)
-        System.out.println("1. Расчет покрытия в РПД (процент часов данного навыка от общего количества часов)");
+
+        // 1. Покрытие в РПД (% часов навыка от общего количества часов)
         double rpdCoveragePercentage = calculateRpdCoveragePercentage(workSkillId);
-        
-        // 2. Получение востребованности на рынке
-        System.out.println("2. Получение востребованности на рынке");
+
+        // 2. Востребованность на рынке (VAC-источник, уже посчитан)
         double marketDemand = workSkill.getRoundedMarketDemand();
-        
-        // 3. Расчет процента экспертов, которые выразили мнение по данному навыку
-        System.out.println("3. Расчет процента экспертов, которые выразили мнение по данному навыку");
-        double expertOpinionPercentage = calculateExpertOpinionPercentage(workSkillId);
-        
-        // 4. Расчет процента источников прогнозов, которые рекомендуют данный навык
-        System.out.println("4. Расчет процента источников прогнозов, которые рекомендуют данный навык");
-        double foresightPercentage = calculateForesightPercentage(workSkillId);
-        
-        return new DstAggregationResponseDto(
-            rpdCoveragePercentage,
-            marketDemand,
-            expertOpinionPercentage,
-            foresightPercentage
-        );
+
+        // 3. EXP → DST BPA по canonical_id навыка
+        double expMT = calculateExpBpa(workSkillId);
+
+        // 4. FC → DST BPA по canonical_id навыка
+        double fcMT = calculateFcBpa(workSkillId);
+
+        return new DstAggregationResponseDto(rpdCoveragePercentage, marketDemand, expMT, fcMT);
     }
-    
-    /**
-     * Расчет процента времени данного WorkSkill от общего количества часов всех РПД
-     */
+
     private double calculateRpdCoveragePercentage(Long workSkillId) {
         Long totalTimeForWorkSkill = rpdSkillRepository.getTotalTimeByWorkSkillId(workSkillId);
         Long totalTime = rpdSkillRepository.getTotalTime();
-        
-        if (totalTime == null || totalTime == 0) {
-            return 0.0;
-        }
-        
+        if (totalTime == null || totalTime == 0) return 0.0;
         return ((double) totalTimeForWorkSkill / totalTime) * 100.0;
     }
-    
+
     /**
-     * Расчет процента уникальных экспертов, которые выразили мнение по данному навыку
+     * Получить первый canonical_id для данного work_skill (via work_skill_canonical).
+     * Если маппинга нет — вернуть null.
      */
-    private double calculateExpertOpinionPercentage(Long workSkillId) {
-        Long expertsForSkill = expertOpinionRepository.countDistinctExpertsByWorkSkillId(workSkillId);
-        Long totalExperts = expertOpinionRepository.countDistinctExperts();
-        
-        if (totalExperts == null || totalExperts == 0) {
-            return 0.0;
-        }
-        
-        return ((double) expertsForSkill / totalExperts) * 100.0;
+    private Long resolveCanonicalId(Long workSkillId) {
+        List<io.github.alexeyaleksandrov.jacademicsupport.models.WorkSkillCanonical> links =
+                workSkillCanonicalRepository.findByWorkSkillIdIn(List.of(workSkillId));
+        return links.isEmpty() ? null : links.get(0).getCanonicalId();
     }
-    
-    /**
-     * Расчет процента уникальных источников прогнозов, которые рекомендуют данный навык
-     */
-    private double calculateForesightPercentage(Long workSkillId) {
-        Long sourcesForSkill = foresightRepository.countDistinctSourceUrlsByWorkSkillId(workSkillId);
-        Long totalSources = foresightRepository.countDistinctSourceUrls();
-        
-        if (totalSources == null || totalSources == 0) {
-            return 0.0;
-        }
-        
-        return ((double) sourcesForSkill / totalSources) * 100.0;
+
+    private double calculateExpBpa(Long workSkillId) {
+        Long canonicalId = resolveCanonicalId(workSkillId);
+        if (canonicalId == null) return 0.0;
+        DstQueryService.BpaResult bpa = dstQueryService.getExpBpaByCanonical(null, canonicalId);
+        return bpa.mT() * 100.0;
+    }
+
+    private double calculateFcBpa(Long workSkillId) {
+        Long canonicalId = resolveCanonicalId(workSkillId);
+        if (canonicalId == null) return 0.0;
+        DstQueryService.BpaResult bpa = dstQueryService.getFcBpaByCanonical(null, canonicalId);
+        return bpa.mT() * 100.0;
     }
 }
