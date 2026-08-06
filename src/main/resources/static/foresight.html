@@ -78,6 +78,7 @@ const DOMAIN_CONFIG = {
   AI_ML:        { label:'AI/ML',        bg:'bg-red-100',     text:'text-red-700' },
   DATA_SCIENCE: { label:'Data Science', bg:'bg-teal-100',    text:'text-teal-700' },
   GENERAL:      { label:'General',      bg:'bg-gray-100',    text:'text-gray-600' },
+  LANGUAGES:    { label:'Languages',    bg:'bg-violet-100',  text:'text-violet-700' },
   SYSTEMS:      { label:'Systems',      bg:'bg-yellow-100',  text:'text-yellow-700' },
   MOBILE:       { label:'Mobile',       bg:'bg-pink-100',    text:'text-pink-700' },
   SECURITY:     { label:'Security',     bg:'bg-rose-100',    text:'text-rose-700' },
@@ -269,7 +270,7 @@ function renderFcCard(item, bg) {
         <span class="text-xs font-bold ${dirColor} flex-shrink-0">${dirIcon} ${escHtml(item.direction||'')}</span>
       </div>
       <div class="mt-1.5 font-medium text-sm text-gray-800 leading-snug">
-        ${escHtml(item.canonicalName || ('Skill #' + (item.canonicalId||'?')))}
+        ${escHtml(item.canonicalName || item.techFamily || (item.domain ? 'Домен: ' + item.domain : 'Skill #' + (item.canonicalId||'?')))}
       </div>
       <div class="flex items-center gap-1.5 mt-1 flex-wrap">
         ${item.professionCode ? `<span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">${escHtml(item.professionCode)}</span>` : ''}
@@ -333,7 +334,7 @@ function renderExpCard(item) {
         <span class="text-xs font-bold ${dirColor} flex-shrink-0">${dirIcon} ${escHtml(item.direction||'')}</span>
       </div>
       <div class="mt-1 font-medium text-sm text-gray-800 leading-snug">
-        ${escHtml(item.canonicalName || ('Skill #' + (item.canonicalId||'?')))}
+        ${escHtml(item.canonicalName || item.techFamily || (item.domain ? 'Домен: ' + item.domain : 'Skill #' + (item.canonicalId||'?')))}
       </div>
       <div class="flex items-center gap-2 mt-1.5">
         <span class="text-xs text-gray-400">важность:</span>

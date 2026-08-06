@@ -16,5 +16,7 @@ public class DisciplineCoverageResponseDto {
     private String techFamily;
     private Long canonicalId;
     private String canonicalName;
+    private String canonicalDomain;
+    private String canonicalTechFamily;
     private Integer hours;
 }

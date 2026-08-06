@@ -93,7 +93,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
 
 /* DST Drawer */
-.dst-drawer{position:fixed;top:0;right:0;height:100vh;width:440px;max-width:95vw;background:var(--panel);border-left:1px solid var(--border);z-index:300;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;display:flex;flex-direction:column;}
+.dst-drawer{position:fixed;top:0;right:0;height:100vh;width:620px;max-width:98vw;background:var(--panel);border-left:1px solid var(--border);z-index:300;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;display:flex;flex-direction:column;}
 .dst-drawer.open{transform:translateX(0);}
 .dst-drawer-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--panel);position:sticky;top:0;z-index:1;}
 .dst-drawer-header h3{font-size:13px;font-weight:600;}
@@ -545,7 +545,16 @@ function renderCoveragePanel(d) {
   const fams   = coverage.filter(c=>c.techFamily && !c.canonicalId);
   const skills = coverage.filter(c=>c.canonicalId);
 
+  const totalCovHours = coverage.reduce((s,c)=>s+(c.hours||0), 0);
+  const overflowHtml = (d.totalHours && totalCovHours > d.totalHours)
+    ? `<div style="background:rgba(234,179,8,.08);border:1px solid var(--yellow,#eab308);border-radius:6px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:var(--yellow,#eab308);line-height:1.5;">
+        ⚠️ Сумма часов покрытия <b>${totalCovHours} ч.</b> превышает объём дисциплины <b>${d.totalHours} ч.</b><br>
+        <span style="opacity:.8;">DST-алгоритм автоматически нормализует значения (пропорциональный вклад).</span>
+       </div>`
+    : '';
+
   document.getElementById('coveragePanel').innerHTML = `
+    ${overflowHtml}
     ${buildBlock('domain','🗂','ДОМЕН','domain', doms, d.id)}
     ${buildBlock('techFamily','🔧','СЕМЕЙСТВО','techFamily', fams, d.id)}
     ${buildBlock('skill','⚡','НАВЫК (skill_canonical)','skill', skills, d.id)}
@@ -553,13 +562,16 @@ function renderCoveragePanel(d) {
 }
 
 function buildBlock(type, icon, title, inputType, items, discId) {
-  const itemsHtml = items.length ? items.map(c => `
+  const itemsHtml = items.length ? items.map(c => {
+    const badge = buildSkillBadge(c, type);
+    return `
     <div class="coverage-item">
-      <span class="label">${esc(getLabel(c, type))}</span>
+      <span class="label" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(getLabel(c, type))}</span>
+      ${badge}
       <span class="hours">${c.hours||0} ч.</span>
       <button class="dst-btn" onclick="runDst(${discId},'${type}','${getKey(c,type)}',this)">🔬 DST</button>
       <button class="btn btn-sm btn-danger" onclick="deleteCoverage(${c.id},${discId})">✕</button>
-    </div>`).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px 0;">Нет записей</div>';
+    </div>`;}).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px 0;">Нет записей</div>';
 
   let inputHtml = '';
   if (inputType === 'profession') {
@@ -593,6 +605,13 @@ function buildBlock(type, icon, title, inputType, items, discId) {
     </div>
     <div class="block-list" id="list_${type}_${discId}">${itemsHtml}</div>
   </div>`;
+}
+
+function buildSkillBadge(c, type) {
+  if (type !== 'skill') return '';
+  const parts = [c.canonicalDomain, c.canonicalTechFamily].filter(Boolean);
+  if (!parts.length) return '';
+  return `<span style="font-size:10px;color:var(--muted);background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;white-space:nowrap;flex-shrink:0;">${parts.join(' / ')}</span>`;
 }
 
 function getLabel(c, type) {
@@ -751,14 +770,28 @@ function renderL0(r) {
     return;
   }
 
-  const recClass = d => ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',expertise:'rec-expertise'}[d]||'rec-preserve');
-  const recIcon  = d => ({strong:'🔴',moderate:'🟡',preserve:'✅',reduce:'🟢',expertise:'🔵'}[d]||'⚪');
   const deltaStyle = v => v>0.15?'color:var(--red)':v<-0.15?'color:var(--green)':'color:var(--muted)';
+
+  const totalBetP = (r.domains||[]).reduce((s, d) => s + (d.betp || 0), 0);
+
+  const allocClass = dn => dn > 0.03 ? 'rec-moderate' : dn < -0.03 ? 'rec-strong' : 'rec-preserve';
+  const allocIcon  = dn => dn > 0.03 ? '🔴' : dn < -0.03 ? '🟢' : '✅';
+  const allocLabel = dn => dn > 0.03 ? 'Усилить' : dn < -0.03 ? 'Сократить' : 'Сохранить';
 
   const domainRows = (r.domains||[]).map((d,i) => {
     const betpPct    = Math.round(d.betp*100);
     const supplyPct  = Math.round(d.supply*100);
     const deltaFmt   = (d.delta>=0?'+':'')+fmt(d.delta);
+    const nBetp      = totalBetP > 0 ? d.betp / totalBetP : 0;
+    const recHours   = Math.round(nBetp * (r.totalCurriculumHours || 0));
+    const gapHours   = recHours - (d.supplyHours || 0);
+    const deltaNorm  = nBetp - (d.supply || 0);
+    const gapStyle   = gapHours > 4 ? 'color:var(--red)' : gapHours < -4 ? 'color:var(--green)' : 'color:var(--muted)';
+    const dnFmt      = (deltaNorm>=0?'+':'')+(deltaNorm*100).toFixed(1)+'%';
+    const dnStyle    = deltaNorm > 0.03 ? 'color:var(--yellow,#f59e0b)' : deltaNorm < -0.03 ? 'color:var(--green)' : 'color:var(--muted)';
+    const isUncov    = (d.supplyHours||0) === 0 && deltaNorm > 0;
+    const isObsolete = d.recommendation === 'reduce' && (d.supplyHours||0) > 0;
+    const needsBoost = isUncov || deltaNorm > 0.03;
     const traceId    = `l0trace_${i}`;
     const traceFn    = `toggleL0Trace('${traceId}')`;
     return `
@@ -771,14 +804,18 @@ function renderL0(r) {
         </div>
         <span style="font-size:10px;color:var(--muted)">${betpPct}% / ${supplyPct}%</span>
       </td>
-      <td style="${deltaStyle(d.delta)}"><b>${deltaFmt}</b></td>
-      <td>${d.supplyHours} ч.</td>
-      <td><span class="${recClass(d.recommendation)}" style="padding:2px 6px;border-radius:4px;font-size:11px;">${recIcon(d.recommendation)} ${d.recommendation||'—'}</span></td>
+      <td style="${dnStyle}"><b>${dnFmt}</b></td>
+      <td style="white-space:nowrap;">${d.supplyHours} ч.</td>
+      <td style="white-space:nowrap;">
+        <b>${recHours}</b> ч.
+        <span style="${gapStyle};font-size:10px;margin-left:2px;">${gapHours>=0?'+':''}${gapHours}</span>
+      </td>
+      <td><span class="${isObsolete?'rec-reduce':isUncov?'rec-moderate':needsBoost?'rec-moderate':deltaNorm<-0.03?'rec-strong':'rec-preserve'}" style="padding:2px 6px;border-radius:4px;font-size:11px;white-space:nowrap;" title="Δ_norm=${fmt(deltaNorm)}${isUncov?' (покрытие=0)':isObsolete?' (DST: устарело)':''}">${isObsolete?'🗑️':isUncov?'➕':needsBoost?'🔴':deltaNorm<-0.03?'🟢':'✅'} ${isObsolete?'Удалить':isUncov?'Ввести':needsBoost?'Усилить':deltaNorm<-0.03?'Сократить':'Сохранить'}</span></td>
       <td style="font-size:11px;color:var(--muted)">▶</td>
     </tr>
-    <tr id="${traceId}" style="display:none;"><td colspan="6">
+    <tr id="${traceId}" style="display:none;" data-domain="${esc(d.domain)}" data-curriculum="${r.curriculumId}"><td colspan="7">
       <div style="padding:8px 4px;background:var(--bg2);border-radius:4px;margin:4px 0;">
-        ${buildInlineTrace(d)}
+        ${buildInlineTrace(d, {nBetp, deltaNorm, recHours, gapHours, gapStyle})}
       </div>
     </td></tr>`;
   }).join('');
@@ -800,17 +837,74 @@ function renderL0(r) {
       <span style="display:inline-block;width:12px;height:8px;background:var(--green);border-radius:2px;margin:0 4px 0 12px;"></span>supply (УП)
     </div>
     <table class="trace-table l0-table">
-      <thead><tr><th>Домен</th><th>BetP / supply</th><th>Δ</th><th>Часов в УП</th><th>Решение</th><th></th></tr></thead>
+      <thead><tr><th>Домен</th><th>BetP / supply</th><th title="Дефицит аллокации: Δ_norm = nBetP − supply = BetP/Σ(BetP) − supply">Δ_norm</th><th>Часов в УП</th><th title="Целевые часы: BetP_i / Σ(BetP) × ${r.totalCurriculumHours}. Сумма = ${r.totalCurriculumHours} ч.">Цел. часов</th><th>Решение</th><th></th></tr></thead>
       <tbody>${domainRows}</tbody>
+      <tfoot><tr style="font-size:10px;color:var(--muted);"><td colspan="4" style="text-align:right;padding-top:4px;">Σ целевых часов:</td><td style="padding-top:4px;"><b>${r.totalCurriculumHours} ч.</b> ✓</td><td colspan="2"></td></tr></tfoot>
     </table>`;
 }
 
 function toggleL0Trace(id) {
   const el = document.getElementById(id);
-  if (el) el.style.display = el.style.display==='none' ? 'table-row' : 'none';
+  if (!el) return;
+  const isHidden = el.style.display === 'none';
+  el.style.display = isHidden ? 'table-row' : 'none';
+  if (isHidden) {
+    const discDiv = el.querySelector('[data-disc-placeholder]');
+    if (discDiv && discDiv.dataset.loaded !== 'true') {
+      loadDisciplineBreakdown(discDiv, el.dataset.curriculum, el.dataset.domain);
+    }
+  }
 }
 
-function buildInlineTrace(d) {
+function loadDisciplineBreakdown(div, curriculumId, domain) {
+  div.dataset.loaded = 'true';
+  div.innerHTML = '<span style="color:var(--muted);font-size:10px;">⏳ Загрузка...</span>';
+  fetch(`/api/dst/curriculum/${encodeURIComponent(curriculumId)}/domain/${encodeURIComponent(domain)}/supply-breakdown`)
+    .then(r => r.ok ? r.json() : [])
+    .then(items => {
+      if (!items.length) {
+        div.innerHTML = '<span style="color:var(--muted);font-size:10px;">Нет данных о покрытии домена в УП</span>';
+        return;
+      }
+      div.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr>
+          <th style="text-align:left;padding:3px 6px;color:var(--muted);font-weight:600;font-size:10px;border-bottom:1px solid var(--border);">Дисциплина</th>
+          <th style="text-align:center;padding:3px 4px;color:var(--muted);font-weight:600;font-size:10px;border-bottom:1px solid var(--border);">Сем.</th>
+          <th style="text-align:right;padding:3px 6px;color:var(--muted);font-weight:600;font-size:10px;border-bottom:1px solid var(--border);">Часов</th>
+        </tr></thead>
+        <tbody>${items.map(item => `
+          <tr style="border-top:1px solid var(--border);">
+            <td style="padding:3px 6px;">${esc(String(item.name||''))}</td>
+            <td style="text-align:center;padding:3px 4px;color:var(--muted);">${item.semester||'—'}</td>
+            <td style="text-align:right;padding:3px 6px;"><b>${item.hours}</b> ч.</td>
+          </tr>`).join('')}
+        </tbody></table>`;
+    })
+    .catch(() => { div.innerHTML = '<span style="color:var(--red);font-size:10px;">Ошибка загрузки</span>'; });
+}
+
+function buildInlineTrace(d, alloc) {
+  const nBetp      = alloc ? alloc.nBetp      : 0;
+  const deltaNorm  = alloc ? alloc.deltaNorm  : 0;
+  const recHours   = alloc ? alloc.recHours   : 0;
+  const gapHours   = alloc ? alloc.gapHours   : 0;
+  const gapStyle   = alloc ? alloc.gapStyle   : '';
+  const aDn        = deltaNorm;
+  const aUncov     = (d.supplyHours||0) === 0 && aDn > 0;
+  const aObsolete  = d.recommendation === 'reduce' && (d.supplyHours||0) > 0;
+  const aBoost     = aUncov || aDn > 0.03;
+  const aClass     = aObsolete ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
+  const aIcon      = aObsolete ? '🗑️' : aUncov ? '➕' : aBoost ? '🔴' : aDn < -0.03 ? '🟢' : '✅';
+  const aLabel     = aObsolete ? 'Удалить из программы' : aUncov ? 'Ввести в программу' : aBoost ? 'Усилить' : aDn < -0.03 ? 'Сократить' : 'Сохранить';
+  const aDesc      = aObsolete
+    ? `Рынок труда демонстрирует <b>устаревание</b> данного домена (DST-сигнал: высокое неверие m(F)>0.8). Сокращается спрос на эти навыки. Рассмотрите исключение домена из программы: сейчас ${d.supplyHours} ч., цель — <b>${recHours} ч.</b> (разрыв ${gapHours} ч.).`
+    : aUncov
+    ? `Домен <b>отсутствует в учебном плане</b> (0 ч.), однако рынок труда формирует на него спрос (nBetP = ${(nBetp*100).toFixed(1)}%). Рекомендуется ввести тематический блок или спецкурс: целевой объём — <b>${recHours} ч.</b> (разрыв +${gapHours} ч.).`
+    : aDn > 0.03
+    ? `Домен получает меньше часов, чем его пропорциональный вес в рыночном спросе (nBetP = ${(nBetp*100).toFixed(1)}%). Рекомендуется перераспределить часы в пользу данного домена: цель — <b>${recHours} ч.</b> (сейчас ${d.supplyHours||0} ч., разрыв ${gapHours>0?'+':''}${gapHours} ч.).`
+    : aDn < -0.03
+    ? `Домен занимает непропорционально большую долю бюджета УП (supply = ${Math.round((d.supply||0)*100)}% при nBetP = ${(nBetp*100).toFixed(1)}%). Цель — <b>${recHours} ч.</b> (сейчас ${d.supplyHours||0} ч., разрыв ${gapHours} ч.). Рассмотрите перераспределение высвободившихся часов в пользу более дефицитных доменов.`
+    : `Распределение часов соответствует рыночному приоритету домена (nBetP ≈ supply ≈ ${(nBetp*100).toFixed(1)}%). Корректировка бюджета не требуется. Целевой объём: <b>${recHours} ч.</b>`;
   const sources = d.sources || [];
   const combos  = d.combinations || [];
   const N_CLUSTERS = 25;
@@ -877,12 +971,20 @@ function buildInlineTrace(d) {
   }
 
   // ─── Шаг 5: Итог BetP ────────────────────────────────────────────────────
-  const betpFormula = `m*(T) + m*(Θ)/${N_CLUSTERS} = ${fmt(d.mT)} + ${fmt(d.mU)}/${N_CLUSTERS}`;
-  const deltaColor  = d.delta > 0.15 ? 'var(--red)' : d.delta < -0.15 ? 'var(--green)' : 'var(--muted)';
+  const betpFormula  = `m*(T) + m*(Θ)/${N_CLUSTERS} = ${fmt(d.mT)} + ${fmt(d.mU)}/${N_CLUSTERS}`;
+  const deltaColor   = d.delta > 0.15 ? 'var(--red)' : d.delta < -0.15 ? 'var(--green)' : 'var(--muted)';
+  const dnColor      = deltaNorm > 0.03 ? 'var(--yellow)' : deltaNorm < -0.03 ? 'var(--green)' : 'var(--muted)';
+  const gaugeNPos    = Math.min(98, Math.max(2, Math.round((deltaNorm + (1/15)) / (2/15) * 100)));
 
-  const tStyle = 'border-collapse:collapse;width:100%;font-size:11px;margin-bottom:6px;';
-  const hStyle = 'background:var(--bg2);color:var(--muted);padding:3px 6px;font-weight:600;font-size:10px;text-align:left;';
+  const tStyle  = 'border-collapse:collapse;width:100%;font-size:11px;margin-bottom:6px;';
+  const hStyle  = 'background:var(--bg2);color:var(--muted);padding:3px 6px;font-weight:600;font-size:10px;text-align:left;';
   const tdStyle = 'padding:2px 6px;border-bottom:1px solid var(--border);vertical-align:middle;';
+
+  const gaugePos   = Math.min(98, Math.max(2, Math.round((d.delta + 1) / 2 * 100)));
+  const gaugeColor = d.delta > 0.35 ? '#ef4444' : d.delta > 0.15 ? '#f59e0b' : d.delta < -0.15 ? '#22c55e' : '#6b7280';
+
+  const recLabelRu = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',expertise:'🔵 Экспертиза'})[d.recommendation]||d.recommendation||'—';
+  const rcCls = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',expertise:'rec-expertise'})[d.recommendation]||'rec-preserve';
 
   return `
     <style>.it td{${tdStyle}}</style>
@@ -910,10 +1012,46 @@ function buildInlineTrace(d) {
       <tbody>
         <tr><td>BetP = <b style="color:var(--purple)">${fmt(d.betp)}</b> (${Math.round(d.betp*100)}%)</td>
             <td>supply = <b>${fmt(d.supply)}</b> (${Math.round(d.supply*100)}%, ${d.supplyHours} ч.)</td></tr>
-        <tr><td>Δ = BetP − supply = <b style="color:${deltaColor}">${(d.delta>=0?'+':'')+fmt(d.delta)}</b></td>
+        <tr><td style="color:var(--muted);font-size:10px;">Δ_abs = BetP − supply = <span style="color:${deltaColor}">${(d.delta>=0?'+':'')+fmt(d.delta)}</span> <span style="opacity:.6;">(для справки)</span></td>
             <td>K конфликт = <b>${fmt(d.K)}</b> &nbsp; Ягер: ${d.usedYager?'да':'нет'}</td></tr>
       </tbody>
-    </table>`;
+    </table>
+    <table class="it" style="${tStyle}">
+      <thead><tr><th colspan="2" style="${hStyle}">Шаг 5b — Нормализация BetP: nBetP = BetP / Σ(BetP)</th></tr></thead>
+      <tbody>
+        <tr><td>nBetP = ${fmt(d.betp)} / Σ = <b style="color:var(--purple)">${(nBetp*100).toFixed(2)}%</b></td>
+            <td>Целевые часы = nBetP × T = <b>${recHours} ч.</b> <span style="${gapStyle};font-size:10px;">(${gapHours>=0?'+':''}${gapHours})</span></td></tr>
+        <tr><td>Δ_norm = nBetP − supply = <b style="color:${dnColor}">${(deltaNorm>=0?'+':'')+(deltaNorm*100).toFixed(2)}%</b></td>
+            <td style="color:var(--muted);font-size:10px;">supply = ${Math.round((d.supply||0)*100)}% &nbsp; nBetP − supply = Δ_norm</td></tr>
+      </tbody>
+    </table>
+    <div class="${aClass}" style="border-radius:6px;padding:10px 12px;margin-top:10px;border:1px solid;">
+      <div style="font-size:9px;opacity:0.7;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px;">Аллокационная рекомендация (Δ_norm = nBetP − supply)</div>
+      <div style="font-weight:700;font-size:13px;margin-bottom:5px;">${aIcon} ${aLabel}</div>
+      <div style="font-size:11px;line-height:1.55;opacity:0.9;margin-bottom:10px;">${aDesc}</div>
+      <div style="margin:4px 0 2px;">
+        <div style="display:flex;justify-content:space-between;font-size:9px;opacity:0.65;margin-bottom:4px;"><span>Сократить</span><span>Баланс</span><span>Усилить</span></div>
+        <div style="position:relative;height:6px;border-radius:3px;background:linear-gradient(to right,#22c55e,#6b7280 50%,#f59e0b);"><div style="position:absolute;left:${Math.min(96,Math.max(4,Math.round((deltaNorm+0.15)/0.30*100)))}%;top:50%;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid ${deltaNorm>0.03?'#f59e0b':deltaNorm<-0.03?'#22c55e':'#6b7280'};transform:translate(-50%,-50%);box-shadow:0 0 4px rgba(0,0,0,.5);"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;opacity:0.55;margin-top:3px;"><span>Δ_norm = −15%</span><span>Δ_norm = 0</span><span>Δ_norm = +15%</span></div>
+      </div>
+      <div style="font-size:10px;opacity:0.75;margin-top:4px;">Δ_norm = <b>${(deltaNorm>=0?'+':'')+(deltaNorm*100).toFixed(2)}%</b> &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${Math.round((d.supply||0)*100)}%</b></div>
+    </div>
+    <details style="margin-top:8px;">
+      <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">📊 Рыночный DST-сигнал (справочно, Δ_abs = ${(d.delta>=0?'+':'')+fmt(d.delta)}): ${recLabelRu}</summary>
+      <div class="${rcCls}" style="border-radius:6px;padding:8px 12px;margin-top:6px;border:1px solid;opacity:.8;">
+        <div style="margin:6px 0 4px;">
+          <div style="position:relative;height:5px;border-radius:3px;background:linear-gradient(to right,#ef4444,#f59e0b 50%,#22c55e);"><div style="position:absolute;left:${gaugePos}%;top:50%;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid ${gaugeColor};transform:translate(-50%,-50%);"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:8px;opacity:0.55;margin-top:2px;"><span>Δ = −1.0</span><span>Δ = 0</span><span>Δ = +1.0</span></div>
+        </div>
+        <div style="font-size:10px;opacity:0.75;">Δ_abs = <b>${(d.delta>=0?'+':'')+fmt(d.delta)}</b> &nbsp;|&nbsp; BetP = <b>${fmt(d.betp)}</b> &nbsp;|&nbsp; K = <b>${fmt(d.K)}</b></div>
+      </div>
+    </details>
+    <div style="margin-top:10px;">
+      <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Из каких дисциплин УП сформированы часы домена</div>
+      <div data-disc-placeholder style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 4px;min-height:22px;">
+        <span style="color:var(--muted);font-size:10px;">⏳ Загрузка...</span>
+      </div>
+    </div>`;
 }
 
 function renderDstTrace(t) {

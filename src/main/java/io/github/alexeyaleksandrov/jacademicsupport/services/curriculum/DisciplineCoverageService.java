@@ -38,8 +38,11 @@ public class DisciplineCoverageService {
         entry.setCanonicalId(dto.getCanonicalId());
         entry.setHours(dto.getHours() != null ? dto.getHours() : 0);
         DisciplineCoverage saved = coverageRepository.save(entry);
+        SkillCanonical sc = resolveCanonical(saved.getCanonicalId());
         return toDto(saved,
-                resolveCanonicalName(saved.getCanonicalId()),
+                sc != null ? sc.getName()       : null,
+                sc != null ? sc.getDomain()     : null,
+                sc != null ? sc.getTechFamily() : null,
                 resolveProfessionName(saved.getProfessionCode()));
     }
 
@@ -74,8 +77,8 @@ public class DisciplineCoverageService {
                 .map(DisciplineCoverage::getCanonicalId)
                 .filter(id -> id != null)
                 .distinct().toList();
-        Map<Long, String> canonicalNames = skillCanonicalRepository.findAllById(canonicalIds)
-                .stream().collect(Collectors.toMap(SkillCanonical::getId, SkillCanonical::getName));
+        Map<Long, SkillCanonical> canonicalMap = skillCanonicalRepository.findAllById(canonicalIds)
+                .stream().collect(Collectors.toMap(SkillCanonical::getId, sc -> sc));
 
         List<String> profCodes = entries.stream()
                 .map(DisciplineCoverage::getProfessionCode)
@@ -86,28 +89,38 @@ public class DisciplineCoverageService {
                 .collect(Collectors.toMap(Profession::getCode, Profession::getName));
 
         return entries.stream()
-                .map(e -> toDto(e,
-                        e.getCanonicalId() != null ? canonicalNames.get(e.getCanonicalId()) : null,
-                        e.getProfessionCode() != null ? profNames.get(e.getProfessionCode()) : null))
+                .map(e -> {
+                    SkillCanonical sc = e.getCanonicalId() != null ? canonicalMap.get(e.getCanonicalId()) : null;
+                    return toDto(e,
+                            sc != null ? sc.getName()       : null,
+                            sc != null ? sc.getDomain()     : null,
+                            sc != null ? sc.getTechFamily() : null,
+                            e.getProfessionCode() != null ? profNames.get(e.getProfessionCode()) : null);
+                })
                 .toList();
     }
 
     private DisciplineCoverageResponseDto toDto(DisciplineCoverage e,
                                                   String canonicalName,
+                                                  String canonicalDomain,
+                                                  String canonicalTechFamily,
                                                   String professionName) {
-        return new DisciplineCoverageResponseDto(
+        DisciplineCoverageResponseDto dto = new DisciplineCoverageResponseDto(
                 e.getId(), e.getDisciplineId(),
                 e.getProfessionCode(), professionName,
                 e.getDomain(), e.getTechFamily(),
                 e.getCanonicalId(), canonicalName,
+                null, null,
                 e.getHours()
         );
+        dto.setCanonicalDomain(canonicalDomain);
+        dto.setCanonicalTechFamily(canonicalTechFamily);
+        return dto;
     }
 
-    private String resolveCanonicalName(Long canonicalId) {
+    private SkillCanonical resolveCanonical(Long canonicalId) {
         if (canonicalId == null) return null;
-        return skillCanonicalRepository.findById(canonicalId)
-                .map(SkillCanonical::getName).orElse(null);
+        return skillCanonicalRepository.findById(canonicalId).orElse(null);
     }
 
     private String resolveProfessionName(String profCode) {

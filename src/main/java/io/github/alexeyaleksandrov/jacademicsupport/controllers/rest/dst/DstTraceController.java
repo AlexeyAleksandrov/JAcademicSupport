@@ -5,6 +5,8 @@ import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.trace.DstTraceRespon
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstCombinationService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel0Service;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.bpa.DstContext;
+import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,5 +40,11 @@ public class DstTraceController {
     @GetMapping("/curriculum/{curriculumId}/level0")
     public DstL0Response level0ByCurriculum(@PathVariable Long curriculumId) {
         return dstLevel0Service.analyzeLevel0(curriculumId);
+    }
+
+    @GetMapping("/curriculum/{curriculumId}/domain/{domain}/supply-breakdown")
+    public List<Map<String, Object>> supplyBreakdown(@PathVariable Long curriculumId,
+                                                      @PathVariable String domain) {
+        return dstLevel0Service.getSupplyBreakdown(curriculumId, domain);
     }
 }

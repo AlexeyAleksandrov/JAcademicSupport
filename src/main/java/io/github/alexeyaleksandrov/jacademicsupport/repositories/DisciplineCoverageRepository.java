@@ -69,4 +69,20 @@ public interface DisciplineCoverageRepository extends JpaRepository<DisciplineCo
         """)
     int sumSkillInferredDomainHours(@Param("disciplineIds") List<Long> disciplineIds,
                                     @Param("domain") String domain);
+
+    @Query(nativeQuery = true, value = """
+        SELECT d.id, d.name, d.semester, COALESCE(SUM(dc.hours), 0) AS hours
+        FROM discipline d
+        JOIN discipline_coverage dc ON dc.discipline_id = d.id
+        WHERE d.id IN :disciplineIds
+          AND (dc.domain = :domain
+               OR (dc.canonical_id IS NOT NULL AND dc.canonical_id IN (
+                   SELECT sc.id FROM skill_canonical sc WHERE sc.domain = :domain
+               )))
+        GROUP BY d.id, d.name, d.semester
+        HAVING SUM(dc.hours) > 0
+        ORDER BY SUM(dc.hours) DESC
+        """)
+    List<Object[]> findDomainBreakdownByDisciplines(@Param("disciplineIds") List<Long> disciplineIds,
+                                                     @Param("domain") String domain);
 }
