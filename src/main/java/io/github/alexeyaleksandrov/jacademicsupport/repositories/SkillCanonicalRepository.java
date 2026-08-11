@@ -90,6 +90,33 @@ public interface SkillCanonicalRepository extends JpaRepository<SkillCanonical, 
     long countTotalVacanciesForProfession(@Param("profCode") String profCode);
 
     @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT vp.vacancy_id)
+        FROM skill_canonical sc
+        JOIN work_skill_canonical wsc ON wsc.canonical_id = sc.id
+        JOIN work_skill ws             ON ws.id = wsc.work_skill_id
+        JOIN vacancy_skills vs         ON vs.skills_id = ws.id
+        JOIN vacancy_profession vp     ON vp.vacancy_id = vs.vacancy_entity_id
+        JOIN profession p              ON p.id = vp.profession_id AND p.code = :profCode
+        WHERE sc.domain = :domain AND sc.tech_family = :techFamily
+        """)
+    long countVacanciesByTechFamilyAndDomainAndProfession(@Param("profCode")   String profCode,
+                                                          @Param("domain")     String domain,
+                                                          @Param("techFamily") String techFamily);
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT vp.vacancy_id)
+        FROM skill_canonical sc
+        JOIN work_skill_canonical wsc ON wsc.canonical_id = sc.id
+        JOIN work_skill ws             ON ws.id = wsc.work_skill_id
+        JOIN vacancy_skills vs         ON vs.skills_id = ws.id
+        JOIN vacancy_profession vp     ON vp.vacancy_id = vs.vacancy_entity_id
+        JOIN profession p              ON p.id = vp.profession_id AND p.code = :profCode
+        WHERE sc.domain = :domain
+        """)
+    long countTotalVacanciesForProfessionAndDomain(@Param("profCode") String profCode,
+                                                   @Param("domain")   String domain);
+
+    @Query(nativeQuery = true, value = """
         SELECT sc.id, sc.name, sc.domain,
                COUNT(DISTINCT vp.vacancy_id)                                   AS absoluteCount,
                COUNT(DISTINCT vp.vacancy_id)::double precision

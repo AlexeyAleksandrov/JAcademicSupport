@@ -1,9 +1,12 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.dst;
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level0.DstL0Response;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level1.DstL1DisciplineResponse;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level1.DstL1Response;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.trace.DstTraceResponse;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstCombinationService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel0Service;
+import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel1Service;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.bpa.DstContext;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +20,7 @@ public class DstTraceController {
 
     private final DstCombinationService dstCombinationService;
     private final DstLevel0Service      dstLevel0Service;
+    private final DstLevel1Service      dstLevel1Service;
 
     /**
      * Runs a full DST trace for a given context (domain / techFamily / canonicalId / professionCode).
@@ -46,5 +50,24 @@ public class DstTraceController {
     public List<Map<String, Object>> supplyBreakdown(@PathVariable Long curriculumId,
                                                       @PathVariable String domain) {
         return dstLevel0Service.getSupplyBreakdown(curriculumId, domain);
+    }
+
+    /**
+     * Level 1 analysis for a curriculum + domain: weighted DST per tech_family.
+     * Budget = total domain hours across all disciplines in curriculum.
+     */
+    @GetMapping("/curriculum/{curriculumId}/level1")
+    public DstL1Response level1ByCurriculumDomain(@PathVariable Long curriculumId,
+                                                   @RequestParam String domain) {
+        return dstLevel1Service.analyzeLevel1(curriculumId, domain);
+    }
+
+    /**
+     * Level 1 analysis for a single discipline: DST per tech_family grouped by domain.
+     * Budget = discipline.totalHours.
+     */
+    @GetMapping("/discipline/{disciplineId}/level1")
+    public DstL1DisciplineResponse level1ByDiscipline(@PathVariable Long disciplineId) {
+        return dstLevel1Service.analyzeLevel1ForDiscipline(disciplineId);
     }
 }

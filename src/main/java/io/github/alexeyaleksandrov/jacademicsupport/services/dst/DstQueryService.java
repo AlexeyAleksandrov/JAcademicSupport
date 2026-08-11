@@ -485,10 +485,26 @@ public class DstQueryService {
 
     @Transactional(readOnly = true)
     public BpaResult getVacBpaByFamily(String profCode, String domain, String techFamily) {
-        long total    = vacancyEntityRepository.count();
-        long relevant = domainStatsRepository.countVacanciesByTechFamily(techFamily);
+        if (profCode == null || domain == null || techFamily == null) return BpaResult.empty();
+        long total    = canonicalRepository.countTotalVacanciesForProfessionAndDomain(profCode, domain);
+        long relevant = canonicalRepository.countVacanciesByTechFamilyAndDomainAndProfession(profCode, domain, techFamily);
         if (total == 0 || relevant == 0) return BpaResult.empty();
         return computeBpa(relevant, 1.0, total, LAMBDA_VAC);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getWeightedVacBpaByFamily(List<ProfessionWeight> profs, String domain, String techFamily) {
+        return weightedAverage(profs, p -> getVacBpaByFamily(p.professionCode(), domain, techFamily));
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getWeightedExpBpaByFamily(List<ProfessionWeight> profs, String domain, String techFamily) {
+        return weightedAverage(profs, p -> getExpBpaByFamily(p.professionCode(), domain, techFamily));
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getWeightedFcBpaByFamily(List<ProfessionWeight> profs, String domain, String techFamily) {
+        return weightedAverage(profs, p -> getFcBpaByFamily(p.professionCode(), domain, techFamily));
     }
 
     @Transactional(readOnly = true)

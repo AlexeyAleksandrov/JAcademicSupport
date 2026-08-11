@@ -410,6 +410,102 @@ async function runDstL0Curriculum() {
   }
 }
 
+async function runDstL1Discipline(discId) {
+  if (!discId) return;
+  const d = disciplines.find(x => x.id === discId);
+  document.getElementById('dstDrawerTitle').textContent = `🔽 DST Ур.1 — ${d ? esc(d.name) : 'Дисциплина #' + discId}`;
+  document.getElementById('dstDrawerBody').innerHTML = '<div class="spinner">Вычисляется...</div>';
+  document.getElementById('dstDrawer').classList.add('open');
+  try {
+    const resp = await fetch(`${API}/api/dst/discipline/${discId}/level1`).then(r => r.json());
+    renderL1Discipline(resp);
+  } catch(e) {
+    document.getElementById('dstDrawerBody').innerHTML = `<div class="empty" style="color:var(--red)">Ошибка: ${e.message}</div>`;
+  }
+}
+
+function renderL1Discipline(resp) {
+  if (!resp || resp.error) {
+    document.getElementById('dstDrawerBody').innerHTML = `<div class="empty" style="color:var(--red)">${resp?.error || 'Нет данных'}</div>`;
+    return;
+  }
+  const domainSections = resp.domains || [];
+  if (!domainSections.length) {
+    document.getElementById('dstDrawerBody').innerHTML = '<div class="empty">Нет данных о покрытии для этой дисциплины</div>';
+    return;
+  }
+  const profsHtml = (resp.professions || []).map(p =>
+    `<span style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--purple);">${esc(p.professionCode)} ${Math.round(p.weight*100)}%</span>`
+  ).join(' ');
+
+  const sectionsHtml = domainSections.map(sec => {
+    const families  = sec.families || [];
+    const totalBetP = families.reduce((s, f) => s + (f.betp || 0), 0);
+    const domHours  = sec.domainHours || 0;
+
+    const rows = families.map(f => {
+      const nBetp     = totalBetP > 0 ? f.betp / totalBetP : 0;
+      const recHours  = Math.round(nBetp * domHours);
+      const gapHours  = recHours - (f.supplyHours || 0);
+      const deltaNorm = nBetp - (f.supply || 0);
+      const dnFmt     = (deltaNorm >= 0 ? '+' : '') + (deltaNorm * 100).toFixed(1) + '%';
+      const dnStyle   = deltaNorm > 0.03 ? 'color:var(--yellow,#f59e0b)' : deltaNorm < -0.03 ? 'color:var(--green)' : 'color:var(--muted)';
+      const gapStyle  = gapHours > 4 ? 'color:var(--red)' : gapHours < -4 ? 'color:var(--green)' : 'color:var(--muted)';
+      const isUncov   = (f.supplyHours || 0) === 0 && deltaNorm > 0;
+      const isObs     = f.recommendation === 'reduce' && (f.supplyHours || 0) > 0;
+      const boost     = isUncov || deltaNorm > 0.03;
+      const cls       = isObs ? 'rec-reduce' : boost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
+      const icon      = isObs ? '🗑️' : isUncov ? '➕' : boost ? '🔴' : deltaNorm < -0.03 ? '🟢' : '✅';
+      const lbl       = isObs ? 'Удалить' : isUncov ? 'Ввести' : boost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
+      const betpPct   = Math.round((f.betp || 0) * 100);
+      const supPct    = Math.round((f.supply || 0) * 100);
+      return `<tr style="border-top:1px solid var(--border);font-size:11px;">
+        <td style="padding:4px 6px;font-weight:500;">${esc(f.techFamily || '—')}</td>
+        <td style="padding:4px 6px;">
+          <div class="dual-bar" style="width:80px;">
+            <div class="bar-betp" style="width:${betpPct}%" title="BetP=${betpPct}%"></div>
+            <div class="bar-supply" style="width:${supPct}%" title="supply=${supPct}%"></div>
+          </div>
+          <span style="font-size:9px;color:var(--muted)">${betpPct}% / ${supPct}%</span>
+        </td>
+        <td style="padding:4px 6px;${dnStyle}"><b>${dnFmt}</b></td>
+        <td style="padding:4px 6px;white-space:nowrap;">${f.supplyHours || 0} ч.</td>
+        <td style="padding:4px 6px;white-space:nowrap;"><b>${recHours}</b> ч. <span style="${gapStyle};font-size:9px;">${gapHours >= 0 ? '+' : ''}${gapHours}</span></td>
+        <td style="padding:4px 6px;"><span class="${cls}" style="padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;">${icon} ${lbl}</span></td>
+      </tr>`;
+    }).join('');
+
+    return `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:4px;padding:4px 6px;background:var(--bg2);border-radius:4px;display:flex;justify-content:space-between;">
+          <span>🗂 ${esc(sec.domain)}</span>
+          <span style="font-size:10px;font-weight:400;color:var(--muted);">Бюджет домена: <b>${domHours} ч.</b> &nbsp;|&nbsp; N = ${sec.nFamilies}</span>
+        </div>
+        <table class="trace-table" style="font-size:11px;">
+          <thead><tr style="font-size:10px;color:var(--muted);">
+            <th style="text-align:left;">Семейство</th>
+            <th>BetP / supply</th>
+            <th title="Δ_norm = nBetP − supply внутри домена">Δ_norm</th>
+            <th>В дисц.</th>
+            <th title="nBetP × ${domHours} ч.">Цел. ч.</th>
+            <th>Решение</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr style="font-size:9px;color:var(--muted);">
+            <td colspan="4" style="text-align:right;padding-top:3px;">Σ целевых часов:</td>
+            <td style="padding-top:3px;"><b>${domHours} ч.</b> ✓</td><td></td>
+          </tr></tfoot>
+        </table>
+      </div>`;
+  }).join('');
+
+  document.getElementById('dstDrawerBody').innerHTML = `
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">
+      Профессии: ${profsHtml} &nbsp;|&nbsp; Всего часов дисциплины: <b>${resp.totalHours}</b> ч.
+    </div>
+    ${sectionsHtml}`;
+}
+
 function openCurriculumModal(id) {
   editingCurriculumId = id;
   const c = id ? curricula.find(x=>x.id===id) : null;
@@ -538,6 +634,7 @@ function renderCoveragePanel(d) {
       <input class="num-inp" id="edit_sem" type="number" placeholder="сем." value="${d.semester||''}"/>
       <button class="btn btn-primary save-btn btn-sm" onclick="saveDiscInline(${d.id})">Сохранить</button>
       <button class="btn btn-sm" style="background:var(--purple);color:#fff;margin-left:8px;" onclick="runDstL0Curriculum()">🔬 DST Анализ УП</button>
+      <button class="btn btn-sm" style="background:var(--accent,#06b6d4);color:#fff;margin-left:4px;" onclick="runDstL1Discipline(${d.id})">🔽 DST Ур.1</button>
     </div>`;
 
   const coverage = d.coverage || [];
@@ -853,6 +950,23 @@ function toggleL0Trace(id) {
     if (discDiv && discDiv.dataset.loaded !== 'true') {
       loadDisciplineBreakdown(discDiv, el.dataset.curriculum, el.dataset.domain);
     }
+    const l1Btn = el.querySelector('[data-l1-btn]');
+    const l1Div = el.querySelector('[data-l1-placeholder]');
+    if (l1Btn && l1Div && !l1Btn.dataset.wired) {
+      l1Btn.dataset.wired = 'true';
+      l1Btn.addEventListener('click', () => {
+        if (l1Div.style.display === 'none') {
+          l1Div.style.display = 'block';
+          l1Btn.textContent = 'Скрыть семейства';
+          if (l1Div.dataset.loaded !== 'true') {
+            loadLevel1Families(l1Div, el.dataset.curriculum, el.dataset.domain);
+          }
+        } else {
+          l1Div.style.display = 'none';
+          l1Btn.textContent = 'Показать семейства';
+        }
+      });
+    }
   }
 }
 
@@ -1051,7 +1165,89 @@ function buildInlineTrace(d, alloc) {
       <div data-disc-placeholder style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 4px;min-height:22px;">
         <span style="color:var(--muted);font-size:10px;">⏳ Загрузка...</span>
       </div>
+    </div>
+    <div style="margin-top:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;">🔽 Уровень 1 — Технологические семейства домена</div>
+        <button data-l1-btn style="font-size:10px;padding:2px 8px;border:1px solid var(--accent);border-radius:4px;background:transparent;color:var(--accent);cursor:pointer;">Показать семейства</button>
+      </div>
+      <div data-l1-placeholder style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 4px;min-height:22px;"></div>
     </div>`;
+}
+
+function loadLevel1Families(div, curriculumId, domain) {
+  div.dataset.loaded = 'true';
+  div.innerHTML = '<span style="color:var(--muted);font-size:10px;">⏳ Загрузка анализа семейств...</span>';
+  fetch(`/api/dst/curriculum/${encodeURIComponent(curriculumId)}/level1?domain=${encodeURIComponent(domain)}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(resp => {
+      if (!resp || resp.error) {
+        div.innerHTML = `<span style="color:var(--red);font-size:10px;">${resp?.error || 'Нет данных для данного домена'}</span>`;
+        return;
+      }
+      const families = resp.families || [];
+      if (!families.length) {
+        div.innerHTML = '<span style="color:var(--muted);font-size:10px;">Семейства не найдены для данного домена</span>';
+        return;
+      }
+      const totalBetP = families.reduce((s, f) => s + (f.betp || 0), 0);
+      const totalDomainHours = resp.totalDomainHours || 0;
+
+      const rows = families.map(f => {
+        const nBetp      = totalBetP > 0 ? f.betp / totalBetP : 0;
+        const recHours   = Math.round(nBetp * totalDomainHours);
+        const gapHours   = recHours - (f.supplyHours || 0);
+        const deltaNorm  = nBetp - (f.supply || 0);
+        const dnFmt      = (deltaNorm >= 0 ? '+' : '') + (deltaNorm * 100).toFixed(1) + '%';
+        const dnStyle    = deltaNorm > 0.03 ? 'color:var(--yellow,#f59e0b)' : deltaNorm < -0.03 ? 'color:var(--green)' : 'color:var(--muted)';
+        const gapStyle   = gapHours > 4 ? 'color:var(--red)' : gapHours < -4 ? 'color:var(--green)' : 'color:var(--muted)';
+        const isUncov    = (f.supplyHours || 0) === 0 && deltaNorm > 0;
+        const isObsolete = f.recommendation === 'reduce' && (f.supplyHours || 0) > 0;
+        const needsBoost = isUncov || deltaNorm > 0.03;
+        const badgeCls   = isObsolete ? 'rec-reduce' : isUncov ? 'rec-moderate' : needsBoost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
+        const badgeIcon  = isObsolete ? '🗑️' : isUncov ? '➕' : needsBoost ? '🔴' : deltaNorm < -0.03 ? '🟢' : '✅';
+        const badgeLbl   = isObsolete ? 'Удалить' : isUncov ? 'Ввести' : needsBoost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
+        const betpPct    = Math.round((f.betp || 0) * 100);
+        const supplyPct  = Math.round((f.supply || 0) * 100);
+        return `<tr style="border-top:1px solid var(--border);font-size:11px;">
+          <td style="padding:4px 6px;font-weight:500;">${esc(f.techFamily || '—')}</td>
+          <td style="padding:4px 6px;">
+            <div class="dual-bar" style="width:80px;">
+              <div class="bar-betp" style="width:${betpPct}%" title="BetP=${betpPct}%"></div>
+              <div class="bar-supply" style="width:${supplyPct}%" title="supply=${supplyPct}%"></div>
+            </div>
+            <span style="font-size:9px;color:var(--muted)">${betpPct}% / ${supplyPct}%</span>
+          </td>
+          <td style="padding:4px 6px;${dnStyle}"><b>${dnFmt}</b></td>
+          <td style="padding:4px 6px;white-space:nowrap;">${f.supplyHours || 0} ч.</td>
+          <td style="padding:4px 6px;white-space:nowrap;"><b>${recHours}</b> ч. <span style="${gapStyle};font-size:9px;">${gapHours >= 0 ? '+' : ''}${gapHours}</span></td>
+          <td style="padding:4px 6px;"><span class="${badgeCls}" style="padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;">${badgeIcon} ${badgeLbl}</span></td>
+        </tr>`;
+      }).join('');
+
+      const nFamilies = resp.nFamilies || families.length;
+      div.innerHTML = `
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">
+          Бюджет домена: <b>${totalDomainHours} ч.</b> &nbsp;|&nbsp; Семейств на рынке: <b>${nFamilies}</b> &nbsp;|&nbsp; N(BetP) = ${nFamilies}
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="font-size:10px;color:var(--muted);">
+            <th style="text-align:left;padding:3px 6px;border-bottom:1px solid var(--border);">Семейство</th>
+            <th style="padding:3px 6px;border-bottom:1px solid var(--border);">BetP / supply</th>
+            <th style="padding:3px 6px;border-bottom:1px solid var(--border);" title="Δ_norm = nBetP − supply (внутри домена)">Δ_norm</th>
+            <th style="padding:3px 6px;border-bottom:1px solid var(--border);">В УП</th>
+            <th style="padding:3px 6px;border-bottom:1px solid var(--border);" title="Целевые часы: nBetP × ${totalDomainHours} ч. домена">Цел. ч.</th>
+            <th style="padding:3px 6px;border-bottom:1px solid var(--border);">Решение</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr style="font-size:9px;color:var(--muted);">
+            <td colspan="4" style="text-align:right;padding-top:3px;">Σ целевых часов:</td>
+            <td style="padding-top:3px;"><b>${totalDomainHours} ч.</b> ✓</td>
+            <td></td>
+          </tr></tfoot>
+        </table>`;
+    })
+    .catch(() => { div.innerHTML = '<span style="color:var(--red);font-size:10px;">Ошибка загрузки уровня 1</span>'; });
 }
 
 function renderDstTrace(t) {

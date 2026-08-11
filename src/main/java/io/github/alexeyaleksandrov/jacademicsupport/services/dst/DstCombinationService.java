@@ -97,10 +97,43 @@ public class DstCombinationService {
             if (r.isEnabled() && r.getMT() > 0) enabled.add(r);
         }
 
-        return finishCombination(all, enabled, supply);
+        return finishCombination(all, enabled, supply, N_CLUSTERS);
+    }
+
+    public DstTraceResponse computeWeightedFamily(DstContext ctx,
+                                                   List<ProfessionWeight> profs,
+                                                   double supply,
+                                                   DstQueryService queryService,
+                                                   int nFamilies) {
+        String domain     = ctx.getDomain();
+        String techFamily = ctx.getTechFamily();
+        DstQueryService.BpaResult vacRaw = queryService.getWeightedVacBpaByFamily(profs, domain, techFamily);
+        DstQueryService.BpaResult expRaw = queryService.getWeightedExpBpaByFamily(profs, domain, techFamily);
+        DstQueryService.BpaResult fcRaw  = queryService.getWeightedFcBpaByFamily(profs, domain, techFamily);
+
+        List<BpaResult> all = new ArrayList<>();
+        List<BpaResult> enabled = new ArrayList<>();
+
+        for (BpaSourceProvider src : sources) {
+            DstQueryService.BpaResult raw = switch (src.getName()) {
+                case "VAC" -> vacRaw;
+                case "EXP" -> expRaw;
+                case "FC"  -> fcRaw;
+                default    -> DstQueryService.BpaResult.empty();
+            };
+            BpaResult r = raw.relevantCount() > 0 ? src.buildFromRaw(raw) : BpaResult.disabled(src.getName());
+            all.add(r);
+            if (r.isEnabled() && r.getMT() > 0) enabled.add(r);
+        }
+
+        return finishCombination(all, enabled, supply, nFamilies);
     }
 
     private DstTraceResponse finishCombination(List<BpaResult> all, List<BpaResult> enabled, double supply) {
+        return finishCombination(all, enabled, supply, N_CLUSTERS);
+    }
+
+    private DstTraceResponse finishCombination(List<BpaResult> all, List<BpaResult> enabled, double supply, int n) {
         if (enabled.isEmpty()) {
             DstTraceResponse resp = new DstTraceResponse();
             resp.setSources(all);
@@ -131,7 +164,7 @@ public class DstCombinationService {
         }
 
         double mT = current[0], mU = current[1], mF = current[2];
-        double betp = mT + mU / N_CLUSTERS;
+        double betp = mT + mU / Math.max(1, n);
         double delta = betp - supply;
 
         DstTraceResponse resp = new DstTraceResponse();
@@ -140,7 +173,7 @@ public class DstCombinationService {
         resp.setMT(mT); resp.setMU(mU); resp.setMF(mF);
         resp.setK(maxK);
         resp.setBetp(betp); resp.setDelta(delta); resp.setSupply(supply);
-        resp.setNClusters(N_CLUSTERS); resp.setUsedYager(usedYager);
+        resp.setNClusters(n); resp.setUsedYager(usedYager);
         resp.setRecommendation(decide(mT, mU, mF, maxK, delta));
         return resp;
     }
