@@ -443,7 +443,8 @@ function renderL1Discipline(resp) {
     const totalBetP = families.reduce((s, f) => s + (f.betp || 0), 0);
     const domHours  = sec.domainHours || 0;
 
-    const rows = families.map(f => {
+    const nFamiliesL1 = sec.nFamilies || families.length;
+    const rows = families.map((f, i) => {
       const nBetp     = totalBetP > 0 ? f.betp / totalBetP : 0;
       const recHours  = Math.round(nBetp * domHours);
       const gapHours  = recHours - (f.supplyHours || 0);
@@ -459,7 +460,8 @@ function renderL1Discipline(resp) {
       const lbl       = isObs ? 'Удалить' : isUncov ? 'Ввести' : boost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
       const betpPct   = Math.round((f.betp || 0) * 100);
       const supPct    = Math.round((f.supply || 0) * 100);
-      return `<tr style="border-top:1px solid var(--border);font-size:11px;">
+      const traceId   = `l1disc_${Date.now()}_${i}`;
+      return `<tr style="border-top:1px solid var(--border);font-size:11px;cursor:pointer;" onclick="toggleL1Trace('${traceId}')">
         <td style="padding:4px 6px;font-weight:500;">${esc(f.techFamily || '—')}</td>
         <td style="padding:4px 6px;">
           <div class="dual-bar" style="width:80px;">
@@ -472,6 +474,14 @@ function renderL1Discipline(resp) {
         <td style="padding:4px 6px;white-space:nowrap;">${f.supplyHours || 0} ч.</td>
         <td style="padding:4px 6px;white-space:nowrap;"><b>${recHours}</b> ч. <span style="${gapStyle};font-size:9px;">${gapHours >= 0 ? '+' : ''}${gapHours}</span></td>
         <td style="padding:4px 6px;"><span class="${cls}" style="padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;">${icon} ${lbl}</span></td>
+        <td style="padding:4px 6px;font-size:11px;color:var(--muted);">▶</td>
+      </tr>
+      <tr id="${traceId}" style="display:none;">
+        <td colspan="7" style="padding:0;">
+          <div style="padding:8px 6px;background:var(--bg);border-radius:4px;margin:2px 0;">
+            ${buildL1FamilyTrace(f, nFamiliesL1, domHours, totalBetP)}
+          </div>
+        </td>
       </tr>`;
     }).join('');
 
@@ -479,7 +489,7 @@ function renderL1Discipline(resp) {
       <div style="margin-bottom:14px;">
         <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:4px;padding:4px 6px;background:var(--bg2);border-radius:4px;display:flex;justify-content:space-between;">
           <span>🗂 ${esc(sec.domain)}</span>
-          <span style="font-size:10px;font-weight:400;color:var(--muted);">Бюджет домена: <b>${domHours} ч.</b> &nbsp;|&nbsp; N = ${sec.nFamilies}</span>
+          <span style="font-size:10px;font-weight:400;color:var(--muted);">Бюджет домена: <b>${domHours} ч.</b> &nbsp;|&nbsp; N = ${nFamiliesL1}</span>
         </div>
         <table class="trace-table" style="font-size:11px;">
           <thead><tr style="font-size:10px;color:var(--muted);">
@@ -489,11 +499,12 @@ function renderL1Discipline(resp) {
             <th>В дисц.</th>
             <th title="nBetP × ${domHours} ч.">Цел. ч.</th>
             <th>Решение</th>
+            <th></th>
           </tr></thead>
           <tbody>${rows}</tbody>
           <tfoot><tr style="font-size:9px;color:var(--muted);">
             <td colspan="4" style="text-align:right;padding-top:3px;">Σ целевых часов:</td>
-            <td style="padding-top:3px;"><b>${domHours} ч.</b> ✓</td><td></td>
+            <td style="padding-top:3px;"><b>${domHours} ч.</b> ✓</td><td colspan="2"></td>
           </tr></tfoot>
         </table>
       </div>`;
@@ -1193,7 +1204,8 @@ function loadLevel1Families(div, curriculumId, domain) {
       const totalBetP = families.reduce((s, f) => s + (f.betp || 0), 0);
       const totalDomainHours = resp.totalDomainHours || 0;
 
-      const rows = families.map(f => {
+      const nFamilies = resp.nFamilies || families.length;
+      const rows = families.map((f, i) => {
         const nBetp      = totalBetP > 0 ? f.betp / totalBetP : 0;
         const recHours   = Math.round(nBetp * totalDomainHours);
         const gapHours   = recHours - (f.supplyHours || 0);
@@ -1209,7 +1221,8 @@ function loadLevel1Families(div, curriculumId, domain) {
         const badgeLbl   = isObsolete ? 'Удалить' : isUncov ? 'Ввести' : needsBoost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
         const betpPct    = Math.round((f.betp || 0) * 100);
         const supplyPct  = Math.round((f.supply || 0) * 100);
-        return `<tr style="border-top:1px solid var(--border);font-size:11px;">
+        const traceId    = `l1fam_${Date.now()}_${i}`;
+        return `<tr style="border-top:1px solid var(--border);font-size:11px;cursor:pointer;" onclick="toggleL1Trace('${traceId}')">
           <td style="padding:4px 6px;font-weight:500;">${esc(f.techFamily || '—')}</td>
           <td style="padding:4px 6px;">
             <div class="dual-bar" style="width:80px;">
@@ -1222,13 +1235,21 @@ function loadLevel1Families(div, curriculumId, domain) {
           <td style="padding:4px 6px;white-space:nowrap;">${f.supplyHours || 0} ч.</td>
           <td style="padding:4px 6px;white-space:nowrap;"><b>${recHours}</b> ч. <span style="${gapStyle};font-size:9px;">${gapHours >= 0 ? '+' : ''}${gapHours}</span></td>
           <td style="padding:4px 6px;"><span class="${badgeCls}" style="padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;">${badgeIcon} ${badgeLbl}</span></td>
+          <td style="padding:4px 6px;font-size:11px;color:var(--muted);">▶</td>
+        </tr>
+        <tr id="${traceId}" style="display:none;">
+          <td colspan="7" style="padding:0;">
+            <div style="padding:8px 6px;background:var(--bg2);border-radius:4px;margin:2px 0;">
+              ${buildL1FamilyTrace(f, nFamilies, totalDomainHours, totalBetP)}
+            </div>
+          </td>
         </tr>`;
       }).join('');
 
-      const nFamilies = resp.nFamilies || families.length;
       div.innerHTML = `
         <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">
           Бюджет домена: <b>${totalDomainHours} ч.</b> &nbsp;|&nbsp; Семейств на рынке: <b>${nFamilies}</b> &nbsp;|&nbsp; N(BetP) = ${nFamilies}
+          <span style="margin-left:8px;opacity:.6;">← кликните строку для пошагового трейса</span>
         </div>
         <table style="width:100%;border-collapse:collapse;">
           <thead><tr style="font-size:10px;color:var(--muted);">
@@ -1238,16 +1259,165 @@ function loadLevel1Families(div, curriculumId, domain) {
             <th style="padding:3px 6px;border-bottom:1px solid var(--border);">В УП</th>
             <th style="padding:3px 6px;border-bottom:1px solid var(--border);" title="Целевые часы: nBetP × ${totalDomainHours} ч. домена">Цел. ч.</th>
             <th style="padding:3px 6px;border-bottom:1px solid var(--border);">Решение</th>
+            <th style="padding:3px 6px;border-bottom:1px solid var(--border);"></th>
           </tr></thead>
           <tbody>${rows}</tbody>
           <tfoot><tr style="font-size:9px;color:var(--muted);">
             <td colspan="4" style="text-align:right;padding-top:3px;">Σ целевых часов:</td>
             <td style="padding-top:3px;"><b>${totalDomainHours} ч.</b> ✓</td>
-            <td></td>
+            <td colspan="2"></td>
           </tr></tfoot>
         </table>`;
     })
     .catch(() => { div.innerHTML = '<span style="color:var(--red);font-size:10px;">Ошибка загрузки уровня 1</span>'; });
+}
+
+function toggleL1Trace(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+}
+
+function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP) {
+  const nBetp     = totalBetP > 0 ? f.betp / totalBetP : 0;
+  const recHours  = Math.round(nBetp * domHours);
+  const gapHours  = recHours - (f.supplyHours || 0);
+  const deltaNorm = nBetp - (f.supply || 0);
+  const gapStyle  = gapHours > 4 ? 'color:var(--red)' : gapHours < -4 ? 'color:var(--green)' : 'color:var(--muted)';
+  const aDn       = deltaNorm;
+  const aUncov    = (f.supplyHours || 0) === 0 && aDn > 0;
+  const aObsolete = f.recommendation === 'reduce' && (f.supplyHours || 0) > 0;
+  const aBoost    = aUncov || aDn > 0.03;
+  const aClass    = aObsolete ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
+  const aIcon     = aObsolete ? '🗑️' : aUncov ? '➕' : aBoost ? '🔴' : aDn < -0.03 ? '🟢' : '✅';
+  const aLabel    = aObsolete ? 'Удалить из программы' : aUncov ? 'Ввести в программу' : aBoost ? 'Усилить' : aDn < -0.03 ? 'Сократить' : 'Сохранить';
+  const aDesc     = aObsolete
+    ? `Рынок труда демонстрирует <b>устаревание</b> данного семейства (DST-сигнал: m(F) высокое). Рассмотрите исключение: сейчас ${f.supplyHours} ч., цель — <b>${recHours} ч.</b> (разрыв ${gapHours} ч.).`
+    : aUncov
+    ? `Семейство <b>отсутствует в учебном плане</b> (0 ч.), однако рынок формирует спрос (nBetP = ${(nBetp*100).toFixed(1)}%). Целевой объём — <b>${recHours} ч.</b>`
+    : aDn > 0.03
+    ? `Семейство получает меньше часов, чем его вес на рынке (nBetP = ${(nBetp*100).toFixed(1)}%). Цель — <b>${recHours} ч.</b> (сейчас ${f.supplyHours || 0} ч., разрыв ${gapHours > 0 ? '+' : ''}${gapHours} ч.).`
+    : aDn < -0.03
+    ? `Семейство занимает непропорционально большую долю (supply = ${Math.round((f.supply||0)*100)}% при nBetP = ${(nBetp*100).toFixed(1)}%). Цель — <b>${recHours} ч.</b> (сейчас ${f.supplyHours || 0} ч., разрыв ${gapHours} ч.).`
+    : `Распределение часов соответствует рыночному приоритету семейства (nBetP ≈ supply ≈ ${(nBetp*100).toFixed(1)}%). Целевой объём: <b>${recHours} ч.</b>`;
+
+  const sources = f.sources || [];
+  const combos  = f.combinations || [];
+  const srcColor = {VAC:'var(--purple)', EXP:'var(--yellow)', FC:'var(--accent)'};
+
+  const step1 = sources.map(s => {
+    const col = srcColor[s.sourceName] || 'var(--muted)';
+    if (!s.enabled) return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="5" style="color:var(--muted)">⊘ нет данных</td></tr>`;
+    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
+        <td>total=${s.totalCount}</td><td>relevant=${s.relevantCount}</td>
+        <td>avgScore=${fmt(s.averageScore)}</td><td>λ=${fmt(s.lambda)}</td><td>w=${fmt(s.weight)}</td></tr>`;
+  }).join('');
+
+  const step2 = sources.map(s => {
+    const col = srcColor[s.sourceName] || 'var(--muted)';
+    if (!s.enabled) return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="4" style="color:var(--muted)">⊘</td></tr>`;
+    const kappaFormula = `1−e^(−${fmt(s.lambda)}×${s.relevantCount}/${s.totalCount})`;
+    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
+        <td>κ = ${kappaFormula} = <b>${fmt(s.kappa)}</b></td>
+        <td>m(T) = κ·score = <b>${fmt(s.mT)}</b></td>
+        <td>m(Θ) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
+        <td>m(∅) = <b>${fmt(s.mF)}</b></td></tr>`;
+  }).join('');
+
+  const step3 = sources.filter(s=>s.enabled).map(s => {
+    const col = srcColor[s.sourceName] || 'var(--muted)';
+    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b> w=${fmt(s.weight)}</td>
+        <td>m'(T) = ${fmt(s.mT)}·${fmt(s.weight)} = <b>${fmt(s.mTDiscounted)}</b></td>
+        <td>m'(Θ) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b></td>
+        <td>m'(∅) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
+  }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
+
+  const enabledCount = sources.filter(s=>s.enabled).length;
+  let step4;
+  if (enabledCount <= 1) {
+    const only = sources.find(s=>s.enabled);
+    step4 = only
+      ? `<tr><td colspan="4">Один источник — комбинирование не нужно. m*(T)=<b>${fmt(only.mTDiscounted)}</b> m*(Θ)=<b>${fmt(only.mUDiscounted)}</b></td></tr>`
+      : `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
+  } else {
+    step4 = combos.map(c => {
+      const ruleColor = c.rule === 'Yager' ? 'var(--yellow)' : 'var(--green)';
+      return `<tr><td>${esc(c.label)}</td>
+          <td>K=${fmt(c.K)} → <b style="color:${ruleColor}">${c.rule||'Dempster'}</b></td>
+          <td>m*(T)=<b>${fmt(c.output?.mT)}</b></td>
+          <td>m*(Θ)=<b>${fmt(c.output?.mU)}</b> m*(∅)=<b>${fmt(c.output?.mF)}</b></td></tr>`;
+    }).join('') || `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
+  }
+
+  const betpFormula = `m*(T) + m*(Θ)/${nFamilies} = ${fmt(f.mT)} + ${fmt(f.mU)}/${nFamilies}`;
+  const deltaColor  = f.delta > 0.15 ? 'var(--red)' : f.delta < -0.15 ? 'var(--green)' : 'var(--muted)';
+  const dnColor     = deltaNorm > 0.03 ? 'var(--yellow)' : deltaNorm < -0.03 ? 'var(--green)' : 'var(--muted)';
+
+  const tStyle  = 'border-collapse:collapse;width:100%;font-size:11px;margin-bottom:6px;';
+  const hStyle  = 'background:var(--bg2);color:var(--muted);padding:3px 6px;font-weight:600;font-size:10px;text-align:left;';
+  const tdStyle = 'padding:2px 6px;border-bottom:1px solid var(--border);vertical-align:middle;';
+
+  const gaugePos   = Math.min(98, Math.max(2, Math.round((f.delta + 1) / 2 * 100)));
+  const gaugeColor = f.delta > 0.35 ? '#ef4444' : f.delta > 0.15 ? '#f59e0b' : f.delta < -0.15 ? '#22c55e' : '#6b7280';
+
+  const recLabelRu = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',expertise:'🔵 Экспертиза'})[f.recommendation] || f.recommendation || '—';
+  const rcCls = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',expertise:'rec-expertise'})[f.recommendation] || 'rec-preserve';
+
+  return `
+    <style>.itf td{${tdStyle}}</style>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
+      Семейство: <b style="color:var(--text)">${esc(f.techFamily || '—')}</b> &nbsp;|&nbsp; N семейств в домене: <b>${nFamilies}</b>
+    </div>
+    <table class="itf" style="${tStyle}">
+      <thead><tr><th colspan="6" style="${hStyle}">Шаг 1 — Входные данные источников</th></tr></thead>
+      <tbody>${step1}</tbody>
+    </table>
+    <table class="itf" style="${tStyle}">
+      <thead><tr><th colspan="5" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
+      <tbody>${step2}</tbody>
+    </table>
+    <table class="itf" style="${tStyle}">
+      <thead><tr><th colspan="4" style="${hStyle}">Шаг 3 — Дисконтирование: m'(T)=m(T)·w, m'(Θ)=m(Θ)·w+(1−w)</th></tr></thead>
+      <tbody>${step3}</tbody>
+    </table>
+    <table class="itf" style="${tStyle}">
+      <thead><tr><th colspan="4" style="${hStyle}">Шаг 4 — Комбинирование (Демпстер K&lt;0.4 / Ягер K≥0.4)</th></tr></thead>
+      <tbody>${step4}</tbody>
+    </table>
+    <table class="itf" style="${tStyle}">
+      <thead><tr><th colspan="2" style="${hStyle}">Шаг 5 — Итог: BetP = ${betpFormula}</th></tr></thead>
+      <tbody>
+        <tr><td>BetP = <b style="color:var(--purple)">${fmt(f.betp)}</b> (${Math.round(f.betp*100)}%)</td>
+            <td>supply = <b>${fmt(f.supply)}</b> (${Math.round(f.supply*100)}%, ${f.supplyHours} ч.)</td></tr>
+        <tr><td style="color:var(--muted);font-size:10px;">Δ_abs = BetP − supply = <span style="color:${deltaColor}">${(f.delta>=0?'+':'')+fmt(f.delta)}</span> <span style="opacity:.6;">(для справки)</span></td>
+            <td>K конфликт = <b>${fmt(f.K)}</b> &nbsp; Ягер: ${f.usedYager?'да':'нет'}</td></tr>
+      </tbody>
+    </table>
+    <table class="itf" style="${tStyle}">
+      <thead><tr><th colspan="2" style="${hStyle}">Шаг 5b — Нормализация BetP: nBetP = BetP / Σ(BetP)</th></tr></thead>
+      <tbody>
+        <tr><td>nBetP = ${fmt(f.betp)} / Σ = <b style="color:var(--purple)">${(nBetp*100).toFixed(2)}%</b></td>
+            <td>Целевые часы = nBetP × ${domHours} = <b>${recHours} ч.</b> <span style="${gapStyle};font-size:10px;">(${gapHours>=0?'+':''}${gapHours})</span></td></tr>
+        <tr><td>Δ_norm = nBetP − supply = <b style="color:${dnColor}">${(deltaNorm>=0?'+':'')+(deltaNorm*100).toFixed(2)}%</b></td>
+            <td style="color:var(--muted);font-size:10px;">supply = ${Math.round((f.supply||0)*100)}% &nbsp; nBetP − supply = Δ_norm</td></tr>
+      </tbody>
+    </table>
+    <div class="${aClass}" style="border-radius:6px;padding:10px 12px;margin-top:10px;border:1px solid;">
+      <div style="font-size:9px;opacity:0.7;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px;">Аллокационная рекомендация (Δ_norm = nBetP − supply)</div>
+      <div style="font-weight:700;font-size:13px;margin-bottom:5px;">${aIcon} ${aLabel}</div>
+      <div style="font-size:11px;line-height:1.55;opacity:0.9;margin-bottom:10px;">${aDesc}</div>
+      <div style="font-size:10px;opacity:0.75;margin-top:4px;">Δ_norm = <b>${(deltaNorm>=0?'+':'')+(deltaNorm*100).toFixed(2)}%</b> &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${Math.round((f.supply||0)*100)}%</b></div>
+    </div>
+    <details style="margin-top:8px;">
+      <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">📊 Рыночный DST-сигнал (справочно, Δ_abs = ${(f.delta>=0?'+':'')+fmt(f.delta)}): ${recLabelRu}</summary>
+      <div class="${rcCls}" style="border-radius:6px;padding:8px 12px;margin-top:6px;border:1px solid;opacity:.8;">
+        <div style="margin:6px 0 4px;">
+          <div style="position:relative;height:5px;border-radius:3px;background:linear-gradient(to right,#ef4444,#f59e0b 50%,#22c55e);"><div style="position:absolute;left:${gaugePos}%;top:50%;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid ${gaugeColor};transform:translate(-50%,-50%);"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:8px;opacity:0.55;margin-top:2px;"><span>Δ = −1.0</span><span>Δ = 0</span><span>Δ = +1.0</span></div>
+        </div>
+        <div style="font-size:10px;opacity:0.75;">Δ_abs = <b>${(f.delta>=0?'+':'')+fmt(f.delta)}</b> &nbsp;|&nbsp; BetP = <b>${fmt(f.betp)}</b> &nbsp;|&nbsp; K = <b>${fmt(f.K)}</b></div>
+      </div>
+    </details>`;
 }
 
 function renderDstTrace(t) {
