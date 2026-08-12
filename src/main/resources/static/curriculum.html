@@ -453,7 +453,7 @@ function renderL1Discipline(resp) {
       const dnStyle   = deltaNorm > 0.03 ? 'color:var(--yellow,#f59e0b)' : deltaNorm < -0.03 ? 'color:var(--green)' : 'color:var(--muted)';
       const gapStyle  = gapHours > 4 ? 'color:var(--red)' : gapHours < -4 ? 'color:var(--green)' : 'color:var(--muted)';
       const isUncov   = (f.supplyHours || 0) === 0 && deltaNorm > 0;
-      const isObs     = f.recommendation === 'reduce' && (f.supplyHours || 0) > 0;
+      const isObs     = f.recommendation === 'obsolete' && (f.supplyHours || 0) > 0;
       const boost     = isUncov || deltaNorm > 0.03;
       const cls       = isObs ? 'rec-reduce' : boost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
       const icon      = isObs ? '🗑️' : isUncov ? '➕' : boost ? '🔴' : deltaNorm < -0.03 ? '🟢' : '✅';
@@ -898,7 +898,7 @@ function renderL0(r) {
     const dnFmt      = (deltaNorm>=0?'+':'')+(deltaNorm*100).toFixed(1)+'%';
     const dnStyle    = deltaNorm > 0.03 ? 'color:var(--yellow,#f59e0b)' : deltaNorm < -0.03 ? 'color:var(--green)' : 'color:var(--muted)';
     const isUncov    = (d.supplyHours||0) === 0 && deltaNorm > 0;
-    const isObsolete = d.recommendation === 'reduce' && (d.supplyHours||0) > 0;
+    const isObsolete = d.recommendation === 'obsolete' && (d.supplyHours||0) > 0;
     const needsBoost = isUncov || deltaNorm > 0.03;
     const traceId    = `l0trace_${i}`;
     const traceFn    = `toggleL0Trace('${traceId}')`;
@@ -1016,7 +1016,7 @@ function buildInlineTrace(d, alloc) {
   const gapStyle   = alloc ? alloc.gapStyle   : '';
   const aDn        = deltaNorm;
   const aUncov     = (d.supplyHours||0) === 0 && aDn > 0;
-  const aObsolete  = d.recommendation === 'reduce' && (d.supplyHours||0) > 0;
+  const aObsolete  = d.recommendation === 'obsolete' && (d.supplyHours||0) > 0;
   const aBoost     = aUncov || aDn > 0.03;
   const aClass     = aObsolete ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
   const aIcon      = aObsolete ? '🗑️' : aUncov ? '➕' : aBoost ? '🔴' : aDn < -0.03 ? '🟢' : '✅';
@@ -1051,7 +1051,7 @@ function buildInlineTrace(d, alloc) {
           <td>w=${fmt(s.weight)}</td></tr>`;
   }).join('');
 
-  // ─── Шаг 2: BPA (κ, m(T), m(Θ)) ─────────────────────────────────────────
+  // ─── Шаг 2: BPA (κ, m(T), m(U), m(F)) ────────────────────────────────────
   const step2 = sources.map(s => {
     const col = srcColor[s.sourceName] || 'var(--muted)';
     if (!s.enabled) return `
@@ -1062,8 +1062,8 @@ function buildInlineTrace(d, alloc) {
       <tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
           <td>κ = ${kappaFormula} = <b>${fmt(s.kappa)}</b></td>
           <td>m(T) = κ·score = <b>${fmt(s.mT)}</b></td>
-          <td>m(Θ) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
-          <td>m(∅) = <b>${fmt(s.mF)}</b></td></tr>`;
+          <td>m(U) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
+          <td>m(F) = <b>${fmt(s.mF)}</b></td></tr>`;
   }).join('');
 
   // ─── Шаг 3: Дисконтирование ───────────────────────────────────────────────
@@ -1072,8 +1072,8 @@ function buildInlineTrace(d, alloc) {
     return `
       <tr><td><b style="color:${col}">${esc(s.sourceName)}</b> w=${fmt(s.weight)}</td>
           <td>m'(T) = ${fmt(s.mT)}·${fmt(s.weight)} = <b>${fmt(s.mTDiscounted)}</b></td>
-          <td>m'(Θ) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b></td>
-          <td>m'(∅) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
+          <td>m'(U) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b></td>
+          <td>m'(F) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
   }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
 
   // ─── Шаг 4: Комбинирование ───────────────────────────────────────────────
@@ -1082,7 +1082,7 @@ function buildInlineTrace(d, alloc) {
   if (enabledCount <= 1) {
     const only = sources.find(s=>s.enabled);
     step4 = only
-      ? `<tr><td colspan="4">Один источник — комбинирование не нужно. m*(T)=<b>${fmt(only.mTDiscounted)}</b> m*(Θ)=<b>${fmt(only.mUDiscounted)}</b></td></tr>`
+      ? `<tr><td colspan="4">Один источник — комбинирование не нужно. m*(T)=<b>${fmt(only.mTDiscounted)}</b> m*(U)=<b>${fmt(only.mUDiscounted)}</b></td></tr>`
       : `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
   } else {
     step4 = combos.map(c => {
@@ -1091,12 +1091,12 @@ function buildInlineTrace(d, alloc) {
         <td>${esc(c.label)}</td>
         <td>K=${fmt(c.K)} → <b style="color:${ruleColor}">${c.rule||'Dempster'}</b></td>
         <td>m*(T)=<b>${fmt(c.output?.mT)}</b></td>
-        <td>m*(Θ)=<b>${fmt(c.output?.mU)}</b> m*(∅)=<b>${fmt(c.output?.mF)}</b></td></tr>`;
+        <td>m*(U)=<b>${fmt(c.output?.mU)}</b> m*(F)=<b>${fmt(c.output?.mF)}</b></td></tr>`;
     }).join('') || `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
   }
 
   // ─── Шаг 5: Итог BetP ────────────────────────────────────────────────────
-  const betpFormula  = `m*(T) + m*(Θ)/${N_CLUSTERS} = ${fmt(d.mT)} + ${fmt(d.mU)}/${N_CLUSTERS}`;
+  const betpFormula  = `m*(T) + m*(U)/${N_CLUSTERS} = ${fmt(d.mT)} + ${fmt(d.mU)}/${N_CLUSTERS}`;
   const deltaColor   = d.delta > 0.15 ? 'var(--red)' : d.delta < -0.15 ? 'var(--green)' : 'var(--muted)';
   const dnColor      = deltaNorm > 0.03 ? 'var(--yellow)' : deltaNorm < -0.03 ? 'var(--green)' : 'var(--muted)';
   const gaugeNPos    = Math.min(98, Math.max(2, Math.round((deltaNorm + (1/15)) / (2/15) * 100)));
@@ -1108,8 +1108,8 @@ function buildInlineTrace(d, alloc) {
   const gaugePos   = Math.min(98, Math.max(2, Math.round((d.delta + 1) / 2 * 100)));
   const gaugeColor = d.delta > 0.35 ? '#ef4444' : d.delta > 0.15 ? '#f59e0b' : d.delta < -0.15 ? '#22c55e' : '#6b7280';
 
-  const recLabelRu = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',expertise:'🔵 Экспертиза'})[d.recommendation]||d.recommendation||'—';
-  const rcCls = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',expertise:'rec-expertise'})[d.recommendation]||'rec-preserve';
+  const recLabelRu = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',obsolete:'⚠️ Устарело (m(F)↑)',expertise:'🔵 Экспертиза'})[d.recommendation]||d.recommendation||'—';
+  const rcCls = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',obsolete:'rec-reduce',expertise:'rec-expertise'})[d.recommendation]||'rec-preserve';
 
   return `
     <style>.it td{${tdStyle}}</style>
@@ -1214,7 +1214,7 @@ function loadLevel1Families(div, curriculumId, domain) {
         const dnStyle    = deltaNorm > 0.03 ? 'color:var(--yellow,#f59e0b)' : deltaNorm < -0.03 ? 'color:var(--green)' : 'color:var(--muted)';
         const gapStyle   = gapHours > 4 ? 'color:var(--red)' : gapHours < -4 ? 'color:var(--green)' : 'color:var(--muted)';
         const isUncov    = (f.supplyHours || 0) === 0 && deltaNorm > 0;
-        const isObsolete = f.recommendation === 'reduce' && (f.supplyHours || 0) > 0;
+        const isObsolete = f.recommendation === 'obsolete' && (f.supplyHours || 0) > 0;
         const needsBoost = isUncov || deltaNorm > 0.03;
         const badgeCls   = isObsolete ? 'rec-reduce' : isUncov ? 'rec-moderate' : needsBoost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
         const badgeIcon  = isObsolete ? '🗑️' : isUncov ? '➕' : needsBoost ? '🔴' : deltaNorm < -0.03 ? '🟢' : '✅';
@@ -1286,7 +1286,7 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
   const gapStyle  = gapHours > 4 ? 'color:var(--red)' : gapHours < -4 ? 'color:var(--green)' : 'color:var(--muted)';
   const aDn       = deltaNorm;
   const aUncov    = (f.supplyHours || 0) === 0 && aDn > 0;
-  const aObsolete = f.recommendation === 'reduce' && (f.supplyHours || 0) > 0;
+  const aObsolete = f.recommendation === 'obsolete' && (f.supplyHours || 0) > 0;
   const aBoost    = aUncov || aDn > 0.03;
   const aClass    = aObsolete ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
   const aIcon     = aObsolete ? '🗑️' : aUncov ? '➕' : aBoost ? '🔴' : aDn < -0.03 ? '🟢' : '✅';
@@ -1320,16 +1320,16 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
     return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
         <td>κ = ${kappaFormula} = <b>${fmt(s.kappa)}</b></td>
         <td>m(T) = κ·score = <b>${fmt(s.mT)}</b></td>
-        <td>m(Θ) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
-        <td>m(∅) = <b>${fmt(s.mF)}</b></td></tr>`;
+        <td>m(U) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
+        <td>m(F) = <b>${fmt(s.mF)}</b></td></tr>`;
   }).join('');
 
   const step3 = sources.filter(s=>s.enabled).map(s => {
     const col = srcColor[s.sourceName] || 'var(--muted)';
     return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b> w=${fmt(s.weight)}</td>
         <td>m'(T) = ${fmt(s.mT)}·${fmt(s.weight)} = <b>${fmt(s.mTDiscounted)}</b></td>
-        <td>m'(Θ) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b></td>
-        <td>m'(∅) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
+        <td>m'(U) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b></td>
+        <td>m'(F) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
   }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
 
   const enabledCount = sources.filter(s=>s.enabled).length;
@@ -1337,7 +1337,7 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
   if (enabledCount <= 1) {
     const only = sources.find(s=>s.enabled);
     step4 = only
-      ? `<tr><td colspan="4">Один источник — комбинирование не нужно. m*(T)=<b>${fmt(only.mTDiscounted)}</b> m*(Θ)=<b>${fmt(only.mUDiscounted)}</b></td></tr>`
+      ? `<tr><td colspan="4">Один источник — комбинирование не нужно. m*(T)=<b>${fmt(only.mTDiscounted)}</b> m*(U)=<b>${fmt(only.mUDiscounted)}</b></td></tr>`
       : `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
   } else {
     step4 = combos.map(c => {
@@ -1345,11 +1345,11 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
       return `<tr><td>${esc(c.label)}</td>
           <td>K=${fmt(c.K)} → <b style="color:${ruleColor}">${c.rule||'Dempster'}</b></td>
           <td>m*(T)=<b>${fmt(c.output?.mT)}</b></td>
-          <td>m*(Θ)=<b>${fmt(c.output?.mU)}</b> m*(∅)=<b>${fmt(c.output?.mF)}</b></td></tr>`;
+          <td>m*(U)=<b>${fmt(c.output?.mU)}</b> m*(F)=<b>${fmt(c.output?.mF)}</b></td></tr>`;
     }).join('') || `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
   }
 
-  const betpFormula = `m*(T) + m*(Θ)/${nFamilies} = ${fmt(f.mT)} + ${fmt(f.mU)}/${nFamilies}`;
+  const betpFormula = `m*(T) + m*(U)/${nFamilies} = ${fmt(f.mT)} + ${fmt(f.mU)}/${nFamilies}`;
   const deltaColor  = f.delta > 0.15 ? 'var(--red)' : f.delta < -0.15 ? 'var(--green)' : 'var(--muted)';
   const dnColor     = deltaNorm > 0.03 ? 'var(--yellow)' : deltaNorm < -0.03 ? 'var(--green)' : 'var(--muted)';
 
@@ -1360,8 +1360,8 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
   const gaugePos   = Math.min(98, Math.max(2, Math.round((f.delta + 1) / 2 * 100)));
   const gaugeColor = f.delta > 0.35 ? '#ef4444' : f.delta > 0.15 ? '#f59e0b' : f.delta < -0.15 ? '#22c55e' : '#6b7280';
 
-  const recLabelRu = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',expertise:'🔵 Экспертиза'})[f.recommendation] || f.recommendation || '—';
-  const rcCls = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',expertise:'rec-expertise'})[f.recommendation] || 'rec-preserve';
+  const recLabelRu = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',obsolete:'⚠️ Устарело (m(F)↑)',expertise:'🔵 Экспертиза'})[f.recommendation]||f.recommendation||'—';
+  const rcCls = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',obsolete:'rec-reduce',expertise:'rec-expertise'})[f.recommendation] || 'rec-preserve';
 
   return `
     <style>.itf td{${tdStyle}}</style>
@@ -1483,7 +1483,7 @@ function renderL2Skills(div, resp, isSection) {
     const dnStyle  = deltaNorm > 0.03 ? 'color:var(--yellow,#f59e0b)' : deltaNorm < -0.03 ? 'color:var(--green)' : 'color:var(--muted)';
     const gapStyle = gapHours > 4 ? 'color:var(--red)' : gapHours < -4 ? 'color:var(--green)' : 'color:var(--muted)';
     const isUncov  = (sk.supplyHours || 0) === 0 && deltaNorm > 0;
-    const isObs    = sk.recommendation === 'reduce' && (sk.supplyHours || 0) > 0;
+    const isObs    = sk.recommendation === 'obsolete' && (sk.supplyHours || 0) > 0;
     const boost    = isUncov || deltaNorm > 0.03;
     const cls      = isObs ? 'rec-reduce' : boost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
     const icon     = isObs ? '🗑️' : isUncov ? '➕' : boost ? '🔴' : deltaNorm < -0.03 ? '🟢' : '✅';
@@ -1545,7 +1545,7 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
   const gapStyle  = gapHours > 4 ? 'color:var(--red)' : gapHours < -4 ? 'color:var(--green)' : 'color:var(--muted)';
   const aDn       = deltaNorm;
   const aUncov    = (sk.supplyHours || 0) === 0 && aDn > 0;
-  const aObs      = sk.recommendation === 'reduce' && (sk.supplyHours || 0) > 0;
+  const aObs      = sk.recommendation === 'obsolete' && (sk.supplyHours || 0) > 0;
   const aBoost    = aUncov || aDn > 0.03;
   const aClass    = aObs ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
   const aIcon     = aObs ? '🗑️' : aUncov ? '➕' : aBoost ? '🔴' : aDn < -0.03 ? '🟢' : '✅';
@@ -1578,36 +1578,36 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
     return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
       <td>κ = 1−e^(−${fmt(s.lambda)}×${s.relevantCount}/${s.totalCount}) = <b>${fmt(s.kappa)}</b></td>
       <td>m(T) = κ·score = <b>${fmt(s.mT)}</b></td>
-      <td>m(Θ) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
-      <td>m(∅) = <b>${fmt(s.mF)}</b></td></tr>`;
+      <td>m(U) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
+      <td>m(F) = <b>${fmt(s.mF)}</b></td></tr>`;
   }).join('');
   const step3 = sources.filter(s=>s.enabled).map(s => {
     const col = srcColor[s.sourceName] || 'var(--muted)';
     return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b> w=${fmt(s.weight)}</td>
       <td>m'(T)=${fmt(s.mT)}·${fmt(s.weight)}=<b>${fmt(s.mTDiscounted)}</b></td>
-      <td>m'(Θ)=${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)})=<b>${fmt(s.mUDiscounted)}</b></td>
-      <td>m'(∅)=<b>${fmt(s.mFDiscounted)}</b></td></tr>`;
+      <td>m'(U)=${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)})=<b>${fmt(s.mUDiscounted)}</b></td>
+      <td>m'(F)=<b>${fmt(s.mFDiscounted)}</b></td></tr>`;
   }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
   const enabledCount = sources.filter(s=>s.enabled).length;
   let step4;
   if (enabledCount <= 1) {
     const only = sources.find(s=>s.enabled);
-    step4 = only ? `<tr><td colspan="4">Один источник. m*(T)=<b>${fmt(only.mTDiscounted)}</b> m*(Θ)=<b>${fmt(only.mUDiscounted)}</b></td></tr>`
+    step4 = only ? `<tr><td colspan="4">Один источник. m*(T)=<b>${fmt(only.mTDiscounted)}</b> m*(U)=<b>${fmt(only.mUDiscounted)}</b></td></tr>`
                  : `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
   } else {
     step4 = combos.map(c => `<tr><td>${esc(c.label)}</td>
       <td>K=${fmt(c.K)} → <b style="color:${c.rule==='Yager'?'var(--yellow)':'var(--green)'}">${c.rule||'Dempster'}</b></td>
       <td>m*(T)=<b>${fmt(c.output?.mT)}</b></td>
-      <td>m*(Θ)=<b>${fmt(c.output?.mU)}</b> m*(∅)=<b>${fmt(c.output?.mF)}</b></td></tr>`).join('')
+      <td>m*(U)=<b>${fmt(c.output?.mU)}</b> m*(F)=<b>${fmt(c.output?.mF)}</b></td></tr>`).join('')
       || `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
   }
-  const betpFormula = `m*(T) + m*(Θ)/${nSkills} = ${fmt(sk.mT)} + ${fmt(sk.mU)}/${nSkills}`;
+  const betpFormula = `m*(T) + m*(U)/${nSkills} = ${fmt(sk.mT)} + ${fmt(sk.mU)}/${nSkills}`;
   const deltaColor  = sk.delta > 0.15 ? 'var(--red)' : sk.delta < -0.15 ? 'var(--green)' : 'var(--muted)';
   const dnColor     = deltaNorm > 0.03 ? 'var(--yellow)' : deltaNorm < -0.03 ? 'var(--green)' : 'var(--muted)';
   const gaugePos    = Math.min(98, Math.max(2, Math.round((sk.delta + 1) / 2 * 100)));
   const gaugeColor  = sk.delta > 0.35 ? '#ef4444' : sk.delta > 0.15 ? '#f59e0b' : sk.delta < -0.15 ? '#22c55e' : '#6b7280';
-  const recLabelRu  = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',expertise:'🔵 Экспертиза'})[sk.recommendation]||sk.recommendation||'—';
-  const rcCls       = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',expertise:'rec-expertise'})[sk.recommendation]||'rec-preserve';
+  const recLabelRu  = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',obsolete:'⚠️ Устарело (m(F)↑)',expertise:'🔵 Экспертиза'})[sk.recommendation]||sk.recommendation||'—';
+  const rcCls       = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',obsolete:'rec-reduce',expertise:'rec-expertise'})[sk.recommendation]||'rec-preserve';
   return `
     <style>.itsk td{${tdStyle}}</style>
     <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">

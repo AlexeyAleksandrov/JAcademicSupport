@@ -209,7 +209,7 @@ public class DstCombinationService {
     }
 
     private String decide(double mT, double mU, double mF, double K, double delta) {
-        if (mF > 0.8 && mT < 0.1) return "reduce";
+        if (mF > 0.8 && mT < 0.1) return "obsolete";
         if (delta > TAU_DELTA && K <= TAU_K) {
             boolean clearSignal = mU <= TAU_THETA || delta > 0.35;
             if (clearSignal)
