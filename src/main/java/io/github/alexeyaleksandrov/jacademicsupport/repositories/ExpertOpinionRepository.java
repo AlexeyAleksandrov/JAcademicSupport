@@ -48,6 +48,20 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
     """)
     List<Object[]> aggregateByCanonical(@Param("canonicalId") Long canonicalId,
                                        @Param("professionCode") String professionCode);
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT eo.expert_id) AS relevantCount,
+               AVG(eo.skill_importance)     AS avgImportance
+        FROM expert_opinion eo
+        JOIN expert e ON e.id = eo.expert_id
+        WHERE eo.canonical_id = :canonicalId
+          AND eo.domain = :domain
+          AND eo.direction = 'POSITIVE'
+          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
+    """)
+    List<Object[]> aggregateByCanonicalAndDomain(@Param("canonicalId")    Long canonicalId,
+                                                 @Param("domain")         String domain,
+                                                 @Param("professionCode") String professionCode);
     
     // ─── Legacy queries (backward compat) ────────────────────────────────────
 

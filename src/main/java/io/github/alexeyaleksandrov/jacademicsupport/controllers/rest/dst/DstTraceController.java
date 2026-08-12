@@ -3,10 +3,13 @@ package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.dst;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level0.DstL0Response;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level1.DstL1DisciplineResponse;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level1.DstL1Response;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level2.DstL2DisciplineResponse;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level2.DstL2Response;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.trace.DstTraceResponse;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstCombinationService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel0Service;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel1Service;
+import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel2Service;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.bpa.DstContext;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +24,7 @@ public class DstTraceController {
     private final DstCombinationService dstCombinationService;
     private final DstLevel0Service      dstLevel0Service;
     private final DstLevel1Service      dstLevel1Service;
+    private final DstLevel2Service      dstLevel2Service;
 
     /**
      * Runs a full DST trace for a given context (domain / techFamily / canonicalId / professionCode).
@@ -69,5 +73,27 @@ public class DstTraceController {
     @GetMapping("/discipline/{disciplineId}/level1")
     public DstL1DisciplineResponse level1ByDiscipline(@PathVariable Long disciplineId) {
         return dstLevel1Service.analyzeLevel1ForDiscipline(disciplineId);
+    }
+
+    /**
+     * Level 2 analysis for a curriculum + domain + techFamily: weighted DST per canonical skill.
+     * Budget = total family hours across all disciplines in curriculum.
+     */
+    @GetMapping("/curriculum/{curriculumId}/level2")
+    public DstL2Response level2ByCurriculumFamily(@PathVariable Long curriculumId,
+                                                   @RequestParam String domain,
+                                                   @RequestParam String techFamily) {
+        return dstLevel2Service.analyzeLevel2(curriculumId, domain, techFamily);
+    }
+
+    /**
+     * Level 2 analysis for a single discipline + domain + techFamily: weighted DST per canonical skill.
+     * Budget = discipline hours allocated to the given domain+techFamily (normalized).
+     */
+    @GetMapping("/discipline/{disciplineId}/level2")
+    public DstL2DisciplineResponse level2ByDisciplineFamily(@PathVariable Long disciplineId,
+                                                             @RequestParam String domain,
+                                                             @RequestParam String techFamily) {
+        return dstLevel2Service.analyzeLevel2ForDisciplineAndFamily(disciplineId, domain, techFamily);
     }
 }

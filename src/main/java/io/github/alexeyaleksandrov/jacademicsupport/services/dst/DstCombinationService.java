@@ -129,6 +129,36 @@ public class DstCombinationService {
         return finishCombination(all, enabled, supply, nFamilies);
     }
 
+    public DstTraceResponse computeWeightedSkill(DstContext ctx,
+                                                  List<ProfessionWeight> profs,
+                                                  double supply,
+                                                  DstQueryService queryService,
+                                                  int nSkills) {
+        String domain     = ctx.getDomain();
+        String techFamily = ctx.getTechFamily();
+        Long   canonicalId = ctx.getCanonicalId();
+        DstQueryService.BpaResult vacRaw = queryService.getWeightedVacBpaByFamilySkill(profs, domain, techFamily, canonicalId);
+        DstQueryService.BpaResult expRaw = queryService.getWeightedExpBpaByCanonicalAndDomain(profs, canonicalId, domain);
+        DstQueryService.BpaResult fcRaw  = queryService.getWeightedFcBpaByCanonicalAndDomain(profs, canonicalId, domain);
+
+        List<BpaResult> all = new ArrayList<>();
+        List<BpaResult> enabled = new ArrayList<>();
+
+        for (BpaSourceProvider src : sources) {
+            DstQueryService.BpaResult raw = switch (src.getName()) {
+                case "VAC" -> vacRaw;
+                case "EXP" -> expRaw;
+                case "FC"  -> fcRaw;
+                default    -> DstQueryService.BpaResult.empty();
+            };
+            BpaResult r = raw.relevantCount() > 0 ? src.buildFromRaw(raw) : BpaResult.disabled(src.getName());
+            all.add(r);
+            if (r.isEnabled() && r.getMT() > 0) enabled.add(r);
+        }
+
+        return finishCombination(all, enabled, supply, nSkills);
+    }
+
     private DstTraceResponse finishCombination(List<BpaResult> all, List<BpaResult> enabled, double supply) {
         return finishCombination(all, enabled, supply, N_CLUSTERS);
     }

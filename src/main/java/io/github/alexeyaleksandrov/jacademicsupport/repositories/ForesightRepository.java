@@ -46,6 +46,19 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
     List<Object[]> aggregateByCanonical(@Param("canonicalId") Long canonicalId,
                                        @Param("professionCode") String professionCode);
 
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT f.source_url) AS relevantCount,
+               AVG(f.confidence)            AS avgConfidence
+        FROM foresight f
+        WHERE f.canonical_id = :canonicalId
+          AND f.domain = :domain
+          AND f.direction = 'POSITIVE'
+          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
+    """)
+    List<Object[]> aggregateByCanonicalAndDomain(@Param("canonicalId")    Long canonicalId,
+                                                 @Param("domain")         String domain,
+                                                 @Param("professionCode") String professionCode);
+
     // ─── Legacy queries (backward compat) ────────────────────────────────────
 
     boolean existsByWorkSkillIdAndSourceUrl(Long workSkillId, String sourceUrl);

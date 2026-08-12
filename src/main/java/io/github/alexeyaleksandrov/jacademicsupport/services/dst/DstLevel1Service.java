@@ -61,6 +61,7 @@ public class DstLevel1Service {
                         cp.getProfessionCode(),
                         cp.getProfessionName(),
                         totalWeight > 0 ? cp.getWeight() / totalWeight : 1.0 / cpList.size()))
+                .sorted(Comparator.comparingDouble(ProfessionWeight::weight).reversed())
                 .collect(Collectors.toList());
         resp.setProfessions(profs);
 
@@ -80,10 +81,11 @@ public class DstLevel1Service {
         Map<String, Double> familyProportionalHours = aggregateFamilyHours(
                 allDiscs, allCoverage, discHoursMap, canonicalMeta, domain);
 
-        Set<String> vacFamilies = dstQueryService.getFamiliesForDomain(
-                profs.get(0).professionCode(), domain).stream()
-                .map(FamilyInfo::techFamily)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> vacFamilies = new LinkedHashSet<>();
+        for (ProfessionWeight pw : profs) {
+            dstQueryService.getFamiliesForDomain(pw.professionCode(), domain).stream()
+                    .map(FamilyInfo::techFamily).forEach(vacFamilies::add);
+        }
 
         Set<String> allFamilies = new LinkedHashSet<>(vacFamilies);
         familyProportionalHours.keySet().stream()
@@ -141,6 +143,7 @@ public class DstLevel1Service {
                         cp.getProfessionCode(),
                         cp.getProfessionName(),
                         totalWeight > 0 ? cp.getWeight() / totalWeight : 1.0 / cpList.size()))
+                .sorted(Comparator.comparingDouble(ProfessionWeight::weight).reversed())
                 .collect(Collectors.toList());
         resp.setProfessions(profs);
 
@@ -176,8 +179,11 @@ public class DstLevel1Service {
             int domainHours = (int) Math.round(
                     familyHours.values().stream().mapToDouble(Double::doubleValue).sum());
 
-            Set<String> vacFamilies = dstQueryService.getFamiliesForDomain(primaryProfCode, domain)
-                    .stream().map(FamilyInfo::techFamily).collect(Collectors.toCollection(LinkedHashSet::new));
+            Set<String> vacFamilies = new LinkedHashSet<>();
+            for (ProfessionWeight pw : profs) {
+                dstQueryService.getFamiliesForDomain(pw.professionCode(), domain).stream()
+                        .map(FamilyInfo::techFamily).forEach(vacFamilies::add);
+            }
             Set<String> allFamilies = new LinkedHashSet<>(vacFamilies);
             allFamilies.addAll(familyHours.keySet());
 

@@ -117,6 +117,18 @@ public interface SkillCanonicalRepository extends JpaRepository<SkillCanonical, 
                                                    @Param("domain")   String domain);
 
     @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT vp.vacancy_id)
+        FROM work_skill_canonical wsc
+        JOIN work_skill ws         ON ws.id = wsc.work_skill_id
+        JOIN vacancy_skills vs     ON vs.skills_id = ws.id
+        JOIN vacancy_profession vp ON vp.vacancy_id = vs.vacancy_entity_id
+        JOIN profession p          ON p.id = vp.profession_id AND p.code = :profCode
+        WHERE wsc.canonical_id = :canonicalId
+        """)
+    long countVacanciesByCanonicalAndProfession(@Param("profCode")   String profCode,
+                                               @Param("canonicalId") Long canonicalId);
+
+    @Query(nativeQuery = true, value = """
         SELECT sc.id, sc.name, sc.domain,
                COUNT(DISTINCT vp.vacancy_id)                                   AS absoluteCount,
                COUNT(DISTINCT vp.vacancy_id)::double precision

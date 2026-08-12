@@ -388,6 +388,40 @@ public class DstQueryService {
         return extractBpa(foresightRepository.aggregateByCanonical(canonicalId, profCode), TOTAL_SOURCES, LAMBDA_FC);
     }
 
+    @Transactional(readOnly = true)
+    public BpaResult getVacBpaByFamilySkill(String profCode, String domain, String techFamily, Long canonicalId) {
+        if (profCode == null || domain == null || techFamily == null || canonicalId == null) return BpaResult.empty();
+        long total    = canonicalRepository.countVacanciesByTechFamilyAndDomainAndProfession(profCode, domain, techFamily);
+        long relevant = canonicalRepository.countVacanciesByCanonicalAndProfession(profCode, canonicalId);
+        if (total == 0 || relevant == 0) return BpaResult.empty();
+        return computeBpa(relevant, 1.0, total, LAMBDA_VAC);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getExpBpaByCanonicalAndDomain(String profCode, Long canonicalId, String domain) {
+        return extractBpa(expertOpinionRepository.aggregateByCanonicalAndDomain(canonicalId, domain, profCode), TOTAL_EXPERTS, LAMBDA_EXP);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getFcBpaByCanonicalAndDomain(String profCode, Long canonicalId, String domain) {
+        return extractBpa(foresightRepository.aggregateByCanonicalAndDomain(canonicalId, domain, profCode), TOTAL_SOURCES, LAMBDA_FC);
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getWeightedVacBpaByFamilySkill(List<ProfessionWeight> profs, String domain, String techFamily, Long canonicalId) {
+        return weightedAverage(profs, p -> getVacBpaByFamilySkill(p.professionCode(), domain, techFamily, canonicalId));
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getWeightedExpBpaByCanonicalAndDomain(List<ProfessionWeight> profs, Long canonicalId, String domain) {
+        return weightedAverage(profs, p -> getExpBpaByCanonicalAndDomain(p.professionCode(), canonicalId, domain));
+    }
+
+    @Transactional(readOnly = true)
+    public BpaResult getWeightedFcBpaByCanonicalAndDomain(List<ProfessionWeight> profs, Long canonicalId, String domain) {
+        return weightedAverage(profs, p -> getFcBpaByCanonicalAndDomain(p.professionCode(), canonicalId, domain));
+    }
+
     public record FamilyInfo(
             String techFamily,
             long   vacancyCount,
