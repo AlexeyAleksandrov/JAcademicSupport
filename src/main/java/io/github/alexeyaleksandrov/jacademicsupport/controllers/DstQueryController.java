@@ -79,11 +79,11 @@ public class DstQueryController {
         return ResponseEntity.ok(dstQueryService.getFamiliesForDomain(profCode, domain));
     }
 
-    @GetMapping("/professions/{profCode}/domains/{domain}/families/{techFamily}/skills")
+    @GetMapping("/professions/{profCode}/domains/{domain}/family-skills")
     public ResponseEntity<List<DstQueryService.SkillInfo>> getSkillsByDomainAndFamily(
             @PathVariable String profCode,
             @PathVariable String domain,
-            @PathVariable String techFamily) {
+            @RequestParam String techFamily) {
         return ResponseEntity.ok(dstQueryService.getSkillsByDomainAndFamily(profCode, domain, techFamily));
     }
 

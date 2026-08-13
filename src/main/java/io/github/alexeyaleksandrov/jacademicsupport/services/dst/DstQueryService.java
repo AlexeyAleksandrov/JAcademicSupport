@@ -552,11 +552,27 @@ public class DstQueryService {
 
     /**
      * Version variants for a canonical skill with global vacancy counts.
-     * Uses skill_canonical siblings that share the same version_group family,
-     * sorted by popularity (absoluteCount) descending.
+     * Primary: reads from skill_version table (populated after normalization).
+     * Fallback: skill_canonical siblings that share the same version_group.
      */
     @Transactional(readOnly = true)
     public List<VersionInfo> getVersionsForSkill(Long canonicalId) {
+        // Primary: skill_version table (normalized, populated by normalize_skills.py Phase 1)
+        List<Object[]> versionRows = versionRepository.findVersionsWithCounts(canonicalId);
+        if (!versionRows.isEmpty()) {
+            return versionRows.stream()
+                    .map(r -> new VersionInfo(
+                            ((Number) r[0]).longValue(),
+                            (String)  r[1],
+                            (String)  r[2],
+                            (String)  r[3],
+                            r[4] != null && (Boolean) r[4],
+                            r[5] != null ? ((Number) r[5]).longValue() : 0L
+                    ))
+                    .collect(Collectors.toList());
+        }
+
+        // Fallback: version_group siblings in skill_canonical (legacy, pre-normalization)
         List<Object[]> rows = canonicalRepository.findVersionSiblingsWithCounts(canonicalId);
         if (rows.isEmpty()) return List.of();
 
@@ -567,6 +583,7 @@ public class DstQueryService {
         String prefix = familyName + " ";
 
         return rows.stream()
+                .filter(r -> ((Number) r[0]).longValue() != canonicalId)
                 .map(r -> {
                     long   sibId = ((Number) r[0]).longValue();
                     String name  = (String)  r[1];

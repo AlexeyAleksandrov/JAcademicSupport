@@ -187,7 +187,7 @@ async function selectFamily(family, el) {
   document.getElementById('skills-list').innerHTML = '<div class="px-5 py-12 text-center text-gray-400">Загрузка…</div>';
   document.getElementById('skills-count').textContent = '';
   const url = family
-    ? `/api/dst/professions/${selectedProfCode}/domains/${selectedDomain}/families/${encodeURIComponent(family)}/skills`
+    ? `/api/dst/professions/${selectedProfCode}/domains/${selectedDomain}/family-skills?techFamily=${encodeURIComponent(family)}`
     : `/api/dst/professions/${selectedProfCode}/domain-clusters/${selectedDomain}/skills`;
   try {
     allSkills = await fetchJSON(url);
