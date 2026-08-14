@@ -588,21 +588,33 @@ async function loadDisciplines(curriculumId) {
 function renderDisciplineList() {
   const el = document.getElementById('disciplineList');
   if (!disciplines.length) { el.innerHTML = '<div class="empty">Нет дисциплин</div>'; return; }
-  el.innerHTML = disciplines.map(d => {
-    const meta = [d.semester?'Сем.'+d.semester:'', d.totalHours?d.totalHours+'ч':'', d.coverage&&d.coverage.length?d.coverage.length+' бл.':''].filter(Boolean).join(' · ');
-    return `
-    <div class="item ${d.id===selectedDisciplineId?'active':''}" onclick="selectDiscipline(${d.id})" style="padding:6px 8px;">
-      <div style="display:flex;align-items:flex-start;gap:4px;">
-        <div style="flex:1;min-width:0;">
-          <div class="item-title" style="font-size:12px;line-height:1.35;">${esc(d.name)}</div>
-          <div class="item-sub" style="margin-top:1px;">${meta}</div>
+  const bySem = {};
+  disciplines.forEach(d => {
+    const key = d.semester ?? '';
+    if (!bySem[key]) bySem[key] = [];
+    bySem[key].push(d);
+  });
+  const semKeys = Object.keys(bySem).sort((a,b) => (a===''?999:+a) - (b===''?999:+b));
+  el.innerHTML = semKeys.map(sem => {
+    const label = sem !== '' ? `Семестр ${sem}` : 'Без семестра';
+    const header = `<div style="padding:4px 8px 3px;margin-top:2px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border);margin-bottom:2px;">${label}</div>`;
+    const items = bySem[sem].map(d => {
+      const meta = [d.totalHours?d.totalHours+'ч':'', d.coverage&&d.coverage.length?d.coverage.length+' бл.':''].filter(Boolean).join(' · ');
+      return `
+      <div class="item ${d.id===selectedDisciplineId?'active':''}" onclick="selectDiscipline(${d.id})" style="padding:6px 8px;">
+        <div style="display:flex;align-items:flex-start;gap:4px;">
+          <div style="flex:1;min-width:0;">
+            <div class="item-title" style="font-size:12px;line-height:1.35;">${esc(d.name)}</div>
+            ${meta?`<div class="item-sub" style="margin-top:1px;">${meta}</div>`:''}
+          </div>
+          <div style="display:flex;gap:3px;flex-shrink:0;margin-top:1px;">
+            <button class="btn btn-sm" onclick="event.stopPropagation();openDisciplineModal(${d.id})">✎</button>
+            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteDiscipline(${d.id})">✕</button>
+          </div>
         </div>
-        <div style="display:flex;gap:3px;flex-shrink:0;margin-top:1px;">
-          <button class="btn btn-sm" onclick="event.stopPropagation();openDisciplineModal(${d.id})">✎</button>
-          <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteDiscipline(${d.id})">✕</button>
-        </div>
-      </div>
-    </div>`;
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:4px;">${header}${items}</div>`;
   }).join('');
 }
 
@@ -636,11 +648,21 @@ async function saveDiscipline() {
   const url = editingDisciplineId ? `${API}/api/disciplines/${editingDisciplineId}` : `${API}/api/disciplines`;
   const method = editingDisciplineId ? 'PUT' : 'POST';
   const saved = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}).then(r=>r.json());
+  const isNew = !editingDisciplineId;
   closeDisciplineModal();
   await loadDisciplines(selectedCurriculumId);
-  if (selectedDisciplineId === (editingDisciplineId||saved.id)) {
-    const d = disciplines.find(x=>x.id===(editingDisciplineId||saved.id));
-    if (d) renderCoveragePanel(d);
+  const targetId = editingDisciplineId || saved.id;
+  if (isNew || selectedDisciplineId === targetId) {
+    selectedDisciplineId = targetId;
+    const d = disciplines.find(x => x.id === targetId);
+    if (d) {
+      renderDisciplineList();
+      renderCoveragePanel(d);
+      requestAnimationFrame(() => {
+        const el = document.querySelector(`#disciplineList .item.active`);
+        if (el) el.scrollIntoView({behavior:'smooth', block:'nearest'});
+      });
+    }
   }
 }
 
