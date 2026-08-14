@@ -19,6 +19,17 @@ public interface SkillCanonicalRepository extends JpaRepository<SkillCanonical, 
     @Query("SELECT sc FROM SkillCanonical sc WHERE LOWER(sc.name) LIKE LOWER(CONCAT('%',:q,'%')) ORDER BY sc.name")
     List<SkillCanonical> searchByName(@Param("q") String q, org.springframework.data.domain.Pageable pageable);
 
+    @Query("SELECT sc FROM SkillCanonical sc WHERE " +
+           "(:q = '' OR LOWER(sc.name) LIKE LOWER(CONCAT('%',:q,'%'))) " +
+           "AND (:domain IS NULL OR sc.domain = :domain) " +
+           "AND (:family IS NULL OR sc.techFamily = :family) " +
+           "ORDER BY sc.name")
+    List<SkillCanonical> searchByNameFiltered(
+            @Param("q") String q,
+            @Param("domain") String domain,
+            @Param("family") String family,
+            org.springframework.data.domain.Pageable pageable);
+
     @Query(nativeQuery = true, value = "SELECT DISTINCT domain FROM skill_canonical WHERE domain IS NOT NULL ORDER BY domain")
     List<String> findDistinctDomains();
 
@@ -218,4 +229,17 @@ public interface SkillCanonicalRepository extends JpaRepository<SkillCanonical, 
         """)
     List<Object[]> findStrictClusterSkills(@Param("profCode") String profCode,
                                            @Param("clusterId") Long clusterId);
+
+    @Query(nativeQuery = true, value = """
+        SELECT tech_family, domain
+        FROM (
+            SELECT tech_family, domain,
+                   ROW_NUMBER() OVER (PARTITION BY tech_family ORDER BY COUNT(*) DESC) AS rn
+            FROM skill_canonical
+            WHERE tech_family IN (:families) AND domain IS NOT NULL
+            GROUP BY tech_family, domain
+        ) sub
+        WHERE rn = 1
+        """)
+    List<Object[]> findDomainsByTechFamilies(@Param("families") java.util.Collection<String> families);
 }

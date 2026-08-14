@@ -150,23 +150,27 @@ public class DstLevel1Service {
         List<DisciplineCoverage> covList = coverageRepository.findByDisciplineId(disciplineId);
         CanonicalMeta canonicalMeta = loadCanonicalMeta(covList);
 
-        int sumAllCoverage = covList.stream()
-                .mapToInt(c -> c.getHours() != null ? c.getHours() : 0).sum();
-        if (sumAllCoverage == 0 || totalHours == 0) {
+        if (covList.isEmpty() || totalHours == 0) {
             resp.setError("Нет данных о покрытии для дисциплины.");
             return resp;
         }
 
         Map<String, Map<String, Double>> domainFamilyHours = new LinkedHashMap<>();
+        Set<String> domainsInDisc = new LinkedHashSet<>();
         for (DisciplineCoverage cov : covList) {
-            String dom    = getEffectiveDomain(cov, canonicalMeta);
-            String family = getEffectiveTechFamily(cov, canonicalMeta);
-            if (dom == null || dom.isEmpty() || family == null || family.isEmpty()) continue;
-            int hours = cov.getHours() != null ? cov.getHours() : 0;
-            double proportional = (double) hours / sumAllCoverage * totalHours;
-            domainFamilyHours
-                    .computeIfAbsent(dom, k -> new LinkedHashMap<>())
-                    .merge(family, proportional, Double::sum);
+            String dom = getEffectiveDomain(cov, canonicalMeta);
+            if (dom != null && !dom.isEmpty()) domainsInDisc.add(dom);
+        }
+        for (String dom : domainsInDisc) {
+            Map<String, Integer> famEff = computeEffectiveFamilyHours(covList, dom, canonicalMeta);
+            int sumFamEff = famEff.values().stream().mapToInt(i -> i).sum();
+            if (sumFamEff == 0) continue;
+            for (Map.Entry<String, Integer> fe : famEff.entrySet()) {
+                double proportional = (double) fe.getValue() / sumFamEff * totalHours;
+                domainFamilyHours
+                        .computeIfAbsent(dom, k -> new LinkedHashMap<>())
+                        .merge(fe.getKey(), proportional, Double::sum);
+            }
         }
 
         String primaryProfCode = profs.get(0).professionCode();
@@ -250,21 +254,11 @@ public class DstLevel1Service {
             List<DisciplineCoverage> covList = byDisc.getOrDefault(disc.getId(), List.of());
             if (covList.isEmpty()) continue;
 
-            int sumAllCoverage = covList.stream()
-                    .mapToInt(c -> c.getHours() != null ? c.getHours() : 0).sum();
-            if (sumAllCoverage == 0) continue;
-
-            Map<String, Integer> familyHoursInDisc = new HashMap<>();
-            for (DisciplineCoverage cov : covList) {
-                String dom    = getEffectiveDomain(cov, meta);
-                String family = getEffectiveTechFamily(cov, meta);
-                if (dom == null || !dom.equals(targetDomain)) continue;
-                if (family == null || family.isEmpty()) continue;
-                int hours = cov.getHours() != null ? cov.getHours() : 0;
-                familyHoursInDisc.merge(family, hours, Integer::sum);
-            }
-            for (Map.Entry<String, Integer> e : familyHoursInDisc.entrySet()) {
-                double fraction = (double) e.getValue() / sumAllCoverage;
+            Map<String, Integer> famEff = computeEffectiveFamilyHours(covList, targetDomain, meta);
+            int sumFamEff = famEff.values().stream().mapToInt(i -> i).sum();
+            if (sumFamEff == 0) continue;
+            for (Map.Entry<String, Integer> e : famEff.entrySet()) {
+                double fraction = (double) e.getValue() / sumFamEff;
                 familyHours.merge(e.getKey(), fraction * discTotalHours, Double::sum);
             }
         }
@@ -274,6 +268,7 @@ public class DstLevel1Service {
     private String getEffectiveDomain(DisciplineCoverage cov, CanonicalMeta meta) {
         if (cov.getDomain() != null && !cov.getDomain().isEmpty()) return cov.getDomain();
         if (cov.getCanonicalId() != null) return meta.domainMap.get(cov.getCanonicalId());
+        if (cov.getTechFamily() != null) return meta.techFamilyDomainMap.get(cov.getTechFamily());
         return null;
     }
 
@@ -299,8 +294,44 @@ public class DstLevel1Service {
                 if (sc.getTechFamily() != null) familyMap.put(sc.getId(), sc.getTechFamily());
             }
         }
-        return new CanonicalMeta(domainMap, familyMap);
+        Set<String> techFamilies = coverage.stream()
+                .filter(c -> c.getDomain() == null && c.getCanonicalId() == null)
+                .map(DisciplineCoverage::getTechFamily)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, String> techFamilyDomainMap = techFamilies.isEmpty() ? Map.<String, String>of() :
+                skillCanonicalRepository.findDomainsByTechFamilies(techFamilies).stream()
+                        .collect(Collectors.toMap(
+                                r -> (String) r[0], r -> (String) r[1], (a, b) -> a));
+        return new CanonicalMeta(domainMap, familyMap, techFamilyDomainMap);
     }
 
-    private record CanonicalMeta(Map<Long, String> domainMap, Map<Long, String> familyMap) {}
+    private Map<String, Integer> computeEffectiveFamilyHours(
+            List<DisciplineCoverage> covList, String targetDomain, CanonicalMeta meta) {
+
+        Map<String, Map<String, Integer>> byFamilyAndLevel = new HashMap<>();
+        for (DisciplineCoverage cov : covList) {
+            String dom = getEffectiveDomain(cov, meta);
+            if (!targetDomain.equals(dom)) continue;
+            String family = getEffectiveTechFamily(cov, meta);
+            if (family == null || family.isEmpty()) continue;
+            int hours = cov.getHours() != null ? cov.getHours() : 0;
+            String level = cov.getCanonicalId() != null ? "SKILL" : "FAMILY";
+            byFamilyAndLevel
+                    .computeIfAbsent(family, k -> new HashMap<>())
+                    .merge(level, hours, Integer::sum);
+        }
+
+        Map<String, Integer> effective = new HashMap<>();
+        for (Map.Entry<String, Map<String, Integer>> e : byFamilyAndLevel.entrySet()) {
+            Map<String, Integer> levels = e.getValue();
+            int eff = levels.containsKey("FAMILY") ? levels.get("FAMILY")
+                    : levels.getOrDefault("SKILL", 0);
+            effective.put(e.getKey(), eff);
+        }
+        return effective;
+    }
+
+    private record CanonicalMeta(Map<Long, String> domainMap, Map<Long, String> familyMap,
+                                  Map<String, String> techFamilyDomainMap) {}
 }

@@ -158,9 +158,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div class="add-bar" style="display:block;padding:8px;border-top:1px solid var(--border);">
       <div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.5px;">ДОБАВИТЬ ПРОФЕССИЮ</div>
       <div style="display:flex;gap:6px;margin-bottom:4px;">
-        <div style="flex:1;">
+        <div style="flex:1;position:relative;">
           <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Код профессии <span style="color:var(--red)">*</span></div>
-          <input id="inp_prof_code" placeholder="backend" style="width:100%;box-sizing:border-box;"/>
+          <input id="inp_prof_code" placeholder="backend" autocomplete="off"
+            style="width:100%;box-sizing:border-box;"
+            oninput="filterProfAC()" onfocus="filterProfAC()" onblur="setTimeout(hideProfAC,150)"/>
+          <div id="prof_ac_list" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--border);border-radius:5px;z-index:200;max-height:160px;overflow-y:auto;"></div>
         </div>
         <div style="width:64px;">
           <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Вес %</div>
@@ -255,6 +258,8 @@ let editingCurriculumId = null;
 let editingDisciplineId = null;
 let domains = [];
 let families = [];
+let familiesByDomain = {};
+let allProfessions = [];
 
 // ─── INIT ──────────────────────────────────────────────────────────
 function toggleProfPanel() {
@@ -270,11 +275,13 @@ async function init() {
 
 async function loadDomains() {
   try {
-    [domains, families] = await Promise.all([
+    [domains, families, allProfessions, familiesByDomain] = await Promise.all([
       fetch(`${API}/api/skill-canonical/domains`).then(r=>r.json()),
-      fetch(`${API}/api/skill-canonical/families`).then(r=>r.json())
+      fetch(`${API}/api/skill-canonical/families`).then(r=>r.json()),
+      fetch(`${API}/api/dst/professions`).then(r=>r.json()),
+      fetch(`${API}/api/skill-canonical/families-grouped`).then(r=>r.json())
     ]);
-  } catch(e) { console.warn('Failed to load domains/families', e); }
+  } catch(e) { console.warn('Failed to load domains/families/professions', e); }
 }
 
 // ─── CURRICULA ─────────────────────────────────────────────────────
@@ -695,10 +702,32 @@ function renderCoveragePanel(d) {
   const skills = coverage.filter(c=>c.canonicalId);
 
   const totalCovHours = coverage.reduce((s,c)=>s+(c.hours||0), 0);
+
+  // Вычисляем эффективные часы по иерархии DOMAIN > FAMILY > SKILL
+  const _byDomLvl = {};
+  for (const cov of coverage) {
+    const dom = cov.canonicalId ? cov.canonicalDomain
+              : (cov.domain || null);
+    if (!dom) continue;
+    const lvl = cov.canonicalId ? 'SKILL' : cov.techFamily ? 'FAMILY' : 'DOMAIN';
+    if (!_byDomLvl[dom]) _byDomLvl[dom] = {};
+    _byDomLvl[dom][lvl] = (_byDomLvl[dom][lvl] || 0) + (cov.hours || 0);
+  }
+  const _effDom = {};
+  for (const [dom, lvls] of Object.entries(_byDomLvl))
+    _effDom[dom] = lvls['DOMAIN'] || lvls['FAMILY'] || lvls['SKILL'] || 0;
+  const _sumEff = Object.values(_effDom).reduce((a,b)=>a+b, 0);
+  const _effParts = Object.entries(_effDom).map(([d,h])=>`<b>${esc(d)}</b>&nbsp;${h}&nbsp;ч.`).join(' + ');
+  const _domH  = doms.reduce((s,c)=>s+(c.hours||0), 0);
+  const _famH  = fams.reduce((s,c)=>s+(c.hours||0), 0);
+  const _skH   = skills.reduce((s,c)=>s+(c.hours||0), 0);
+
   const overflowHtml = (d.totalHours && totalCovHours > d.totalHours)
     ? `<div style="background:rgba(234,179,8,.08);border:1px solid var(--yellow,#eab308);border-radius:6px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:var(--yellow,#eab308);line-height:1.5;">
-        ⚠️ Сумма часов покрытия <b>${totalCovHours} ч.</b> превышает объём дисциплины <b>${d.totalHours} ч.</b><br>
-        <span style="opacity:.8;">DST-алгоритм автоматически нормализует значения (пропорциональный вклад).</span>
+        ⚠️ Суммарно введено <b>${totalCovHours} ч.</b> при объёме дисциплины <b>${d.totalHours} ч.</b>
+        (домены&nbsp;${_domH}&nbsp;ч. + семейства&nbsp;${_famH}&nbsp;ч. + навыки&nbsp;${_skH}&nbsp;ч.)<br>
+        <span style="opacity:.85;">DST применяет иерархию <b>домен&nbsp;▶&nbsp;семейство&nbsp;▶&nbsp;навык</b>: для каждого домена считается только наивысший уровень.
+        Эффективно: ${_effParts} = <b>${_sumEff}&nbsp;ч.</b> → нормализация до <b>${d.totalHours}&nbsp;ч.</b></span>
        </div>`
     : '';
 
@@ -734,15 +763,29 @@ function buildBlock(type, icon, title, inputType, items, discId) {
       ${domains.map(d=>`<option value="${d}">${d}</option>`).join('')}
     </select>`;
   } else if (inputType === 'techFamily') {
-    inputHtml = `<select id="inp_fam_${discId}">
-      <option value="">— выберите семейство —</option>
-      ${families.map(f=>`<option value="${f}">${f}</option>`).join('')}
-    </select>`;
+    inputHtml = `
+      <select id="inp_fam_dom_${discId}" onchange="onFamDomChange(${discId})" title="Выберите домен">
+        <option value="">— домен —</option>
+        ${domains.map(d=>`<option value="${d}">${d}</option>`).join('')}
+      </select>
+      <select id="inp_fam_${discId}" title="Выберите семейство">
+        <option value="">— семейство —</option>
+        ${families.map(f=>`<option value="${f}">${f}</option>`).join('')}
+      </select>`;
   } else {
-    inputHtml = `<div class="autocomplete-wrapper">
-      <input id="inp_skill_${discId}" placeholder="Поиск навыка..." oninput="acSkill(this,${discId})"/>
-      <div class="autocomplete-list" id="ac_skill_${discId}" style="display:none"></div>
-    </div>`;
+    inputHtml = `
+      <select id="inp_skill_dom_${discId}" onchange="onSkillDomChange(${discId})" style="flex:0 0 88px;" title="Фильтр по домену">
+        <option value="">домен...</option>
+        ${domains.map(d=>`<option value="${d}">${d}</option>`).join('')}
+      </select>
+      <select id="inp_skill_fam_${discId}" style="flex:0 0 100px;" title="Фильтр по семейству">
+        <option value="">семейство...</option>
+        ${families.map(f=>`<option value="${f}">${f}</option>`).join('')}
+      </select>
+      <div class="autocomplete-wrapper">
+        <input id="inp_skill_${discId}" placeholder="Поиск навыка..." oninput="acSkill(this,${discId})"/>
+        <div class="autocomplete-list" id="ac_skill_${discId}" style="display:none"></div>
+      </div>`;
   }
 
   return `<div class="block">
@@ -757,10 +800,15 @@ function buildBlock(type, icon, title, inputType, items, discId) {
 }
 
 function buildSkillBadge(c, type) {
-  if (type !== 'skill') return '';
-  const parts = [c.canonicalDomain, c.canonicalTechFamily].filter(Boolean);
-  if (!parts.length) return '';
-  return `<span style="font-size:10px;color:var(--muted);background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;white-space:nowrap;flex-shrink:0;">${parts.join(' / ')}</span>`;
+  if (type === 'skill') {
+    const parts = [c.canonicalDomain, c.canonicalTechFamily].filter(Boolean);
+    if (!parts.length) return '';
+    return `<span style="font-size:10px;color:var(--muted);background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;white-space:nowrap;flex-shrink:0;">${parts.join(' / ')}</span>`;
+  }
+  if (type === 'techFamily' && c.domain) {
+    return `<span style="font-size:10px;color:var(--purple);background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;white-space:nowrap;flex-shrink:0;">${c.domain}</span>`;
+  }
+  return '';
 }
 
 function getLabel(c, type) {
@@ -805,6 +853,8 @@ async function addCoverage(type, discId) {
     domain = document.getElementById(`inp_dom_${discId}`).value;
     if (!domain) { alert('Выберите домен'); return; }
   } else if (type==='techFamily') {
+    const domEl = document.getElementById(`inp_fam_dom_${discId}`);
+    domain = domEl ? (domEl.value || null) : null;
     techFamily = document.getElementById(`inp_fam_${discId}`).value;
     if (!techFamily) { alert('Выберите семейство'); return; }
   } else {
@@ -838,6 +888,31 @@ async function reloadDiscipline(discId) {
 }
 
 // ─── AUTOCOMPLETE ──────────────────────────────────────────────────
+function filterProfAC() {
+  const q = document.getElementById('inp_prof_code').value.trim().toLowerCase();
+  const list = document.getElementById('prof_ac_list');
+  const matches = q.length === 0
+    ? allProfessions.slice(0, 20)
+    : allProfessions.filter(p => p.code.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)).slice(0, 20);
+  if (!matches.length) { list.style.display = 'none'; return; }
+  list.innerHTML = matches.map(p => `
+    <div onmousedown="selectProfAC('${esc(p.code)}','${esc(p.name)}')"
+         style="padding:6px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border);"
+         onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
+      <span style="color:var(--accent);font-weight:600;">${esc(p.code)}</span>
+      <span style="color:var(--muted);margin-left:6px;font-size:11px;">${esc(p.name)}</span>
+    </div>`).join('');
+  list.style.display = 'block';
+}
+function hideProfAC() { document.getElementById('prof_ac_list').style.display = 'none'; }
+function selectProfAC(code, name) {
+  document.getElementById('inp_prof_code').value = code;
+  if (!document.getElementById('inp_prof_name').value) {
+    document.getElementById('inp_prof_name').value = name;
+  }
+  hideProfAC();
+}
+
 let acTimer = null;
 async function acSkill(inp, discId) {
   clearTimeout(acTimer);
@@ -845,7 +920,12 @@ async function acSkill(inp, discId) {
   const listEl = document.getElementById(`ac_skill_${discId}`);
   if (q.length < 2) { listEl.style.display='none'; return; }
   acTimer = setTimeout(async () => {
-    const results = await fetch(`${API}/api/skill-canonical/search?q=${encodeURIComponent(q)}&limit=15`).then(r=>r.json());
+    const domFilter = document.getElementById(`inp_skill_dom_${discId}`)?.value || '';
+    const famFilter = document.getElementById(`inp_skill_fam_${discId}`)?.value || '';
+    let url = `${API}/api/skill-canonical/search?q=${encodeURIComponent(q)}&limit=15`;
+    if (domFilter) url += `&domain=${encodeURIComponent(domFilter)}`;
+    if (famFilter) url += `&family=${encodeURIComponent(famFilter)}`;
+    const results = await fetch(url).then(r=>r.json());
     if (!results.length) { listEl.style.display='none'; return; }
     listEl.innerHTML = results.map(s=>`
       <div onclick="selectSkill(${discId},${s.id},'${esc(s.name)}')">
@@ -853,6 +933,24 @@ async function acSkill(inp, discId) {
       </div>`).join('');
     listEl.style.display = '';
   }, 200);
+}
+
+function onFamDomChange(discId) {
+  const dom = document.getElementById(`inp_fam_dom_${discId}`).value;
+  const famSel = document.getElementById(`inp_fam_${discId}`);
+  const fams = dom ? (familiesByDomain[dom] || []) : families;
+  famSel.innerHTML = `<option value="">— семейство —</option>`
+    + fams.map(f=>`<option value="${f}">${f}</option>`).join('');
+  famSel.value = '';
+}
+
+function onSkillDomChange(discId) {
+  const dom = document.getElementById(`inp_skill_dom_${discId}`).value;
+  const famSel = document.getElementById(`inp_skill_fam_${discId}`);
+  const fams = dom ? (familiesByDomain[dom] || []) : families;
+  famSel.innerHTML = `<option value="">семейство...</option>`
+    + fams.map(f=>`<option value="${f}">${f}</option>`).join('');
+  famSel.value = '';
 }
 
 function selectSkill(discId, id, name) {

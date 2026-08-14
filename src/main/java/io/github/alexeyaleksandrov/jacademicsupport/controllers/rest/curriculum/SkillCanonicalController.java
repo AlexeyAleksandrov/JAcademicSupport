@@ -6,7 +6,9 @@ import lombok.AllArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/skill-canonical")
@@ -18,9 +20,11 @@ public class SkillCanonicalController {
     @GetMapping("/search")
     public List<SkillCanonical> search(
             @RequestParam(defaultValue = "") String q,
-            @RequestParam(defaultValue = "20") int limit) {
-        if (q.isBlank()) return List.of();
-        return skillCanonicalRepository.searchByName(q, PageRequest.of(0, limit));
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String domain,
+            @RequestParam(required = false) String family) {
+        if (q.isBlank() && domain == null && family == null) return List.of();
+        return skillCanonicalRepository.searchByNameFiltered(q, domain, family, PageRequest.of(0, limit));
     }
 
     @GetMapping("/domains")
@@ -31,5 +35,14 @@ public class SkillCanonicalController {
     @GetMapping("/families")
     public List<String> families(@RequestParam(required = false) String domain) {
         return skillCanonicalRepository.findDistinctFamilies(domain);
+    }
+
+    @GetMapping("/families-grouped")
+    public Map<String, List<String>> familiesGrouped() {
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        for (String domain : skillCanonicalRepository.findDistinctDomains()) {
+            result.put(domain, skillCanonicalRepository.findDistinctFamilies(domain));
+        }
+        return result;
     }
 }

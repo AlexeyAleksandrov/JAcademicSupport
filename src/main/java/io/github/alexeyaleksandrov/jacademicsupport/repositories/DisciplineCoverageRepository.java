@@ -78,6 +78,10 @@ public interface DisciplineCoverageRepository extends JpaRepository<DisciplineCo
           AND (dc.domain = :domain
                OR (dc.canonical_id IS NOT NULL AND dc.canonical_id IN (
                    SELECT sc.id FROM skill_canonical sc WHERE sc.domain = :domain
+               ))
+               OR (dc.domain IS NULL AND dc.canonical_id IS NULL AND dc.tech_family IN (
+                   SELECT DISTINCT sc2.tech_family FROM skill_canonical sc2
+                   WHERE sc2.domain = :domain AND sc2.tech_family IS NOT NULL
                )))
         GROUP BY d.id, d.name, d.semester
         HAVING SUM(dc.hours) > 0

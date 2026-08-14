@@ -251,9 +251,12 @@ public class DstLevel2Service {
             List<DisciplineCoverage> covList = byDisc.getOrDefault(disc.getId(), List.of());
             if (covList.isEmpty()) continue;
 
-            int sumAllCoverage = covList.stream()
+            int sumSkillsInFamily = covList.stream()
+                    .filter(c -> c.getCanonicalId() != null
+                              && targetDomain.equals(getEffectiveDomain(c, meta))
+                              && targetFamily.equals(getEffectiveTechFamily(c, meta)))
                     .mapToInt(c -> c.getHours() != null ? c.getHours() : 0).sum();
-            if (sumAllCoverage == 0) continue;
+            if (sumSkillsInFamily == 0) continue;
 
             for (DisciplineCoverage cov : covList) {
                 String dom    = getEffectiveDomain(cov, meta);
@@ -262,7 +265,7 @@ public class DstLevel2Service {
                 if (!targetDomain.equals(dom) || !targetFamily.equals(family)) continue;
                 if (canonicalId == null) continue;
                 int hours = cov.getHours() != null ? cov.getHours() : 0;
-                double fraction = (double) hours / sumAllCoverage;
+                double fraction = (double) hours / sumSkillsInFamily;
                 skillHours.merge(canonicalId, fraction * discTotalHours, Double::sum);
             }
         }
@@ -289,6 +292,7 @@ public class DstLevel2Service {
     private String getEffectiveDomain(DisciplineCoverage cov, CanonicalMeta meta) {
         if (cov.getDomain() != null && !cov.getDomain().isEmpty()) return cov.getDomain();
         if (cov.getCanonicalId() != null) return meta.domainMap().get(cov.getCanonicalId());
+        if (cov.getTechFamily() != null) return meta.techFamilyDomainMap().get(cov.getTechFamily());
         return null;
     }
 
@@ -316,10 +320,20 @@ public class DstLevel2Service {
                 if (sc.getName()       != null) nameMap.put(sc.getId(), sc.getName());
             }
         }
-        return new CanonicalMeta(domainMap, familyMap, nameMap);
+        Set<String> techFamilies = coverage.stream()
+                .filter(c -> c.getDomain() == null && c.getCanonicalId() == null)
+                .map(DisciplineCoverage::getTechFamily)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, String> techFamilyDomainMap = techFamilies.isEmpty() ? Map.<String, String>of() :
+                skillCanonicalRepository.findDomainsByTechFamilies(techFamilies).stream()
+                        .collect(Collectors.toMap(
+                                r -> (String) r[0], r -> (String) r[1], (a, b) -> a));
+        return new CanonicalMeta(domainMap, familyMap, nameMap, techFamilyDomainMap);
     }
 
     private record CanonicalMeta(Map<Long, String> domainMap,
                                   Map<Long, String> familyMap,
-                                  Map<Long, String> nameMap) {}
+                                  Map<Long, String> nameMap,
+                                  Map<String, String> techFamilyDomainMap) {}
 }
