@@ -24,7 +24,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .panels{display:flex;flex:1;overflow:hidden;}
 .panel{display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden;}
 .panel-left{width:240px;flex-shrink:0;}
-.panel-center{width:280px;flex-shrink:0;}
+.panel-center{width:340px;flex-shrink:0;}
 .panel-right{flex:1;min-width:0;}
 .panel-header{padding:10px 12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;}
 .panel-body{flex:1;overflow-y:auto;padding:8px;}
@@ -152,7 +152,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
 
   <!-- LEFT-BOTTOM: Профессии УП -->
-  <div class="panel panel-left" id="profPanel" style="display:none;max-height:420px;margin-top:8px;">
+  <div class="panel panel-left" id="profPanel" style="width:0;flex-shrink:0;overflow:hidden;transition:width .2s ease;">
     <div class="panel-header" style="font-size:12px;">Профессии УП <span id="profSumNote" style="color:var(--muted);font-weight:400"></span></div>
     <div class="panel-body" id="profList" style="min-height:40px;"></div>
     <div class="add-bar" style="display:block;padding:8px;border-top:1px solid var(--border);">
@@ -176,9 +176,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
         <input id="inp_prof_name" placeholder="Backend-разработчик" style="width:100%;box-sizing:border-box;"/>
       </div>
       <button class="btn btn-primary" style="width:100%;" onclick="addCurriculumProfession()">+ Добавить профессию</button>
-    </div>
-    <div style="padding:6px 8px 8px;">
-      <button class="btn btn-sm" style="width:100%;background:var(--purple);color:#fff;" onclick="runDstL0Curriculum()">🔬 DST Анализ УП</button>
     </div>
   </div>
 
@@ -250,6 +247,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 <script>
 const API = '';
+let profPanelOpen = false;
 let curricula = [];
 let selectedCurriculumId = null;
 let selectedDisciplineId = null;
@@ -259,6 +257,12 @@ let domains = [];
 let families = [];
 
 // ─── INIT ──────────────────────────────────────────────────────────
+function toggleProfPanel() {
+  profPanelOpen = !profPanelOpen;
+  document.getElementById('profPanel').style.width = profPanelOpen ? '240px' : '0';
+  renderCurriculumList();
+}
+
 async function init() {
   await loadDomains();
   await loadCurricula();
@@ -283,16 +287,27 @@ async function loadCurricula() {
 function renderCurriculumList() {
   const el = document.getElementById('curriculumList');
   if (!curricula.length) { el.innerHTML = '<div class="empty">Нет учебных планов</div>'; return; }
-  el.innerHTML = curricula.map(c => `
-    <div class="item ${c.id===selectedCurriculumId?'active':''}" onclick="selectCurriculum(${c.id})">
+  const selId = selectedCurriculumId;
+  el.innerHTML = curricula.map(c => {
+    const isSelected = c.id === selId;
+    return `
+    <div class="item ${isSelected?'active':''}" onclick="selectCurriculum(${c.id})">
       <div class="item-title">${esc(c.name)}</div>
       <div class="item-sub">${c.specialization||''} ${c.academicYear?'· '+c.academicYear:''}</div>
-      <div style="margin-top:4px;display:flex;gap:4px">
-        <button class="btn btn-sm" onclick="event.stopPropagation();openCurriculumModal(${c.id})">✎</button>
-        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteCurriculum(${c.id})">✕</button>
+      <div style="margin-top:5px;display:flex;gap:3px;flex-wrap:wrap;">
+        <button class="btn btn-sm" onclick="event.stopPropagation();openCurriculumModal(${c.id})" title="Редактировать">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteCurriculum(${c.id})" title="Удалить">✕</button>
+        ${isSelected ? `
+        <button class="btn btn-sm" onclick="event.stopPropagation();toggleProfPanel()" id="profToggleBtn"
+          title="Профессии УП" style="color:var(--purple);border-color:var(--purple);">
+          ${profPanelOpen?'👥◀':'👥▶'}
+        </button>
+        <button class="btn btn-sm" onclick="event.stopPropagation();runDstL0Curriculum()"
+          title="DST Анализ УП" style="color:var(--accent);border-color:var(--accent);">🔬 DST</button>
+        ` : ''}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 async function selectCurriculum(id) {
@@ -302,7 +317,8 @@ async function selectCurriculum(id) {
   document.getElementById('discAddBar').style.display = '';
   document.getElementById('rightHeader').innerHTML = '<div class="empty" style="padding:8px 0;">← Выберите дисциплину</div>';
   document.getElementById('coveragePanel').innerHTML = '';
-  document.getElementById('profPanel').style.display = '';
+  profPanelOpen = true;
+  document.getElementById('profPanel').style.width = '240px';
   await loadCurriculumProfessions(id);
   await loadDisciplines(id);
 }
@@ -572,19 +588,22 @@ async function loadDisciplines(curriculumId) {
 function renderDisciplineList() {
   const el = document.getElementById('disciplineList');
   if (!disciplines.length) { el.innerHTML = '<div class="empty">Нет дисциплин</div>'; return; }
-  el.innerHTML = disciplines.map(d => `
-    <div class="item ${d.id===selectedDisciplineId?'active':''}" onclick="selectDiscipline(${d.id})">
-      <div class="item-title">${esc(d.name)}</div>
-      <div class="item-sub">
-        ${d.semester?'Сем. '+d.semester+' · ':''}${d.totalHours?d.totalHours+' ч.':''}
-        ${d.coverage&&d.coverage.length?'· '+d.coverage.length+' блоков покрытия':''}
+  el.innerHTML = disciplines.map(d => {
+    const meta = [d.semester?'Сем.'+d.semester:'', d.totalHours?d.totalHours+'ч':'', d.coverage&&d.coverage.length?d.coverage.length+' бл.':''].filter(Boolean).join(' · ');
+    return `
+    <div class="item ${d.id===selectedDisciplineId?'active':''}" onclick="selectDiscipline(${d.id})" style="padding:6px 8px;">
+      <div style="display:flex;align-items:flex-start;gap:4px;">
+        <div style="flex:1;min-width:0;">
+          <div class="item-title" style="font-size:12px;line-height:1.35;">${esc(d.name)}</div>
+          <div class="item-sub" style="margin-top:1px;">${meta}</div>
+        </div>
+        <div style="display:flex;gap:3px;flex-shrink:0;margin-top:1px;">
+          <button class="btn btn-sm" onclick="event.stopPropagation();openDisciplineModal(${d.id})">✎</button>
+          <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteDiscipline(${d.id})">✕</button>
+        </div>
       </div>
-      <div style="margin-top:4px;display:flex;gap:4px">
-        <button class="btn btn-sm" onclick="event.stopPropagation();openDisciplineModal(${d.id})">✎</button>
-        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteDiscipline(${d.id})">✕</button>
-      </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function selectDiscipline(id) {
