@@ -4,9 +4,12 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>EXP &amp; FC — Экспертные мнения и прогнозы</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
     .domain-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; }
     .card { transition: box-shadow 0.15s; }
     .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
@@ -19,7 +22,6 @@
 <!-- Header -->
 <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 shadow-sm flex-shrink-0">
   <div class="flex items-center gap-2">
-    <span class="text-2xl">🔭</span>
     <div>
       <h1 class="text-lg font-bold text-gray-900 leading-tight">EXP &amp; FC — Экспертные мнения и прогнозы</h1>
       <p class="text-xs text-gray-500">Источники данных DST · Expert Opinions &amp; Foresight</p>
@@ -36,11 +38,11 @@
 <div class="bg-white border-b border-gray-200 px-6 flex gap-0 flex-shrink-0">
   <button id="tab-fc" onclick="showTab('fc')"
     class="px-5 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 transition-colors">
-    📊 Прогнозы (FC)
+    Прогнозы (FC)
   </button>
   <button id="tab-exp" onclick="showTab('exp')"
     class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
-    🎓 Экспертные мнения (EXP)
+    Экспертные мнения (EXP)
   </button>
 </div>
 
@@ -274,9 +276,9 @@ function renderFcCard(item, bg) {
       </div>
       <div class="flex items-center gap-1.5 mt-1 flex-wrap">
         ${item.professionCode ? `<span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">${escHtml(item.professionCode)}</span>` : ''}
-        ${item.forecastDate ? `<span class="text-xs text-gray-400">📅 ${escHtml(item.forecastDate)}</span>` : ''}
+        ${item.forecastDate ? `<span class="text-xs text-gray-400">${escHtml(item.forecastDate)}</span>` : ''}
       </div>
-      ${item.sourceUrl ? `<div class="mt-1"><a href="${escHtml(item.sourceUrl)}" target="_blank" class="text-xs text-blue-500 hover:underline truncate block">🔗 ${escHtml(item.sourceUrl)}</a></div>` : ''}
+      ${item.sourceUrl ? `<div class="mt-1"><a href="${escHtml(item.sourceUrl)}" target="_blank" class="text-xs text-blue-500 hover:underline truncate block">${escHtml(item.sourceUrl)}</a></div>` : ''}
     </div>
   `;
 }

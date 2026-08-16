@@ -4,46 +4,56 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>УП + РПД — Учебные планы и дисциплины</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0f1117;--panel:#1a1d27;--border:#2a2d3a;--accent:#4f8ef7;--accent2:#7c5cbf;
-  --green:#3ecf7e;--red:#e05252;--yellow:#f0c040;--text:#e0e4f0;--muted:#7a7f9a;
-  --hover:#22263a;--card:#202333;--purple:#9b6deb;--bg2:#171a25;
+  --bg:#F9FAFB;--surface:#FFFFFF;--border:#E5E7EB;--border-s:#D1D5DB;
+  --accent:#1D4ED8;--accent-lt:#EFF6FF;
+  --text:#111827;--muted:#6B7280;--hover:#F3F4F6;--bg2:#F3F4F6;
+  --green:#065F46;--green-lt:#D1FAE5;
+  --red:#991B1B;--red-lt:#FEE2E2;
+  --yellow:#92400E;--yellow-lt:#FEF3C7;
+  --purple:#5B21B6;--purple-lt:#EDE9FE;
+  /* aliases for JS strings that reference old vars */
+  --panel:var(--surface);--card:var(--surface);--hover-border:var(--border-s);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
 
 /* Header */
-.header{padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;}
-.header h1{font-size:15px;font-weight:600;color:var(--text);}
+.header{padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.header h1{font-size:14px;font-weight:600;color:var(--text);letter-spacing:-.01em;}
 .nav-links{display:flex;gap:8px;margin-left:auto;}
 .nav-links a{text-decoration:none;color:var(--muted);font-size:12px;padding:4px 10px;border-radius:4px;border:1px solid var(--border);}
-.nav-links a:hover{color:var(--text);border-color:var(--accent);}
+.nav-links a:hover{color:var(--text);border-color:var(--border-s);}
 
 /* 3-panel layout */
 .panels{display:flex;flex:1;overflow:hidden;}
-.panel{display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden;}
+.panel{display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden;background:var(--surface);}
 .panel-left{width:240px;flex-shrink:0;}
 .panel-center{width:340px;flex-shrink:0;}
 .panel-right{flex:1;min-width:0;}
-.panel-header{padding:10px 12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;}
-.panel-body{flex:1;overflow-y:auto;padding:8px;}
+.panel-header{padding:9px 12px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'JetBrains Mono',monospace;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;}
+.panel-body{flex:1;overflow-y:auto;padding:6px;}
 
 /* Items */
-.item{padding:9px 10px;border-radius:6px;cursor:pointer;border:1px solid transparent;margin-bottom:3px;transition:.15s;}
-.item:hover{background:var(--hover);border-color:var(--border);}
-.item.active{background:#1e2a45;border-color:var(--accent);}
-.item-title{font-size:13px;font-weight:500;}
+.item{padding:8px 10px;border-radius:5px;cursor:pointer;border:1px solid transparent;margin-bottom:2px;transition:.12s;}
+.item:hover{background:var(--hover);}
+.item.active{background:var(--accent-lt);border-color:#BFDBFE;}
+.item-title{font-size:13px;font-weight:500;color:var(--text);}
+.item.active .item-title{color:var(--accent);}
 .item-sub{font-size:11px;color:var(--muted);margin-top:2px;}
 
 /* Buttons */
-.btn{padding:5px 12px;border-radius:5px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--text);transition:.15s;}
-.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn{padding:5px 12px;border-radius:5px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:.12s;font-family:inherit;}
+.btn:hover{border-color:var(--border-s);background:var(--bg);}
 .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
-.btn-primary:hover{background:#3a7ae0;}
+.btn-primary:hover{background:#1E40AF;border-color:#1E40AF;}
 .btn-sm{padding:3px 8px;font-size:11px;}
 .btn-danger{color:var(--red);border-color:transparent;}
-.btn-danger:hover{border-color:var(--red);}
+.btn-danger:hover{border-color:var(--red);background:var(--red-lt);}
 
 /* Add bar */
 .add-bar{padding:8px;border-top:1px solid var(--border);flex-shrink:0;}
@@ -51,90 +61,89 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .add-bar input:focus{outline:none;border-color:var(--accent);}
 
 /* Right panel blocks */
-.right-header{padding:12px 14px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;}
+.right-header{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
 .disc-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .disc-meta input{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--text);font-size:12px;}
 .disc-meta input.name-inp{flex:1;min-width:120px;}
 .disc-meta input.num-inp{width:70px;}
 .disc-meta .save-btn{flex-shrink:0;}
 
-.block{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;}
-.block-title{padding:8px 12px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+.block{background:var(--surface);border:1px solid var(--border);border-radius:7px;margin-bottom:10px;}
+.block-title{padding:8px 12px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'JetBrains Mono',monospace;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
 .block-title span.icon{font-size:13px;}
 .block-add{padding:8px 10px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;}
 .block-add input,.block-add select{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--text);font-size:12px;}
-.block-add select option{background:var(--bg);}
+.block-add select option{background:var(--surface);}
 .block-add input:focus,.block-add select:focus{outline:none;border-color:var(--accent);}
 .block-add .hours-inp{width:60px;flex:none;}
 .autocomplete-wrapper{position:relative;flex:1;}
-.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--border);border-radius:5px;z-index:100;max-height:180px;overflow-y:auto;}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border-s);border-radius:5px;z-index:100;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);}
 .autocomplete-list div{padding:6px 10px;font-size:12px;cursor:pointer;}
 .autocomplete-list div:hover{background:var(--hover);}
 .autocomplete-list div small{color:var(--muted);margin-left:6px;}
 .block-list{padding:6px 10px;}
-.coverage-item{display:flex;align-items:center;gap:8px;padding:5px 4px;border-bottom:1px solid #1e2133;}
+.coverage-item{display:flex;align-items:center;gap:8px;padding:5px 4px;border-bottom:1px solid var(--border);}
 .coverage-item:last-child{border-bottom:none;}
 .coverage-item .label{flex:1;font-size:12px;}
 .coverage-item .hours{font-size:11px;color:var(--muted);white-space:nowrap;}
-.coverage-item .dst-btn{font-size:10px;padding:2px 6px;border-radius:3px;cursor:pointer;background:#1e2533;border:1px solid var(--border);color:var(--accent);white-space:nowrap;}
-.coverage-item .dst-btn:hover{background:#2a3555;}
+.coverage-item .dst-btn{font-size:10px;padding:2px 6px;border-radius:3px;cursor:pointer;background:var(--accent-lt);border:1px solid #BFDBFE;color:var(--accent);white-space:nowrap;font-family:inherit;}
+.coverage-item .dst-btn:hover{background:#DBEAFE;}
 
 /* Empty state */
 .empty{text-align:center;color:var(--muted);font-size:12px;padding:24px 8px;}
 
 /* Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:center;justify-content:center;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;display:none;align-items:center;justify-content:center;}
 .modal-overlay.show{display:flex;}
-.modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;width:360px;max-width:95vw;}
-.modal h3{font-size:14px;margin-bottom:14px;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;width:360px;max-width:95vw;box-shadow:0 8px 24px rgba(0,0,0,.1);}
+.modal h3{font-size:14px;font-weight:600;margin-bottom:14px;}
 .modal label{font-size:12px;color:var(--muted);display:block;margin-bottom:3px;margin-top:8px;}
 .modal input{width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:13px;}
 .modal input:focus{outline:none;border-color:var(--accent);}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
 
 /* DST Drawer */
-.dst-drawer{position:fixed;top:0;right:0;height:100vh;width:620px;max-width:98vw;background:var(--panel);border-left:1px solid var(--border);z-index:300;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;display:flex;flex-direction:column;}
+.dst-drawer{position:fixed;top:0;right:0;height:100vh;width:760px;max-width:98vw;background:var(--surface);border-left:1px solid var(--border-s);z-index:300;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;display:flex;flex-direction:column;}
 .dst-drawer.open{transform:translateX(0);}
-.dst-drawer-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--panel);position:sticky;top:0;z-index:1;}
-.dst-drawer-header h3{font-size:13px;font-weight:600;}
+.dst-drawer-header{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--bg);position:sticky;top:0;z-index:1;}
+.dst-drawer-header h3{font-size:13px;font-weight:600;color:var(--text);}
 .dst-drawer-body{padding:14px;flex:1;}
 
 .trace-step{margin-bottom:14px;}
-.trace-step-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.trace-step-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border);}
 .trace-table{width:100%;border-collapse:collapse;font-size:11px;}
 .trace-table th{color:var(--muted);font-weight:600;padding:3px 6px;text-align:left;border-bottom:1px solid var(--border);}
-.trace-table td{padding:4px 6px;border-bottom:1px solid #1a1d27;}
+.trace-table td{padding:4px 6px;border-bottom:1px solid var(--border);}
 .trace-table tr:hover td{background:var(--hover);}
 .disabled-row td{color:var(--muted) !important;opacity:.5;}
-.trace-formula{font-size:11px;color:var(--text);background:#171a25;border-radius:5px;padding:6px 10px;margin:4px 0;font-family:monospace;}
+.trace-formula{font-size:11px;color:var(--text);background:var(--bg2);border-radius:4px;border:1px solid var(--border);padding:5px 10px;margin:4px 0;font-family:'JetBrains Mono',monospace;}
 .trace-highlight{font-size:11px;color:var(--muted);margin:3px 0;}
-.recommendation-card{border-radius:8px;padding:12px 14px;margin-top:14px;border:1px solid;}
-.rec-strong{background:#1f2f1f;border-color:var(--green);color:var(--green);}
-.rec-moderate{background:#2a2810;border-color:var(--yellow);color:var(--yellow);}
-.rec-preserve{background:#1a2233;border-color:var(--accent);color:var(--accent);}
-.rec-reduce{background:#2a1f20;border-color:var(--red);color:var(--red);}
-.dual-bar{height:8px;background:var(--border);border-radius:4px;position:relative;overflow:visible;margin-bottom:2px;min-width:80px;}
-.bar-betp{position:absolute;top:0;left:0;height:8px;background:var(--purple);border-radius:4px;opacity:.8;}
-.bar-supply{position:absolute;top:0;left:0;height:8px;background:var(--green);border-radius:4px;opacity:.5;}
+.recommendation-card{border-radius:7px;padding:12px 14px;margin-top:14px;border-left:3px solid;}
+.rec-strong{background:var(--green-lt);border-color:#059669;color:var(--green);}
+.rec-moderate{background:var(--yellow-lt);border-color:#D97706;color:var(--yellow);}
+.rec-preserve{background:var(--accent-lt);border-color:var(--accent);color:var(--accent);}
+.rec-reduce{background:var(--red-lt);border-color:#DC2626;color:var(--red);}
+.rec-expertise{background:var(--purple-lt);border-color:#7C3AED;color:var(--purple);}
+.dual-bar{height:6px;background:var(--border);border-radius:3px;position:relative;overflow:visible;margin-bottom:2px;min-width:80px;}
+.bar-betp{position:absolute;top:0;left:0;height:6px;background:var(--accent);border-radius:3px;opacity:.7;}
+.bar-supply{position:absolute;top:0;left:0;height:6px;background:#10B981;border-radius:3px;opacity:.5;}
 .l0-table td{vertical-align:middle;}
 .l0-domain-row:hover td{background:var(--hover);}
-.rec-expertise{background:#22163a;border-color:#c07fef;color:#c07fef;}
 .rec-title{font-size:13px;font-weight:600;margin-bottom:6px;}
 .rec-metrics{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);}
 .rec-metrics span b{color:var(--text);}
-
 .spinner{text-align:center;padding:24px;color:var(--muted);font-size:12px;}
 
 /* Scrollbar */
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+::-webkit-scrollbar-thumb{background:var(--border-s);border-radius:3px;}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>📚 Учебные планы и дисциплины</h1>
+  <h1>Учебные планы и дисциплины</h1>
   <div class="nav-links">
     <a href="dst.html">DST Анализ</a>
     <a href="foresight.html">Прогнозы</a>
@@ -241,7 +250,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 <div class="dst-drawer" id="dstDrawer">
   <div class="dst-drawer-header">
     <h3 id="dstDrawerTitle">DST-расчёт</h3>
-    <button class="btn btn-sm" onclick="closeDstDrawer()">✕</button>
+    <button class="btn btn-sm" onclick="closeDstDrawer()">&times;</button>
   </div>
   <div class="dst-drawer-body" id="dstDrawerBody">
     <div class="spinner">Загрузка...</div>
@@ -307,10 +316,10 @@ function renderCurriculumList() {
         ${isSelected ? `
         <button class="btn btn-sm" onclick="event.stopPropagation();toggleProfPanel()" id="profToggleBtn"
           title="Профессии УП" style="color:var(--purple);border-color:var(--purple);">
-          ${profPanelOpen?'👥◀':'👥▶'}
+          ${profPanelOpen?'◄ Профессии':'Профессии ►'}
         </button>
         <button class="btn btn-sm" onclick="event.stopPropagation();runDstL0Curriculum()"
-          title="DST Анализ УП" style="color:var(--accent);border-color:var(--accent);">🔬 DST</button>
+          title="DST Анализ УП" style="color:var(--accent);border-color:var(--accent);">DST</button>
         ` : ''}
       </div>
     </div>`;
@@ -422,7 +431,7 @@ async function deleteCurriculumProfession(code) {
 async function runDstL0Curriculum() {
   if (!selectedCurriculumId) return;
   const c = curricula.find(x=>x.id===selectedCurriculumId);
-  document.getElementById('dstDrawerTitle').textContent = `🔬 DST Level 0 — УП`;
+  document.getElementById('dstDrawerTitle').textContent = `DST Level 0 — УП`;
   document.getElementById('dstDrawerBody').innerHTML = '<div class="spinner">Вычисляется...</div>';
   document.getElementById('dstDrawer').classList.add('open');
   try {
@@ -436,7 +445,7 @@ async function runDstL0Curriculum() {
 async function runDstL1Discipline(discId) {
   if (!discId) return;
   const d = disciplines.find(x => x.id === discId);
-  document.getElementById('dstDrawerTitle').textContent = `🔽 DST Ур.1 — ${d ? esc(d.name) : 'Дисциплина #' + discId}`;
+  document.getElementById('dstDrawerTitle').textContent = `DST Ур.1 — ${d ? esc(d.name) : 'Дисциплина #' + discId}`;
   document.getElementById('dstDrawerBody').innerHTML = '<div class="spinner">Вычисляется...</div>';
   document.getElementById('dstDrawer').classList.add('open');
   try {
@@ -479,7 +488,7 @@ function renderL1Discipline(resp) {
       const isObs     = f.recommendation === 'obsolete' && (f.supplyHours || 0) > 0;
       const boost     = isUncov || deltaNorm > 0.03;
       const cls       = isObs ? 'rec-reduce' : boost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
-      const icon      = isObs ? '🗑️' : isUncov ? '➕' : boost ? '🔴' : deltaNorm < -0.03 ? '🟢' : '✅';
+      const icon      = '';
       const lbl       = isObs ? 'Удалить' : isUncov ? 'Ввести' : boost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
       const betpPct   = Math.round((f.betp || 0) * 100);
       const supPct    = Math.round((f.supply || 0) * 100);
@@ -496,7 +505,7 @@ function renderL1Discipline(resp) {
         <td style="padding:4px 6px;${dnStyle}"><b>${dnFmt}</b></td>
         <td style="padding:4px 6px;white-space:nowrap;">${f.supplyHours || 0} ч.</td>
         <td style="padding:4px 6px;white-space:nowrap;"><b>${recHours}</b> ч. <span style="${gapStyle};font-size:9px;">${gapHours >= 0 ? '+' : ''}${gapHours}</span></td>
-        <td style="padding:4px 6px;"><span class="${cls}" style="padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;">${icon} ${lbl}</span></td>
+        <td style="padding:4px 6px;"><span class="${cls}" style="padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;">${lbl}</span></td>
         <td style="padding:4px 6px;font-size:11px;color:var(--muted);">▶</td>
       </tr>
       <tr id="${traceId}" style="display:none;">
@@ -511,7 +520,7 @@ function renderL1Discipline(resp) {
     return `
       <div style="margin-bottom:14px;">
         <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:4px;padding:4px 6px;background:var(--bg2);border-radius:4px;display:flex;justify-content:space-between;">
-          <span>🗂 ${esc(sec.domain)}</span>
+          <span>${esc(sec.domain)}</span>
           <span style="font-size:10px;font-weight:400;color:var(--muted);">Бюджет домена: <b>${domHours} ч.</b> &nbsp;|&nbsp; N = ${nFamiliesL1}</span>
         </div>
         <table class="trace-table" style="font-size:11px;">
@@ -692,8 +701,8 @@ function renderCoveragePanel(d) {
       <input class="num-inp" id="edit_hours" type="number" placeholder="часов" value="${d.totalHours||''}"/>
       <input class="num-inp" id="edit_sem" type="number" placeholder="сем." value="${d.semester||''}"/>
       <button class="btn btn-primary save-btn btn-sm" onclick="saveDiscInline(${d.id})">Сохранить</button>
-      <button class="btn btn-sm" style="background:var(--purple);color:#fff;margin-left:8px;" onclick="runDstL0Curriculum()">🔬 DST Анализ УП</button>
-      <button class="btn btn-sm" style="background:var(--accent,#06b6d4);color:#fff;margin-left:4px;" onclick="runDstL1Discipline(${d.id})">🔽 DST Ур.1</button>
+      <button class="btn btn-sm" style="background:var(--purple);color:#fff;margin-left:8px;" onclick="runDstL0Curriculum()">DST Анализ УП</button>
+      <button class="btn btn-sm" style="background:var(--accent,#06b6d4);color:#fff;margin-left:4px;" onclick="runDstL1Discipline(${d.id})">DST Ур.1</button>
     </div>`;
 
   const coverage = d.coverage || [];
@@ -724,7 +733,7 @@ function renderCoveragePanel(d) {
 
   const overflowHtml = (d.totalHours && totalCovHours > d.totalHours)
     ? `<div style="background:rgba(234,179,8,.08);border:1px solid var(--yellow,#eab308);border-radius:6px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:var(--yellow,#eab308);line-height:1.5;">
-        ⚠️ Суммарно введено <b>${totalCovHours} ч.</b> при объёме дисциплины <b>${d.totalHours} ч.</b>
+        Суммарно введено <b>${totalCovHours} ч.</b> при объёме дисциплины <b>${d.totalHours} ч.</b>
         (домены&nbsp;${_domH}&nbsp;ч. + семейства&nbsp;${_famH}&nbsp;ч. + навыки&nbsp;${_skH}&nbsp;ч.)<br>
         <span style="opacity:.85;">DST применяет иерархию <b>домен&nbsp;▶&nbsp;семейство&nbsp;▶&nbsp;навык</b>: для каждого домена считается только наивысший уровень.
         Эффективно: ${_effParts} = <b>${_sumEff}&nbsp;ч.</b> → нормализация до <b>${d.totalHours}&nbsp;ч.</b></span>
@@ -733,9 +742,9 @@ function renderCoveragePanel(d) {
 
   document.getElementById('coveragePanel').innerHTML = `
     ${overflowHtml}
-    ${buildBlock('domain','🗂','ДОМЕН','domain', doms, d.id)}
-    ${buildBlock('techFamily','🔧','СЕМЕЙСТВО','techFamily', fams, d.id)}
-    ${buildBlock('skill','⚡','НАВЫК (skill_canonical)','skill', skills, d.id)}
+    ${buildBlock('domain','','ДОМЕН','domain', doms, d.id)}
+    ${buildBlock('techFamily','','СЕМЕЙСТВО','techFamily', fams, d.id)}
+    ${buildBlock('skill','','НАВЫК','skill', skills, d.id)}
   `;
 }
 
@@ -747,7 +756,7 @@ function buildBlock(type, icon, title, inputType, items, discId) {
       <span class="label" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(getLabel(c, type))}</span>
       ${badge}
       <span class="hours">${c.hours||0} ч.</span>
-      <button class="dst-btn" onclick="runDst(${discId},'${type}','${getKey(c,type)}',this)">🔬 DST</button>
+      <button class="dst-btn" onclick="runDst(${discId},'${type}','${getKey(c,type)}',this)">DST</button>
       <button class="btn btn-sm btn-danger" onclick="deleteCoverage(${c.id},${discId})">✕</button>
     </div>`;}).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px 0;">Нет записей</div>';
 
@@ -984,7 +993,7 @@ function selectProf(discId, code, name) {
 async function runDst(discId, type, key, btn) {
   const d = disciplines.find(x=>x.id===discId);
   const title = `${type.toUpperCase()}: ${key}`;
-  document.getElementById('dstDrawerTitle').textContent = `🔬 DST — ${title}`;
+  document.getElementById('dstDrawerTitle').textContent = `DST — ${title}`;
   document.getElementById('dstDrawerBody').innerHTML = '<div class="spinner">Вычисляется...</div>';
   document.getElementById('dstDrawer').classList.add('open');
 
@@ -1022,7 +1031,7 @@ function renderL0(r) {
   const totalBetP = (r.domains||[]).reduce((s, d) => s + (d.betp || 0), 0);
 
   const allocClass = dn => dn > 0.03 ? 'rec-moderate' : dn < -0.03 ? 'rec-strong' : 'rec-preserve';
-  const allocIcon  = dn => dn > 0.03 ? '🔴' : dn < -0.03 ? '🟢' : '✅';
+  const allocIcon  = dn => '';
   const allocLabel = dn => dn > 0.03 ? 'Усилить' : dn < -0.03 ? 'Сократить' : 'Сохранить';
 
   const domainRows = (r.domains||[]).map((d,i) => {
@@ -1039,6 +1048,8 @@ function renderL0(r) {
     const isUncov    = (d.supplyHours||0) === 0 && deltaNorm > 0;
     const isObsolete = d.recommendation === 'obsolete' && (d.supplyHours||0) > 0;
     const needsBoost = isUncov || deltaNorm > 0.03;
+    const aClass     = isObsolete ? 'rec-reduce' : isUncov ? 'rec-moderate' : needsBoost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
+    const aLabel     = isObsolete ? 'Удалить' : isUncov ? 'Ввести' : needsBoost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
     const traceId    = `l0trace_${i}`;
     const traceFn    = `toggleL0Trace('${traceId}')`;
     return `
@@ -1057,7 +1068,7 @@ function renderL0(r) {
         <b>${recHours}</b> ч.
         <span style="${gapStyle};font-size:10px;margin-left:2px;">${gapHours>=0?'+':''}${gapHours}</span>
       </td>
-      <td><span class="${isObsolete?'rec-reduce':isUncov?'rec-moderate':needsBoost?'rec-moderate':deltaNorm<-0.03?'rec-strong':'rec-preserve'}" style="padding:2px 6px;border-radius:4px;font-size:11px;white-space:nowrap;" title="Δ_norm=${fmt(deltaNorm)}${isUncov?' (покрытие=0)':isObsolete?' (DST: устарело)':''}">${isObsolete?'🗑️':isUncov?'➕':needsBoost?'🔴':deltaNorm<-0.03?'🟢':'✅'} ${isObsolete?'Удалить':isUncov?'Ввести':needsBoost?'Усилить':deltaNorm<-0.03?'Сократить':'Сохранить'}</span></td>
+      <td><span class="${aClass}" style="padding:2px 6px;border-radius:4px;font-size:11px;white-space:nowrap;" title="Δ_norm=${fmt(deltaNorm)}${isUncov?' (покрытие=0)':isObsolete?' (DST: устарело)':''}">${aLabel}</span></td>
       <td style="font-size:11px;color:var(--muted)">▶</td>
     </tr>
     <tr id="${traceId}" style="display:none;" data-domain="${esc(d.domain)}" data-curriculum="${r.curriculumId}"><td colspan="7">
@@ -1070,7 +1081,7 @@ function renderL0(r) {
   const profsHtml = (r.professions||[]).map(p=>`<span style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--purple);">${esc(p.professionCode)} ${Math.round(p.weight*100)}%</span>`).join(' ');
 
   document.getElementById('dstDrawerTitle').textContent =
-    `🔬 DST Level 0 — ${esc(r.curriculumName||'УП')} | ${r.totalCurriculumHours} ч.`;
+    `DST Level 0 — ${esc(r.curriculumName||'УП')} | ${r.totalCurriculumHours} ч.`;
 
   document.getElementById('dstDrawerBody').innerHTML = `
     <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
@@ -1080,11 +1091,11 @@ function renderL0(r) {
       &nbsp;<span style="font-size:10px;">(supply = часы домена во всём УП / всего часов)</span>
     </div>
     <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">
-      <span style="display:inline-block;width:12px;height:8px;background:var(--purple);border-radius:2px;margin-right:4px;"></span>BetP (рынок)
+      <span style="display:inline-block;width:12px;height:8px;background:var(--accent);border-radius:2px;margin-right:4px;"></span>BetP (рынок)
       <span style="display:inline-block;width:12px;height:8px;background:var(--green);border-radius:2px;margin:0 4px 0 12px;"></span>supply (УП)
     </div>
     <table class="trace-table l0-table">
-      <thead><tr><th>Домен</th><th>BetP / supply</th><th title="Дефицит аллокации: Δ_norm = nBetP − supply = BetP/Σ(BetP) − supply">Δ_norm</th><th>Часов в УП</th><th title="Целевые часы: BetP_i / Σ(BetP) × ${r.totalCurriculumHours}. Сумма = ${r.totalCurriculumHours} ч.">Цел. часов</th><th>Решение</th><th></th></tr></thead>
+      <thead><tr><th>Домен</th><th>BetP / supply</th><th title="Δ_norm = nBetP − supply = BetP/Σ(BetP) − supply">Δ_norm</th><th>Часов в УП</th><th title="Целевые часы: BetP_i / Σ(BetP) × ${r.totalCurriculumHours}. Сумма = ${r.totalCurriculumHours} ч.">Цел. часов</th><th>Решение</th><th></th></tr></thead>
       <tbody>${domainRows}</tbody>
       <tfoot><tr style="font-size:10px;color:var(--muted);"><td colspan="4" style="text-align:right;padding-top:4px;">Σ целевых часов:</td><td style="padding-top:4px;"><b>${r.totalCurriculumHours} ч.</b> ✓</td><td colspan="2"></td></tr></tfoot>
     </table>`;
@@ -1122,7 +1133,7 @@ function toggleL0Trace(id) {
 
 function loadDisciplineBreakdown(div, curriculumId, domain) {
   div.dataset.loaded = 'true';
-  div.innerHTML = '<span style="color:var(--muted);font-size:10px;">⏳ Загрузка...</span>';
+  div.innerHTML = '<span style="color:var(--muted);font-size:10px;">Загрузка...</span>';
   fetch(`/api/dst/curriculum/${encodeURIComponent(curriculumId)}/domain/${encodeURIComponent(domain)}/supply-breakdown`)
     .then(r => r.ok ? r.json() : [])
     .then(items => {
@@ -1158,7 +1169,7 @@ function buildInlineTrace(d, alloc) {
   const aObsolete  = d.recommendation === 'obsolete' && (d.supplyHours||0) > 0;
   const aBoost     = aUncov || aDn > 0.03;
   const aClass     = aObsolete ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
-  const aIcon      = aObsolete ? '🗑️' : aUncov ? '➕' : aBoost ? '🔴' : aDn < -0.03 ? '🟢' : '✅';
+  const aIcon      = '';
   const aLabel     = aObsolete ? 'Удалить из программы' : aUncov ? 'Ввести в программу' : aBoost ? 'Усилить' : aDn < -0.03 ? 'Сократить' : 'Сохранить';
   const aDesc      = aObsolete
     ? `Рынок труда демонстрирует <b>устаревание</b> данного домена (DST-сигнал: высокое неверие m(F)>0.8). Сокращается спрос на эти навыки. Рассмотрите исключение домена из программы: сейчас ${d.supplyHours} ч., цель — <b>${recHours} ч.</b> (разрыв ${gapHours} ч.).`
@@ -1200,19 +1211,15 @@ function buildInlineTrace(d, alloc) {
     return `
       <tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
           <td>κ = ${kappaFormula} = <b>${fmt(s.kappa)}</b></td>
-          <td>m(T) = κ·score = <b>${fmt(s.mT)}</b></td>
-          <td>m(U) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
-          <td>m(F) = <b>${fmt(s.mF)}</b></td></tr>`;
+          <td>m(T) = κ·score = <b>${fmt(s.mT)}</b><br>m(U) = 1−m(T) = <b>${fmt(s.mU)}</b><br>m(F) = <b>${fmt(s.mF)}</b></td></tr>`;
   }).join('');
 
   // ─── Шаг 3: Дисконтирование ───────────────────────────────────────────────
   const step3 = sources.filter(s=>s.enabled).map(s => {
     const col = srcColor[s.sourceName] || 'var(--muted)';
     return `
-      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b> w=${fmt(s.weight)}</td>
-          <td>m'(T) = ${fmt(s.mT)}·${fmt(s.weight)} = <b>${fmt(s.mTDiscounted)}</b></td>
-          <td>m'(U) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b></td>
-          <td>m'(F) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
+      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b><br><span style="color:var(--muted);font-size:10px">w=${fmt(s.weight)}</span></td>
+          <td>m'(T) = ${fmt(s.mT)}·${fmt(s.weight)} = <b>${fmt(s.mTDiscounted)}</b><br>m'(U) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b><br>m'(F) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
   }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
 
   // ─── Шаг 4: Комбинирование ───────────────────────────────────────────────
@@ -1229,8 +1236,7 @@ function buildInlineTrace(d, alloc) {
       return `<tr>
         <td>${esc(c.label)}</td>
         <td>K=${fmt(c.K)} → <b style="color:${ruleColor}">${c.rule||'Dempster'}</b></td>
-        <td>m*(T)=<b>${fmt(c.output?.mT)}</b></td>
-        <td>m*(U)=<b>${fmt(c.output?.mU)}</b> m*(F)=<b>${fmt(c.output?.mF)}</b></td></tr>`;
+        <td>m*(T)=<b>${fmt(c.output?.mT)}</b> &nbsp; m*(U)=<b>${fmt(c.output?.mU)}</b> &nbsp; m*(F)=<b>${fmt(c.output?.mF)}</b></td></tr>`;
     }).join('') || `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
   }
 
@@ -1240,14 +1246,14 @@ function buildInlineTrace(d, alloc) {
   const dnColor      = deltaNorm > 0.03 ? 'var(--yellow)' : deltaNorm < -0.03 ? 'var(--green)' : 'var(--muted)';
   const gaugeNPos    = Math.min(98, Math.max(2, Math.round((deltaNorm + (1/15)) / (2/15) * 100)));
 
-  const tStyle  = 'border-collapse:collapse;width:100%;font-size:11px;margin-bottom:6px;';
+  const tStyle  = 'border-collapse:collapse;width:100%;font-size:12px;margin-bottom:10px;';
   const hStyle  = 'background:var(--bg2);color:var(--muted);padding:3px 6px;font-weight:600;font-size:10px;text-align:left;';
-  const tdStyle = 'padding:2px 6px;border-bottom:1px solid var(--border);vertical-align:middle;';
+  const tdStyle = 'padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;font-family:\'JetBrains Mono\',monospace;';
 
   const gaugePos   = Math.min(98, Math.max(2, Math.round((d.delta + 1) / 2 * 100)));
   const gaugeColor = d.delta > 0.35 ? '#ef4444' : d.delta > 0.15 ? '#f59e0b' : d.delta < -0.15 ? '#22c55e' : '#6b7280';
 
-  const recLabelRu = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',obsolete:'⚠️ Устарело (m(F)↑)',expertise:'🔵 Экспертиза'})[d.recommendation]||d.recommendation||'—';
+  const recLabelRu = ({strong:'Срочно усилить',moderate:'Усилить умеренно',preserve:'Баланс',reduce:'Сократить',obsolete:'Устарело (m(F)↑)',expertise:'Экспертиза'})[d.recommendation]||d.recommendation||'—';
   const rcCls = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',obsolete:'rec-reduce',expertise:'rec-expertise'})[d.recommendation]||'rec-preserve';
 
   return `
@@ -1260,15 +1266,15 @@ function buildInlineTrace(d, alloc) {
       <tbody>${step1}</tbody>
     </table>
     <table class="it" style="${tStyle}">
-      <thead><tr><th colspan="5" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
+      <thead><tr><th colspan="3" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
       <tbody>${step2}</tbody>
     </table>
     <table class="it" style="${tStyle}">
-      <thead><tr><th colspan="4" style="${hStyle}">Шаг 3 — Дисконтирование: m'(T)=m(T)·w, m'(Θ)=m(Θ)·w+(1−w)</th></tr></thead>
+      <thead><tr><th colspan="2" style="${hStyle}">Шаг 3 — Дисконтирование: m'(T)=m(T)·w, m'(Θ)=m(Θ)·w+(1−w)</th></tr></thead>
       <tbody>${step3}</tbody>
     </table>
     <table class="it" style="${tStyle}">
-      <thead><tr><th colspan="4" style="${hStyle}">Шаг 4 — Комбинирование (Демпстер K&lt;0.4 / Ягер K≥0.4)</th></tr></thead>
+      <thead><tr><th colspan="3" style="${hStyle}">Шаг 4 — Комбинирование (Демпстер K&lt;0.4 / Ягер K≥0.4)</th></tr></thead>
       <tbody>${step4}</tbody>
     </table>
     <table class="it" style="${tStyle}">
@@ -1291,7 +1297,7 @@ function buildInlineTrace(d, alloc) {
     </table>
     <div class="${aClass}" style="border-radius:6px;padding:10px 12px;margin-top:10px;border:1px solid;">
       <div style="font-size:9px;opacity:0.7;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px;">Аллокационная рекомендация (Δ_norm = nBetP − supply)</div>
-      <div style="font-weight:700;font-size:13px;margin-bottom:5px;">${aIcon} ${aLabel}</div>
+      <div style="font-weight:700;font-size:13px;margin-bottom:5px;">${aLabel}</div>
       <div style="font-size:11px;line-height:1.55;opacity:0.9;margin-bottom:10px;">${aDesc}</div>
       <div style="margin:4px 0 2px;">
         <div style="display:flex;justify-content:space-between;font-size:9px;opacity:0.65;margin-bottom:4px;"><span>Сократить</span><span>Баланс</span><span>Усилить</span></div>
@@ -1301,7 +1307,7 @@ function buildInlineTrace(d, alloc) {
       <div style="font-size:10px;opacity:0.75;margin-top:4px;">Δ_norm = <b>${(deltaNorm>=0?'+':'')+(deltaNorm*100).toFixed(2)}%</b> &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${Math.round((d.supply||0)*100)}%</b></div>
     </div>
     <details style="margin-top:8px;">
-      <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">📊 Рыночный DST-сигнал (справочно, Δ_abs = ${(d.delta>=0?'+':'')+fmt(d.delta)}): ${recLabelRu}</summary>
+      <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">Рыночный DST-сигнал (справочно, Δ_abs = ${(d.delta>=0?'+':'')+fmt(d.delta)}): ${recLabelRu}</summary>
       <div class="${rcCls}" style="border-radius:6px;padding:8px 12px;margin-top:6px;border:1px solid;opacity:.8;">
         <div style="margin:6px 0 4px;">
           <div style="position:relative;height:5px;border-radius:3px;background:linear-gradient(to right,#ef4444,#f59e0b 50%,#22c55e);"><div style="position:absolute;left:${gaugePos}%;top:50%;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid ${gaugeColor};transform:translate(-50%,-50%);"></div></div>
@@ -1313,12 +1319,12 @@ function buildInlineTrace(d, alloc) {
     <div style="margin-top:10px;">
       <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Из каких дисциплин УП сформированы часы домена</div>
       <div data-disc-placeholder style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 4px;min-height:22px;">
-        <span style="color:var(--muted);font-size:10px;">⏳ Загрузка...</span>
+        <span style="color:var(--muted);font-size:10px;">Загрузка...</span>
       </div>
     </div>
     <div style="margin-top:12px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;">🔽 Уровень 1 — Технологические семейства домена</div>
+        <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;">Уровень 1 — Технологические семейства домена</div>
         <button data-l1-btn style="font-size:10px;padding:2px 8px;border:1px solid var(--accent);border-radius:4px;background:transparent;color:var(--accent);cursor:pointer;">Показать семейства</button>
       </div>
       <div data-l1-placeholder style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 4px;min-height:22px;"></div>
@@ -1327,7 +1333,7 @@ function buildInlineTrace(d, alloc) {
 
 function loadLevel1Families(div, curriculumId, domain) {
   div.dataset.loaded = 'true';
-  div.innerHTML = '<span style="color:var(--muted);font-size:10px;">⏳ Загрузка анализа семейств...</span>';
+  div.innerHTML = '<span style="color:var(--muted);font-size:10px;">Загрузка анализа семейств...</span>';
   fetch(`/api/dst/curriculum/${encodeURIComponent(curriculumId)}/level1?domain=${encodeURIComponent(domain)}`)
     .then(r => r.ok ? r.json() : null)
     .then(resp => {
@@ -1356,7 +1362,6 @@ function loadLevel1Families(div, curriculumId, domain) {
         const isObsolete = f.recommendation === 'obsolete' && (f.supplyHours || 0) > 0;
         const needsBoost = isUncov || deltaNorm > 0.03;
         const badgeCls   = isObsolete ? 'rec-reduce' : isUncov ? 'rec-moderate' : needsBoost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
-        const badgeIcon  = isObsolete ? '🗑️' : isUncov ? '➕' : needsBoost ? '🔴' : deltaNorm < -0.03 ? '🟢' : '✅';
         const badgeLbl   = isObsolete ? 'Удалить' : isUncov ? 'Ввести' : needsBoost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
         const betpPct    = Math.round((f.betp || 0) * 100);
         const supplyPct  = Math.round((f.supply || 0) * 100);
@@ -1373,7 +1378,7 @@ function loadLevel1Families(div, curriculumId, domain) {
           <td style="padding:4px 6px;${dnStyle}"><b>${dnFmt}</b></td>
           <td style="padding:4px 6px;white-space:nowrap;">${f.supplyHours || 0} ч.</td>
           <td style="padding:4px 6px;white-space:nowrap;"><b>${recHours}</b> ч. <span style="${gapStyle};font-size:9px;">${gapHours >= 0 ? '+' : ''}${gapHours}</span></td>
-          <td style="padding:4px 6px;"><span class="${badgeCls}" style="padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;">${badgeIcon} ${badgeLbl}</span></td>
+          <td style="padding:4px 6px;"><span class="${badgeCls}" style="padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;">${badgeLbl}</span></td>
           <td style="padding:4px 6px;font-size:11px;color:var(--muted);">▶</td>
         </tr>
         <tr id="${traceId}" style="display:none;">
@@ -1428,7 +1433,6 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
   const aObsolete = f.recommendation === 'obsolete' && (f.supplyHours || 0) > 0;
   const aBoost    = aUncov || aDn > 0.03;
   const aClass    = aObsolete ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
-  const aIcon     = aObsolete ? '🗑️' : aUncov ? '➕' : aBoost ? '🔴' : aDn < -0.03 ? '🟢' : '✅';
   const aLabel    = aObsolete ? 'Удалить из программы' : aUncov ? 'Ввести в программу' : aBoost ? 'Усилить' : aDn < -0.03 ? 'Сократить' : 'Сохранить';
   const aDesc     = aObsolete
     ? `Рынок труда демонстрирует <b>устаревание</b> данного семейства (DST-сигнал: m(F) высокое). Рассмотрите исключение: сейчас ${f.supplyHours} ч., цель — <b>${recHours} ч.</b> (разрыв ${gapHours} ч.).`
@@ -1458,17 +1462,13 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
     const kappaFormula = `1−e^(−${fmt(s.lambda)}×${s.relevantCount}/${s.totalCount})`;
     return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
         <td>κ = ${kappaFormula} = <b>${fmt(s.kappa)}</b></td>
-        <td>m(T) = κ·score = <b>${fmt(s.mT)}</b></td>
-        <td>m(U) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
-        <td>m(F) = <b>${fmt(s.mF)}</b></td></tr>`;
+        <td>m(T) = κ·score = <b>${fmt(s.mT)}</b><br>m(U) = 1−m(T) = <b>${fmt(s.mU)}</b><br>m(F) = <b>${fmt(s.mF)}</b></td></tr>`;
   }).join('');
 
   const step3 = sources.filter(s=>s.enabled).map(s => {
     const col = srcColor[s.sourceName] || 'var(--muted)';
-    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b> w=${fmt(s.weight)}</td>
-        <td>m'(T) = ${fmt(s.mT)}·${fmt(s.weight)} = <b>${fmt(s.mTDiscounted)}</b></td>
-        <td>m'(U) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b></td>
-        <td>m'(F) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
+    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b><br><span style="color:var(--muted);font-size:10px">w=${fmt(s.weight)}</span></td>
+        <td>m'(T) = ${fmt(s.mT)}·${fmt(s.weight)} = <b>${fmt(s.mTDiscounted)}</b><br>m'(U) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b><br>m'(F) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
   }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
 
   const enabledCount = sources.filter(s=>s.enabled).length;
@@ -1483,8 +1483,7 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
       const ruleColor = c.rule === 'Yager' ? 'var(--yellow)' : 'var(--green)';
       return `<tr><td>${esc(c.label)}</td>
           <td>K=${fmt(c.K)} → <b style="color:${ruleColor}">${c.rule||'Dempster'}</b></td>
-          <td>m*(T)=<b>${fmt(c.output?.mT)}</b></td>
-          <td>m*(U)=<b>${fmt(c.output?.mU)}</b> m*(F)=<b>${fmt(c.output?.mF)}</b></td></tr>`;
+          <td>m*(T)=<b>${fmt(c.output?.mT)}</b> &nbsp; m*(U)=<b>${fmt(c.output?.mU)}</b> &nbsp; m*(F)=<b>${fmt(c.output?.mF)}</b></td></tr>`;
     }).join('') || `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
   }
 
@@ -1492,14 +1491,14 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
   const deltaColor  = f.delta > 0.15 ? 'var(--red)' : f.delta < -0.15 ? 'var(--green)' : 'var(--muted)';
   const dnColor     = deltaNorm > 0.03 ? 'var(--yellow)' : deltaNorm < -0.03 ? 'var(--green)' : 'var(--muted)';
 
-  const tStyle  = 'border-collapse:collapse;width:100%;font-size:11px;margin-bottom:6px;';
+  const tStyle  = 'border-collapse:collapse;width:100%;font-size:12px;margin-bottom:10px;';
   const hStyle  = 'background:var(--bg2);color:var(--muted);padding:3px 6px;font-weight:600;font-size:10px;text-align:left;';
-  const tdStyle = 'padding:2px 6px;border-bottom:1px solid var(--border);vertical-align:middle;';
+  const tdStyle = 'padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;font-family:\'JetBrains Mono\',monospace;';
 
   const gaugePos   = Math.min(98, Math.max(2, Math.round((f.delta + 1) / 2 * 100)));
   const gaugeColor = f.delta > 0.35 ? '#ef4444' : f.delta > 0.15 ? '#f59e0b' : f.delta < -0.15 ? '#22c55e' : '#6b7280';
 
-  const recLabelRu = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',obsolete:'⚠️ Устарело (m(F)↑)',expertise:'🔵 Экспертиза'})[f.recommendation]||f.recommendation||'—';
+  const recLabelRu = ({strong:'Срочно усилить',moderate:'Усилить умеренно',preserve:'Баланс',reduce:'Сократить',obsolete:'Устарело (m(F)↑)',expertise:'Экспертиза'})[f.recommendation]||f.recommendation||'—';
   const rcCls = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',obsolete:'rec-reduce',expertise:'rec-expertise'})[f.recommendation] || 'rec-preserve';
 
   return `
@@ -1512,15 +1511,15 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
       <tbody>${step1}</tbody>
     </table>
     <table class="itf" style="${tStyle}">
-      <thead><tr><th colspan="5" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
+      <thead><tr><th colspan="3" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
       <tbody>${step2}</tbody>
     </table>
     <table class="itf" style="${tStyle}">
-      <thead><tr><th colspan="4" style="${hStyle}">Шаг 3 — Дисконтирование: m'(T)=m(T)·w, m'(Θ)=m(Θ)·w+(1−w)</th></tr></thead>
+      <thead><tr><th colspan="2" style="${hStyle}">Шаг 3 — Дисконтирование: m'(T)=m(T)·w, m'(Θ)=m(Θ)·w+(1−w)</th></tr></thead>
       <tbody>${step3}</tbody>
     </table>
     <table class="itf" style="${tStyle}">
-      <thead><tr><th colspan="4" style="${hStyle}">Шаг 4 — Комбинирование (Демпстер K&lt;0.4 / Ягер K≥0.4)</th></tr></thead>
+      <thead><tr><th colspan="3" style="${hStyle}">Шаг 4 — Комбинирование (Демпстер K&lt;0.4 / Ягер K≥0.4)</th></tr></thead>
       <tbody>${step4}</tbody>
     </table>
     <table class="itf" style="${tStyle}">
@@ -1543,12 +1542,12 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
     </table>
     <div class="${aClass}" style="border-radius:6px;padding:10px 12px;margin-top:10px;border:1px solid;">
       <div style="font-size:9px;opacity:0.7;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px;">Аллокационная рекомендация (Δ_norm = nBetP − supply)</div>
-      <div style="font-weight:700;font-size:13px;margin-bottom:5px;">${aIcon} ${aLabel}</div>
+      <div style="font-weight:700;font-size:13px;margin-bottom:5px;">${aLabel}</div>
       <div style="font-size:11px;line-height:1.55;opacity:0.9;margin-bottom:10px;">${aDesc}</div>
       <div style="font-size:10px;opacity:0.75;margin-top:4px;">Δ_norm = <b>${(deltaNorm>=0?'+':'')+(deltaNorm*100).toFixed(2)}%</b> &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${Math.round((f.supply||0)*100)}%</b></div>
     </div>
     <details style="margin-top:8px;">
-      <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">📊 Рыночный DST-сигнал (справочно, Δ_abs = ${(f.delta>=0?'+':'')+fmt(f.delta)}): ${recLabelRu}</summary>
+      <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">Рыночный DST-сигнал (справочно, Δ_abs = ${(f.delta>=0?'+':'')+fmt(f.delta)}): ${recLabelRu}</summary>
       <div class="${rcCls}" style="border-radius:6px;padding:8px 12px;margin-top:6px;border:1px solid;opacity:.8;">
         <div style="margin:6px 0 4px;">
           <div style="position:relative;height:5px;border-radius:3px;background:linear-gradient(to right,#ef4444,#f59e0b 50%,#22c55e);"><div style="position:absolute;left:${gaugePos}%;top:50%;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid ${gaugeColor};transform:translate(-50%,-50%);"></div></div>
@@ -1565,7 +1564,7 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
         : `loadL2Inline('${l2id}',${l2Config.curriculumId},'${(l2Config.domain||'').replace(/'/g,"\\'")}','${(f.techFamily||'').replace(/'/g,"\\'")}')`;
       return `<div style="margin-top:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-          <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;">🔽 Уровень 2 — Канонические навыки семейства</div>
+          <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;">Уровень 2 — Канонические навыки семейства</div>
           <button onclick="${fnCall}" style="font-size:10px;padding:2px 8px;border:1px solid var(--accent);border-radius:4px;background:transparent;color:var(--accent);cursor:pointer;">Показать навыки</button>
         </div>
         <div id="${l2id}" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 4px;min-height:22px;"></div>
@@ -1584,7 +1583,7 @@ function loadL2Inline(containerId, curriculumId, domain, techFamily) {
   if (!div || div.dataset.loaded === 'true') { div && (div.style.display = div.style.display === 'none' ? '' : 'none'); return; }
   div.style.display = '';
   div.dataset.loaded = 'true';
-  div.innerHTML = '<span style="color:var(--muted);font-size:10px;">⏳ Загрузка Level 2...</span>';
+  div.innerHTML = '<span style="color:var(--muted);font-size:10px;">Загрузка Level 2...</span>';
   fetch(`/api/dst/curriculum/${encodeURIComponent(curriculumId)}/level2?domain=${encodeURIComponent(domain)}&techFamily=${encodeURIComponent(techFamily)}`)
     .then(r => r.ok ? r.json() : null)
     .then(resp => renderL2Skills(div, resp, false))
@@ -1596,7 +1595,7 @@ function loadL2InlineForDiscipline(containerId, disciplineId, domain, techFamily
   if (!div || div.dataset.loaded === 'true') { div && (div.style.display = div.style.display === 'none' ? '' : 'none'); return; }
   div.style.display = '';
   div.dataset.loaded = 'true';
-  div.innerHTML = '<span style="color:var(--muted);font-size:10px;">⏳ Загрузка Level 2...</span>';
+  div.innerHTML = '<span style="color:var(--muted);font-size:10px;">Загрузка Level 2...</span>';
   fetch(`/api/dst/discipline/${encodeURIComponent(disciplineId)}/level2?domain=${encodeURIComponent(domain)}&techFamily=${encodeURIComponent(techFamily)}`)
     .then(r => r.ok ? r.json() : null)
     .then(resp => {
@@ -1625,7 +1624,6 @@ function renderL2Skills(div, resp, isSection) {
     const isObs    = sk.recommendation === 'obsolete' && (sk.supplyHours || 0) > 0;
     const boost    = isUncov || deltaNorm > 0.03;
     const cls      = isObs ? 'rec-reduce' : boost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
-    const icon     = isObs ? '🗑️' : isUncov ? '➕' : boost ? '🔴' : deltaNorm < -0.03 ? '🟢' : '✅';
     const lbl      = isObs ? 'Удалить' : isUncov ? 'Ввести' : boost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
     const betpPct  = Math.round((sk.betp || 0) * 100);
     const supPct   = Math.round((sk.supply || 0) * 100);
@@ -1642,7 +1640,7 @@ function renderL2Skills(div, resp, isSection) {
       <td style="padding:4px 6px;${dnStyle}"><b>${dnFmt}</b></td>
       <td style="padding:4px 6px;white-space:nowrap;">${sk.supplyHours || 0} ч.</td>
       <td style="padding:4px 6px;white-space:nowrap;"><b>${recHours}</b> ч. <span style="${gapStyle};font-size:9px;">${gapHours >= 0 ? '+' : ''}${gapHours}</span></td>
-      <td style="padding:4px 6px;"><span class="${cls}" style="padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;">${icon} ${lbl}</span></td>
+      <td style="padding:4px 6px;"><span class="${cls}" style="padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;">${lbl}</span></td>
       <td style="padding:4px 6px;font-size:11px;color:var(--muted);">▶</td>
     </tr>
     <tr id="${traceId}" style="display:none;">
@@ -1687,7 +1685,6 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
   const aObs      = sk.recommendation === 'obsolete' && (sk.supplyHours || 0) > 0;
   const aBoost    = aUncov || aDn > 0.03;
   const aClass    = aObs ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
-  const aIcon     = aObs ? '🗑️' : aUncov ? '➕' : aBoost ? '🔴' : aDn < -0.03 ? '🟢' : '✅';
   const aLabel    = aObs ? 'Удалить из программы' : aUncov ? 'Ввести в программу' : aBoost ? 'Усилить' : aDn < -0.03 ? 'Сократить' : 'Сохранить';
   const aDesc     = aObs
     ? `DST-сигнал указывает на <b>устаревание</b> навыка. Цель — <b>${recHours} ч.</b> (сейчас ${sk.supplyHours} ч.).`
@@ -1701,9 +1698,9 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
   const sources = sk.sources || [];
   const combos  = sk.combinations || [];
   const srcColor = {VAC:'var(--purple)', EXP:'var(--yellow)', FC:'var(--accent)'};
-  const tStyle  = 'border-collapse:collapse;width:100%;font-size:11px;margin-bottom:6px;';
+  const tStyle  = 'border-collapse:collapse;width:100%;font-size:12px;margin-bottom:10px;';
   const hStyle  = 'background:var(--bg2);color:var(--muted);padding:3px 6px;font-weight:600;font-size:10px;text-align:left;';
-  const tdStyle = 'padding:2px 6px;border-bottom:1px solid var(--border);vertical-align:middle;';
+  const tdStyle = 'padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;font-family:\'JetBrains Mono\',monospace;';
   const step1 = sources.map(s => {
     const col = srcColor[s.sourceName] || 'var(--muted)';
     if (!s.enabled) return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="5" style="color:var(--muted)">⊘ нет данных</td></tr>`;
@@ -1716,16 +1713,12 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
     if (!s.enabled) return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="4" style="color:var(--muted)">⊘</td></tr>`;
     return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
       <td>κ = 1−e^(−${fmt(s.lambda)}×${s.relevantCount}/${s.totalCount}) = <b>${fmt(s.kappa)}</b></td>
-      <td>m(T) = κ·score = <b>${fmt(s.mT)}</b></td>
-      <td>m(U) = 1−m(T) = <b>${fmt(s.mU)}</b></td>
-      <td>m(F) = <b>${fmt(s.mF)}</b></td></tr>`;
+      <td>m(T) = κ·score = <b>${fmt(s.mT)}</b><br>m(U) = 1−m(T) = <b>${fmt(s.mU)}</b><br>m(F) = <b>${fmt(s.mF)}</b></td></tr>`;
   }).join('');
   const step3 = sources.filter(s=>s.enabled).map(s => {
     const col = srcColor[s.sourceName] || 'var(--muted)';
-    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b> w=${fmt(s.weight)}</td>
-      <td>m'(T)=${fmt(s.mT)}·${fmt(s.weight)}=<b>${fmt(s.mTDiscounted)}</b></td>
-      <td>m'(U)=${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)})=<b>${fmt(s.mUDiscounted)}</b></td>
-      <td>m'(F)=<b>${fmt(s.mFDiscounted)}</b></td></tr>`;
+    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b><br><span style="color:var(--muted);font-size:10px">w=${fmt(s.weight)}</span></td>
+      <td>m'(T)=${fmt(s.mT)}·${fmt(s.weight)}=<b>${fmt(s.mTDiscounted)}</b><br>m'(U)=${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)})=<b>${fmt(s.mUDiscounted)}</b><br>m'(F)=<b>${fmt(s.mFDiscounted)}</b></td></tr>`;
   }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
   const enabledCount = sources.filter(s=>s.enabled).length;
   let step4;
@@ -1736,8 +1729,7 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
   } else {
     step4 = combos.map(c => `<tr><td>${esc(c.label)}</td>
       <td>K=${fmt(c.K)} → <b style="color:${c.rule==='Yager'?'var(--yellow)':'var(--green)'}">${c.rule||'Dempster'}</b></td>
-      <td>m*(T)=<b>${fmt(c.output?.mT)}</b></td>
-      <td>m*(U)=<b>${fmt(c.output?.mU)}</b> m*(F)=<b>${fmt(c.output?.mF)}</b></td></tr>`).join('')
+      <td>m*(T)=<b>${fmt(c.output?.mT)}</b> &nbsp; m*(U)=<b>${fmt(c.output?.mU)}</b> &nbsp; m*(F)=<b>${fmt(c.output?.mF)}</b></td></tr>`).join('')
       || `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
   }
   const betpFormula = `m*(T) + m*(U)/${nSkills} = ${fmt(sk.mT)} + ${fmt(sk.mU)}/${nSkills}`;
@@ -1745,7 +1737,7 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
   const dnColor     = deltaNorm > 0.03 ? 'var(--yellow)' : deltaNorm < -0.03 ? 'var(--green)' : 'var(--muted)';
   const gaugePos    = Math.min(98, Math.max(2, Math.round((sk.delta + 1) / 2 * 100)));
   const gaugeColor  = sk.delta > 0.35 ? '#ef4444' : sk.delta > 0.15 ? '#f59e0b' : sk.delta < -0.15 ? '#22c55e' : '#6b7280';
-  const recLabelRu  = ({strong:'🔴 Срочно усилить',moderate:'🟡 Усилить умеренно',preserve:'✅ Баланс',reduce:'🟢 Сократить',obsolete:'⚠️ Устарело (m(F)↑)',expertise:'🔵 Экспертиза'})[sk.recommendation]||sk.recommendation||'—';
+  const recLabelRu  = ({strong:'Срочно усилить',moderate:'Усилить умеренно',preserve:'Баланс',reduce:'Сократить',obsolete:'Устарело (m(F)↑)',expertise:'Экспертиза'})[sk.recommendation]||sk.recommendation||'—';
   const rcCls       = ({strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',obsolete:'rec-reduce',expertise:'rec-expertise'})[sk.recommendation]||'rec-preserve';
   return `
     <style>.itsk td{${tdStyle}}</style>
@@ -1757,15 +1749,15 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
       <tbody>${step1}</tbody>
     </table>
     <table class="itsk" style="${tStyle}">
-      <thead><tr><th colspan="5" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
+      <thead><tr><th colspan="3" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
       <tbody>${step2}</tbody>
     </table>
     <table class="itsk" style="${tStyle}">
-      <thead><tr><th colspan="4" style="${hStyle}">Шаг 3 — Дисконтирование</th></tr></thead>
+      <thead><tr><th colspan="2" style="${hStyle}">Шаг 3 — Дисконтирование</th></tr></thead>
       <tbody>${step3}</tbody>
     </table>
     <table class="itsk" style="${tStyle}">
-      <thead><tr><th colspan="4" style="${hStyle}">Шаг 4 — Комбинирование (Демпстер K&lt;0.4 / Ягер K≥0.4)</th></tr></thead>
+      <thead><tr><th colspan="3" style="${hStyle}">Шаг 4 — Комбинирование (Демпстер K&lt;0.4 / Ягер K≥0.4)</th></tr></thead>
       <tbody>${step4}</tbody>
     </table>
     <table class="itsk" style="${tStyle}">
@@ -1788,12 +1780,12 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
     </table>
     <div class="${aClass}" style="border-radius:6px;padding:10px 12px;margin-top:10px;border:1px solid;">
       <div style="font-size:9px;opacity:0.7;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px;">Аллокационная рекомендация (Δ_norm = nBetP − supply)</div>
-      <div style="font-weight:700;font-size:13px;margin-bottom:5px;">${aIcon} ${aLabel}</div>
+      <div style="font-weight:700;font-size:13px;margin-bottom:5px;">${aLabel}</div>
       <div style="font-size:11px;line-height:1.55;opacity:0.9;margin-bottom:8px;">${aDesc}</div>
       <div style="font-size:10px;opacity:0.75;">Δ_norm = <b>${(deltaNorm>=0?'+':'')+(deltaNorm*100).toFixed(2)}%</b> &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${Math.round((sk.supply||0)*100)}%</b></div>
     </div>
     <details style="margin-top:8px;">
-      <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">📊 Рыночный DST-сигнал (Δ_abs = ${(sk.delta>=0?'+':'')+fmt(sk.delta)}): ${recLabelRu}</summary>
+      <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">Рыночный DST-сигнал (Δ_abs = ${(sk.delta>=0?'+':'')+fmt(sk.delta)}): ${recLabelRu}</summary>
       <div class="${rcCls}" style="border-radius:6px;padding:8px 12px;margin-top:6px;border:1px solid;opacity:.8;">
         <div style="margin:6px 0 4px;">
           <div style="position:relative;height:5px;border-radius:3px;background:linear-gradient(to right,#ef4444,#f59e0b 50%,#22c55e);"><div style="position:absolute;left:${gaugePos}%;top:50%;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid ${gaugeColor};transform:translate(-50%,-50%);"></div></div>
@@ -1834,7 +1826,7 @@ function renderDstTrace(t) {
     </div>`).join('');
 
   const recClass = {strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',expertise:'rec-expertise'}[t.recommendation]||'rec-preserve';
-  const recText  = {strong:'🔴 УСИЛИТЬ ЗНАЧИТЕЛЬНО',moderate:'🟡 УСИЛИТЬ УМЕРЕННО',preserve:'✅ СОХРАНИТЬ',reduce:'🟢 СОКРАТИТЬ / ИСКЛЮЧИТЬ',expertise:'🔵 ВАРИАТИВНОСТЬ + ЭКСПЕРТИЗА'}[t.recommendation]||t.recommendation;
+  const recText  = {strong:'УСИЛИТЬ ЗНАЧИТЕЛЬНО',moderate:'УСИЛИТЬ УМЕРЕННО',preserve:'СОХРАНИТЬ',reduce:'СОКРАТИТЬ / ИСКЛЮЧИТЬ',expertise:'ВАРИАТИВНОСТЬ + ЭКСПЕРТИЗА'}[t.recommendation]||t.recommendation;
 
   document.getElementById('dstDrawerBody').innerHTML = `
     <div class="trace-step">
@@ -1853,7 +1845,7 @@ function renderDstTrace(t) {
       <tbody>${discRows}</tbody></table>
     </div>
     <div class="trace-step">
-      <div class="trace-step-title">ШАГ 3 — Комбинирование${t.usedYager?' <span style="color:var(--yellow)">⚡ Ягер</span>':''}</div>
+      <div class="trace-step-title">ШАГ 3 — Комбинирование${t.usedYager?' <span style="color:var(--yellow)">(Ягер)</span>':''}</div>
       ${comboHtml||'<div class="trace-highlight">Только один источник — комбинирование не требуется</div>'}
     </div>
     <div class="trace-step">

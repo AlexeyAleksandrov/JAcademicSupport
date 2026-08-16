@@ -4,14 +4,18 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>DST — Анализ рынка навыков</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
     .domain-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; }
     .freq-bar { transition: width 0.4s ease; }
     .panel-item { transition: background 0.15s; cursor: pointer; }
     .panel-item:hover { background: #eff6ff; }
-    .panel-item.active { background: #dbeafe; border-left: 3px solid #2563eb; }
+    .panel-item.active { background: #dbeafe; border-left: 3px solid #1D4ED8; }
+    .panel-header { font-family: 'JetBrains Mono', monospace; }
     .stub-badge { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
     .skill-row:hover { background: #f8fafc; }
     ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -22,7 +26,6 @@
 <!-- Header -->
 <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 shadow-sm flex-shrink-0">
   <div class="flex items-center gap-2">
-    <span class="text-2xl">🎯</span>
     <div>
       <h1 class="text-lg font-bold text-gray-900 leading-tight">DST — Анализ рынка навыков</h1>
       <p class="text-xs text-gray-500">Digital Skills Tracker · vacancy market data</p>
@@ -30,10 +33,10 @@
   </div>
   <div class="ml-auto flex items-center gap-4">
     <a href="/curriculum.html" class="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1" title="Учебные планы и РПД">
-      📚 УП / РПД
+      УП / РПД
     </a>
     <a href="/foresight.html" class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1" title="Просмотр прогнозов и экспертных мнений">
-      🔭 EXP &amp; FC
+      EXP &amp; FC
     </a>
     <div class="flex items-center gap-3 text-sm text-gray-500">
       <span id="hdr-prof">—</span>
