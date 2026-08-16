@@ -121,6 +121,7 @@ body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--bg)
 .recommendation-card{border-radius:7px;padding:12px 14px;margin-top:14px;border-left:3px solid;}
 .rec-strong{background:var(--green-lt);border-color:#059669;color:var(--green);}
 .rec-moderate{background:var(--yellow-lt);border-color:#D97706;color:var(--yellow);}
+.rec-introduce{background:#F5F3FF;border-color:#7C3AED;color:#5B21B6;}
 .rec-preserve{background:var(--accent-lt);border-color:var(--accent);color:var(--accent);}
 .rec-reduce{background:var(--red-lt);border-color:#DC2626;color:var(--red);}
 .rec-expertise{background:var(--purple-lt);border-color:#7C3AED;color:var(--purple);}
@@ -487,7 +488,7 @@ function renderL1Discipline(resp) {
       const isUncov   = (f.supplyHours || 0) === 0 && deltaNorm > 0;
       const isObs     = f.recommendation === 'obsolete' && (f.supplyHours || 0) > 0;
       const boost     = isUncov || deltaNorm > 0.03;
-      const cls       = isObs ? 'rec-reduce' : boost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
+      const cls       = isObs ? 'rec-reduce' : isUncov ? 'rec-introduce' : boost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
       const icon      = '';
       const lbl       = isObs ? 'Удалить' : isUncov ? 'Ввести' : boost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
       const betpPct   = Math.round((f.betp || 0) * 100);
@@ -1048,7 +1049,7 @@ function renderL0(r) {
     const isUncov    = (d.supplyHours||0) === 0 && deltaNorm > 0;
     const isObsolete = d.recommendation === 'obsolete' && (d.supplyHours||0) > 0;
     const needsBoost = isUncov || deltaNorm > 0.03;
-    const aClass     = isObsolete ? 'rec-reduce' : isUncov ? 'rec-moderate' : needsBoost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
+    const aClass     = isObsolete ? 'rec-reduce' : isUncov ? 'rec-introduce' : needsBoost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
     const aLabel     = isObsolete ? 'Удалить' : isUncov ? 'Ввести' : needsBoost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
     const traceId    = `l0trace_${i}`;
     const traceFn    = `toggleL0Trace('${traceId}')`;
@@ -1168,7 +1169,7 @@ function buildInlineTrace(d, alloc) {
   const aUncov     = (d.supplyHours||0) === 0 && aDn > 0;
   const aObsolete  = d.recommendation === 'obsolete' && (d.supplyHours||0) > 0;
   const aBoost     = aUncov || aDn > 0.03;
-  const aClass     = aObsolete ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
+  const aClass     = aObsolete ? 'rec-reduce' : aUncov ? 'rec-introduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
   const aIcon      = '';
   const aLabel     = aObsolete ? 'Удалить из программы' : aUncov ? 'Ввести в программу' : aBoost ? 'Усилить' : aDn < -0.03 ? 'Сократить' : 'Сохранить';
   const aDesc      = aObsolete
@@ -1361,7 +1362,7 @@ function loadLevel1Families(div, curriculumId, domain) {
         const isUncov    = (f.supplyHours || 0) === 0 && deltaNorm > 0;
         const isObsolete = f.recommendation === 'obsolete' && (f.supplyHours || 0) > 0;
         const needsBoost = isUncov || deltaNorm > 0.03;
-        const badgeCls   = isObsolete ? 'rec-reduce' : isUncov ? 'rec-moderate' : needsBoost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
+        const badgeCls   = isObsolete ? 'rec-reduce' : isUncov ? 'rec-introduce' : needsBoost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
         const badgeLbl   = isObsolete ? 'Удалить' : isUncov ? 'Ввести' : needsBoost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
         const betpPct    = Math.round((f.betp || 0) * 100);
         const supplyPct  = Math.round((f.supply || 0) * 100);
@@ -1432,7 +1433,7 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
   const aUncov    = (f.supplyHours || 0) === 0 && aDn > 0;
   const aObsolete = f.recommendation === 'obsolete' && (f.supplyHours || 0) > 0;
   const aBoost    = aUncov || aDn > 0.03;
-  const aClass    = aObsolete ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
+  const aClass    = aObsolete ? 'rec-reduce' : aUncov ? 'rec-introduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
   const aLabel    = aObsolete ? 'Удалить из программы' : aUncov ? 'Ввести в программу' : aBoost ? 'Усилить' : aDn < -0.03 ? 'Сократить' : 'Сохранить';
   const aDesc     = aObsolete
     ? `Рынок труда демонстрирует <b>устаревание</b> данного семейства (DST-сигнал: m(F) высокое). Рассмотрите исключение: сейчас ${f.supplyHours} ч., цель — <b>${recHours} ч.</b> (разрыв ${gapHours} ч.).`
@@ -1623,7 +1624,7 @@ function renderL2Skills(div, resp, isSection) {
     const isUncov  = (sk.supplyHours || 0) === 0 && deltaNorm > 0;
     const isObs    = sk.recommendation === 'obsolete' && (sk.supplyHours || 0) > 0;
     const boost    = isUncov || deltaNorm > 0.03;
-    const cls      = isObs ? 'rec-reduce' : boost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
+    const cls      = isObs ? 'rec-reduce' : isUncov ? 'rec-introduce' : boost ? 'rec-moderate' : deltaNorm < -0.03 ? 'rec-strong' : 'rec-preserve';
     const lbl      = isObs ? 'Удалить' : isUncov ? 'Ввести' : boost ? 'Усилить' : deltaNorm < -0.03 ? 'Сократить' : 'Сохранить';
     const betpPct  = Math.round((sk.betp || 0) * 100);
     const supPct   = Math.round((sk.supply || 0) * 100);
@@ -1684,7 +1685,7 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
   const aUncov    = (sk.supplyHours || 0) === 0 && aDn > 0;
   const aObs      = sk.recommendation === 'obsolete' && (sk.supplyHours || 0) > 0;
   const aBoost    = aUncov || aDn > 0.03;
-  const aClass    = aObs ? 'rec-reduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
+  const aClass    = aObs ? 'rec-reduce' : aUncov ? 'rec-introduce' : aBoost ? 'rec-moderate' : aDn < -0.03 ? 'rec-strong' : 'rec-preserve';
   const aLabel    = aObs ? 'Удалить из программы' : aUncov ? 'Ввести в программу' : aBoost ? 'Усилить' : aDn < -0.03 ? 'Сократить' : 'Сохранить';
   const aDesc     = aObs
     ? `DST-сигнал указывает на <b>устаревание</b> навыка. Цель — <b>${recHours} ч.</b> (сейчас ${sk.supplyHours} ч.).`
