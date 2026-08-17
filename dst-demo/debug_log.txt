@@ -1,0 +1,4 @@
+﻿Input: 'pw_i = raw_w_{i} / \\sum_{j} raw_w_{j},   \\sum_{i} pw_i = 1'
+ERROR: DoubleSubscriptsError 
+tex2 OK
+tex3 OK
