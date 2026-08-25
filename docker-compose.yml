@@ -17,9 +17,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G  # Увеличено до 2GB для восстановления БД (было 512M)
+          memory: 1G  # Оптимально для production (было 512M, временно было 2G для restore)
         reservations:
-          memory: 512M  # Увеличено до 512MB (было 256M)
+          memory: 512M  # Минимум 512MB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
