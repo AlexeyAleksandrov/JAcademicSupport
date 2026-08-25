@@ -40,6 +40,7 @@ services:
     image: jacademicsupport-app:latest
     container_name: backend
     environment:
+      - SPRING_PROFILES_ACTIVE=prod # Использовать production профиль (с авторизацией)
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/AcademicSupport
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=1111
