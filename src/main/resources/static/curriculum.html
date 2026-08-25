@@ -702,8 +702,7 @@ function renderCoveragePanel(d) {
       <input class="num-inp" id="edit_hours" type="number" placeholder="часов" value="${d.totalHours||''}"/>
       <input class="num-inp" id="edit_sem" type="number" placeholder="сем." value="${d.semester||''}"/>
       <button class="btn btn-primary save-btn btn-sm" onclick="saveDiscInline(${d.id})">Сохранить</button>
-      <button class="btn btn-sm" style="background:var(--purple);color:#fff;margin-left:8px;" onclick="runDstL0Curriculum()">DST Анализ УП</button>
-      <button class="btn btn-sm" style="background:var(--accent,#06b6d4);color:#fff;margin-left:4px;" onclick="runDstL1Discipline(${d.id})">DST Ур.1</button>
+      <button class="btn btn-sm" style="background:var(--accent,#06b6d4);color:#fff;margin-left:4px;opacity:0.5;cursor:not-allowed;" disabled title="Временно отключено">DST Ур.1</button>
     </div>`;
 
   const coverage = d.coverage || [];
@@ -757,7 +756,6 @@ function buildBlock(type, icon, title, inputType, items, discId) {
       <span class="label" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(getLabel(c, type))}</span>
       ${badge}
       <span class="hours">${c.hours||0} ч.</span>
-      <button class="dst-btn" onclick="runDst(${discId},'${type}','${getKey(c,type)}',this)">DST</button>
       <button class="btn btn-sm btn-danger" onclick="deleteCoverage(${c.id},${discId})">✕</button>
     </div>`;}).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px 0;">Нет записей</div>';
 
@@ -988,35 +986,6 @@ async function acProfession(inp, discId) {
 function selectProf(discId, code, name) {
   document.getElementById(`inp_prof_${discId}`).value = `${code} — ${name}`;
   document.getElementById(`ac_prof_${discId}`).style.display='none';
-}
-
-// ─── DST TRACE ────────────────────────────────────────────────────
-async function runDst(discId, type, key, btn) {
-  const d = disciplines.find(x=>x.id===discId);
-  const title = `${type.toUpperCase()}: ${key}`;
-  document.getElementById('dstDrawerTitle').textContent = `DST — ${title}`;
-  document.getElementById('dstDrawerBody').innerHTML = '<div class="spinner">Вычисляется...</div>';
-  document.getElementById('dstDrawer').classList.add('open');
-
-  // Build query params
-  const c = d?.coverage?.find(x=>getKey(x,type)===key);
-  const prof = d?.coverage?.find(x=>x.professionCode)?.professionCode;
-  const coverageHours = c?.hours || 0;
-  const totalHours    = d?.totalHours || 0;
-  const supply = (totalHours > 0 && coverageHours > 0) ? coverageHours / totalHours : 0;
-  const params = new URLSearchParams();
-  if (type==='profession') params.set('profCode', key);
-  if (type==='domain') { params.set('domain', key); if(prof) params.set('profCode',prof); }
-  if (type==='techFamily') { params.set('techFamily', key); if(prof) params.set('profCode',prof); }
-  if (type==='skill') { params.set('canonicalId', key); if(prof) params.set('profCode',prof); }
-  params.set('supply', supply.toFixed(4));
-
-  try {
-    const trace = await fetch(`${API}/api/dst/trace?${params.toString()}`).then(r=>r.json());
-    renderDstTrace(trace);
-  } catch(e) {
-    document.getElementById('dstDrawerBody').innerHTML = `<div class="empty" style="color:var(--red)">Ошибка: ${e.message}</div>`;
-  }
 }
 
 // ─── DST LEVEL 0 ─────────────────────────────────────────────────
@@ -1796,77 +1765,6 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP) {
     </details>`;
 }
 
-function renderDstTrace(t) {
-  if (!t || t.error) {
-    document.getElementById('dstDrawerBody').innerHTML = `<div class="empty" style="color:var(--red)">${t?.error||'Нет данных'}</div>`;
-    return;
-  }
-  const sources = t.sources || [];
-  const combos  = t.combinations || [];
-
-  const srcRows = sources.map(s => s.enabled===false
-    ? `<tr class="disabled-row"><td>${s.sourceName}</td><td colspan="6">⊘ Отключён</td></tr>`
-    : `<tr><td><b>${s.sourceName}</b></td><td>${s.totalCount||0}</td><td>${s.relevantCount||0}</td>
-       <td>${fmt(s.averageScore)}</td><td>${fmt(s.kappa)}</td><td>${fmt(s.weight)}</td><td>${fmt(s.lambda)}</td></tr>`
-  ).join('');
-
-  const bpaRows = sources.filter(s=>s.enabled!==false).map(s=>
-    `<tr><td><b>${s.sourceName}</b></td><td>κ=${fmt(s.kappa)}</td>
-     <td>m(T)=${fmt(s.mT)}</td><td>m(U)=${fmt(s.mU)}</td><td>m(F)=${fmt(s.mF)}</td></tr>`
-  ).join('');
-
-  const discRows = sources.filter(s=>s.enabled!==false).map(s=>
-    `<tr><td><b>${s.sourceName}</b></td><td>w=${fmt(s.weight)}</td>
-     <td>m'(T)=${fmt(s.mTDiscounted)}</td><td>m'(U)=${fmt(s.mUDiscounted)}</td><td>m'(F)=${fmt(s.mFDiscounted)}</td></tr>`
-  ).join('');
-
-  const comboHtml = combos.map(c=>`
-    <div class="trace-formula">
-      ${c.label}: K=${fmt(c.K)} → <b style="color:${c.rule==='Yager'?'var(--yellow)':'var(--green)'}">${c.rule||'Dempster'}</b>
-      → m(T)=${fmt(c.output?.mT)} m(U)=${fmt(c.output?.mU)} m(F)=${fmt(c.output?.mF)}
-    </div>`).join('');
-
-  const recClass = {strong:'rec-strong',moderate:'rec-moderate',preserve:'rec-preserve',reduce:'rec-reduce',expertise:'rec-expertise'}[t.recommendation]||'rec-preserve';
-  const recText  = {strong:'УСИЛИТЬ ЗНАЧИТЕЛЬНО',moderate:'УСИЛИТЬ УМЕРЕННО',preserve:'СОХРАНИТЬ',reduce:'СОКРАТИТЬ / ИСКЛЮЧИТЬ',expertise:'ВАРИАТИВНОСТЬ + ЭКСПЕРТИЗА'}[t.recommendation]||t.recommendation;
-
-  document.getElementById('dstDrawerBody').innerHTML = `
-    <div class="trace-step">
-      <div class="trace-step-title">ШАГ 0 — Входные данные</div>
-      <table class="trace-table"><thead><tr><th>Источник</th><th>Всего</th><th>По теме</th><th>Оценка</th><th>κ</th><th>w</th><th>λ</th></tr></thead>
-      <tbody>${srcRows}</tbody></table>
-    </div>
-    <div class="trace-step">
-      <div class="trace-step-title">ШАГ 1 — BPA (κ × score × ratio)</div>
-      <table class="trace-table"><thead><tr><th>Источник</th><th>κ</th><th>m(T)</th><th>m(U)</th><th>m(F)</th></tr></thead>
-      <tbody>${bpaRows}</tbody></table>
-    </div>
-    <div class="trace-step">
-      <div class="trace-step-title">ШАГ 2 — Дисконтирование (w)</div>
-      <table class="trace-table"><thead><tr><th>Источник</th><th>w</th><th>m'(T)</th><th>m'(U)</th><th>m'(F)</th></tr></thead>
-      <tbody>${discRows}</tbody></table>
-    </div>
-    <div class="trace-step">
-      <div class="trace-step-title">ШАГ 3 — Комбинирование${t.usedYager?' <span style="color:var(--yellow)">(Ягер)</span>':''}</div>
-      ${comboHtml||'<div class="trace-highlight">Только один источник — комбинирование не требуется</div>'}
-    </div>
-    <div class="trace-step">
-      <div class="trace-step-title">ШАГ 4 — Итог</div>
-      <div class="trace-formula">m*(T)=${fmt(t.mT)}  m*(U)=${fmt(t.mU)}  m*(F)=${fmt(t.mF)}</div>
-      <div class="trace-formula">BetP = ${fmt(t.mT)} + ${fmt(t.mU)}/${t.nClusters||'N'} = <b>${fmt(t.betp)}</b></div>
-      <div class="trace-formula">supply = ${fmt(t.supply)}  →  Δ = ${fmt(t.delta)}</div>
-      <div class="trace-formula">K = ${fmt(t.K)}  (τK=0.40)  m(U) = ${fmt(t.mU)}  (τΘ=0.15)</div>
-    </div>
-    <div class="recommendation-card ${recClass}">
-      <div class="rec-title">${recText}</div>
-      <div class="rec-metrics">
-        <span>Δ=<b>${fmt(t.delta)}</b></span>
-        <span>K=<b>${fmt(t.K)}</b></span>
-        <span>m(U)=<b>${fmt(t.mU)}</b></span>
-        <span>BetP=<b>${fmt(t.betp)}</b></span>
-        <span>supply=<b>${fmt(t.supply)}</b></span>
-      </div>
-    </div>`;
-}
 
 function closeDstDrawer() { document.getElementById('dstDrawer').classList.remove('open'); }
 

@@ -5,12 +5,9 @@ import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level1.DstL1Discipli
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level1.DstL1Response;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level2.DstL2DisciplineResponse;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level2.DstL2Response;
-import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.trace.DstTraceResponse;
-import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstCombinationService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel0Service;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel1Service;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel2Service;
-import io.github.alexeyaleksandrov.jacademicsupport.services.dst.bpa.DstContext;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -21,26 +18,9 @@ import org.springframework.web.bind.annotation.*;
 @AllArgsConstructor
 public class DstTraceController {
 
-    private final DstCombinationService dstCombinationService;
     private final DstLevel0Service      dstLevel0Service;
     private final DstLevel1Service      dstLevel1Service;
     private final DstLevel2Service      dstLevel2Service;
-
-    /**
-     * Runs a full DST trace for a given context (domain / techFamily / canonicalId / professionCode).
-     * supply = fraction of RPD hours assigned to this context (0..1), defaults to 0 if not provided.
-     */
-    @GetMapping("/trace")
-    public DstTraceResponse trace(
-            @RequestParam(required = false) String  profCode,
-            @RequestParam(required = false) String  domain,
-            @RequestParam(required = false) String  techFamily,
-            @RequestParam(required = false) Long    canonicalId,
-            @RequestParam(required = false, defaultValue = "0") double supply
-    ) {
-        DstContext ctx = new DstContext(profCode, domain, techFamily, canonicalId);
-        return dstCombinationService.compute(ctx, supply);
-    }
 
     /**
      * Level 0 analysis for a curriculum: weighted DST per domain using profession mix.
