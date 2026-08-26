@@ -36,9 +36,17 @@ public class DstLevel2Service {
     private final SkillCanonicalRepository       skillCanonicalRepository;
     private final DstQueryService                dstQueryService;
     private final DstCombinationService          combinationService;
+    private final DstSettingsService             settingsService;
+    private final DstLevelMetaFactory            metaFactory;
 
     @Transactional(readOnly = true)
     public DstL2Response analyzeLevel2(Long curriculumId, String domain, String techFamily) {
+        return analyzeLevel2(curriculumId, domain, techFamily, DstCalcOptions.defaults(settingsService.get()));
+    }
+
+    @Transactional(readOnly = true)
+    public DstL2Response analyzeLevel2(Long curriculumId, String domain, String techFamily,
+                                        DstCalcOptions options) {
         DstL2Response resp = new DstL2Response();
         resp.setCurriculumId(curriculumId);
         resp.setDomain(domain);
@@ -78,8 +86,9 @@ public class DstLevel2Service {
                 .collect(Collectors.toMap(Discipline::getId,
                         d -> d.getTotalHours() != null ? d.getTotalHours() : 0));
 
+        Set<Long> touchedDisciplineIds = new LinkedHashSet<>();
         Map<Long, Double> skillProportionalHours = aggregateSkillHours(
-                allDiscs, allCoverage, discHoursMap, meta, domain, techFamily);
+                allDiscs, allCoverage, discHoursMap, meta, domain, techFamily, options, touchedDisciplineIds);
 
         String primaryProfCode = profs.get(0).professionCode();
 
@@ -92,11 +101,27 @@ public class DstLevel2Service {
         Set<Long> allSkillIds = new LinkedHashSet<>(vacSkillIds);
         allSkillIds.addAll(skillProportionalHours.keySet());
 
-        int nSkills = Math.max(1, vacSkillIds.size());
-        int totalFamilyHours = (int) Math.round(
+        int nSkills = combinationService.isNClustersAuto()
+                ? Math.max(1, allSkillIds.size())
+                : Math.max(1, vacSkillIds.size());
+
+        int coveredHours = (int) Math.round(
                 skillProportionalHours.values().stream().mapToDouble(Double::doubleValue).sum());
+        int independentHours = coveredHours;
+        if (options.explicitSkills()) {
+            DstCalcOptions derivedOptions = new DstCalcOptions(
+                    options.domainMode(), options.familyMode(), DstCalcOptions.CoverageMode.DERIVED,
+                    options.hoursBase(), options.budgetMode(), options.budgetHours(), options.disciplineId());
+            Map<Long, Double> derivedHours = aggregateSkillHours(
+                    allDiscs, allCoverage, discHoursMap, meta, domain, techFamily,
+                    derivedOptions, new LinkedHashSet<>());
+            independentHours = (int) Math.round(
+                    derivedHours.values().stream().mapToDouble(Double::doubleValue).sum());
+        }
+        int budgetHours = resolveBudget(options, independentHours, touchedDisciplineIds, discHoursMap);
+
         resp.setNSkills(nSkills);
-        resp.setTotalFamilyHours(totalFamilyHours);
+        resp.setTotalFamilyHours(budgetHours);
 
         Map<Long, String> skillNameMap = buildSkillNameMap(allSkillIds, meta, allCoverage);
 
@@ -104,7 +129,7 @@ public class DstLevel2Service {
         for (Long canonicalId : allSkillIds) {
             double supplyHoursD = skillProportionalHours.getOrDefault(canonicalId, 0.0);
             int    supplyHours  = (int) Math.round(supplyHoursD);
-            double supply       = totalFamilyHours > 0 ? Math.min(1.0, supplyHoursD / totalFamilyHours) : 0.0;
+            double supply       = DstHoursPolicy.supply(supplyHoursD, budgetHours);
 
             DstContext ctx = new DstContext(primaryProfCode, domain, techFamily, canonicalId);
             DstTraceResponse trace = combinationService.computeWeightedSkill(
@@ -116,6 +141,8 @@ public class DstLevel2Service {
 
         results.sort(Comparator.comparingDouble(DstL2SkillResult::getBetp).reversed());
         resp.setSkills(results);
+        resp.setMeta(metaFactory.build(options, budgetHours, coveredHours,
+                budgetLabel(options, touchedDisciplineIds.size(), techFamily), nSkills));
         return resp;
     }
 
@@ -123,6 +150,15 @@ public class DstLevel2Service {
     public DstL2DisciplineResponse analyzeLevel2ForDisciplineAndFamily(Long disciplineId,
                                                                         String domain,
                                                                         String techFamily) {
+        return analyzeLevel2ForDisciplineAndFamily(disciplineId, domain, techFamily,
+                DstCalcOptions.defaults(settingsService.get()));
+    }
+
+    @Transactional(readOnly = true)
+    public DstL2DisciplineResponse analyzeLevel2ForDisciplineAndFamily(Long disciplineId,
+                                                                        String domain,
+                                                                        String techFamily,
+                                                                        DstCalcOptions options) {
         DstL2DisciplineResponse resp = new DstL2DisciplineResponse();
         resp.setDisciplineId(disciplineId);
 
@@ -161,16 +197,27 @@ public class DstLevel2Service {
             return resp;
         }
 
+        // Sum of the family's skill hours inside this discipline
+        int sumSkillsInFamily = covList.stream()
+                .filter(c -> c.getCanonicalId() != null
+                          && domain.equals(getEffectiveDomain(c, meta))
+                          && techFamily.equals(getEffectiveTechFamily(c, meta)))
+                .mapToInt(c -> c.getHours() != null ? c.getHours() : 0).sum();
+
         Map<Long, Double> skillProportionalHours = new LinkedHashMap<>();
-        for (DisciplineCoverage cov : covList) {
-            String covDomain = getEffectiveDomain(cov, meta);
-            String covFamily = getEffectiveTechFamily(cov, meta);
-            Long   covCanonicalId = cov.getCanonicalId();
-            if (!domain.equals(covDomain) || !techFamily.equals(covFamily)) continue;
-            if (covCanonicalId == null) continue;
-            int hours = cov.getHours() != null ? cov.getHours() : 0;
-            double proportional = (double) hours / sumAllCoverage * totalHours;
-            skillProportionalHours.merge(covCanonicalId, proportional, Double::sum);
+        if (sumSkillsInFamily > 0) {
+            // EXPLICIT: stated hours as-is, capped at the discipline volume.
+            // DERIVED: historical behaviour — the coverage share of the whole discipline.
+            double scale = options.explicitSkills()
+                    ? DstHoursPolicy.coverageScale(true, totalHours, sumSkillsInFamily)
+                    : DstHoursPolicy.coverageScale(false, totalHours, sumAllCoverage);
+            for (DisciplineCoverage cov : covList) {
+                if (!domain.equals(getEffectiveDomain(cov, meta))) continue;
+                if (!techFamily.equals(getEffectiveTechFamily(cov, meta))) continue;
+                if (cov.getCanonicalId() == null) continue;
+                int hours = cov.getHours() != null ? cov.getHours() : 0;
+                skillProportionalHours.merge(cov.getCanonicalId(), hours * scale, Double::sum);
+            }
         }
 
         String primaryProfCode = profs.get(0).professionCode();
@@ -183,17 +230,32 @@ public class DstLevel2Service {
         Set<Long> allSkillIds = new LinkedHashSet<>(vacSkillIds);
         allSkillIds.addAll(skillProportionalHours.keySet());
 
-        int nSkills = Math.max(1, vacSkillIds.size());
-        double familyHoursNorm = skillProportionalHours.values().stream().mapToDouble(Double::doubleValue).sum();
-        int familyHours = (int) Math.round(familyHoursNorm);
+        int nSkills = combinationService.isNClustersAuto()
+                ? Math.max(1, allSkillIds.size())
+                : Math.max(1, vacSkillIds.size());
 
+        int coveredHours = (int) Math.round(
+                skillProportionalHours.values().stream().mapToDouble(Double::doubleValue).sum());
+        Integer inherited = options.inheritedBudget();
+        int derivedFamilyHours = sumAllCoverage > 0
+                ? (int) Math.round((double) sumSkillsInFamily / sumAllCoverage * totalHours)
+                : 0;
+        int familyHours;
+        if (inherited != null) {
+            familyHours = inherited;
+        } else {
+            familyHours = switch (options.hoursBase()) {
+                case SINGLE_DISCIPLINE, TOUCHED_DISCIPLINES -> totalHours;
+                case CURRICULUM -> derivedFamilyHours;
+            };
+        }
         Map<Long, String> skillNameMap = buildSkillNameMap(allSkillIds, meta, covList);
 
         List<DstL2SkillResult> results = new ArrayList<>();
         for (Long canonicalId : allSkillIds) {
             double supplyHoursD = skillProportionalHours.getOrDefault(canonicalId, 0.0);
             int    supplyHours  = (int) Math.round(supplyHoursD);
-            double supply       = familyHoursNorm > 0 ? Math.min(1.0, supplyHoursD / familyHoursNorm) : 0.0;
+            double supply       = DstHoursPolicy.supply(supplyHoursD, familyHours);
 
             DstContext ctx = new DstContext(primaryProfCode, domain, techFamily, canonicalId);
             DstTraceResponse trace = combinationService.computeWeightedSkill(
@@ -212,7 +274,31 @@ public class DstLevel2Service {
         section.setSkills(results);
 
         resp.setSections(List.of(section));
+        resp.setMeta(metaFactory.build(options, familyHours, coveredHours,
+                inherited != null
+                        ? "бюджет семейства «" + techFamily + "», унаследованный с L1"
+                        : "часы семейства внутри дисциплины"));
         return resp;
+    }
+
+    /** Resolves T for L2: inherited parent budget, Σ touched disciplines or the aggregated coverage. */
+    private int resolveBudget(DstCalcOptions options, int independentHours,
+                              Set<Long> touchedDisciplineIds, Map<Long, Integer> discHoursMap) {
+        return DstHoursPolicy.resolveBudget(options, independentHours, touchedDisciplineIds, discHoursMap);
+    }
+
+    private String budgetLabel(DstCalcOptions options, int touchedCount, String techFamily) {
+        Integer inherited = options.inheritedBudget();
+        if (inherited != null) {
+            return "бюджет семейства «" + techFamily + "», унаследованный с L1";
+        }
+        return switch (options.hoursBase()) {
+            case TOUCHED_DISCIPLINES ->
+                    "Σ часов дисциплин семейства (" + touchedCount + " дисц.)";
+            case SINGLE_DISCIPLINE ->
+                    "часы выбранной дисциплины #" + options.disciplineId();
+            case CURRICULUM -> "условный объём дисциплин, связанных с семейством «" + techFamily + "»";
+        };
     }
 
     private DstL2SkillResult buildSkillResult(Long canonicalId, String skillName, double supply,
@@ -240,7 +326,9 @@ public class DstLevel2Service {
                                                    Map<Long, Integer> discHoursMap,
                                                    CanonicalMeta meta,
                                                    String targetDomain,
-                                                   String targetFamily) {
+                                                   String targetFamily,
+                                                   DstCalcOptions options,
+                                                   Set<Long> touchedDisciplineIds) {
         Map<Long, List<DisciplineCoverage>> byDisc = allCoverage.stream()
                 .collect(Collectors.groupingBy(DisciplineCoverage::getDisciplineId));
 
@@ -257,6 +345,10 @@ public class DstLevel2Service {
                               && targetFamily.equals(getEffectiveTechFamily(c, meta)))
                     .mapToInt(c -> c.getHours() != null ? c.getHours() : 0).sum();
             if (sumSkillsInFamily == 0) continue;
+            touchedDisciplineIds.add(disc.getId());
+
+            double scale = DstHoursPolicy.coverageScale(
+                    options.explicitSkills(), discTotalHours, sumSkillsInFamily);
 
             for (DisciplineCoverage cov : covList) {
                 String dom    = getEffectiveDomain(cov, meta);
@@ -265,8 +357,7 @@ public class DstLevel2Service {
                 if (!targetDomain.equals(dom) || !targetFamily.equals(family)) continue;
                 if (canonicalId == null) continue;
                 int hours = cov.getHours() != null ? cov.getHours() : 0;
-                double fraction = (double) hours / sumSkillsInFamily;
-                skillHours.merge(canonicalId, fraction * discTotalHours, Double::sum);
+                skillHours.merge(canonicalId, hours * scale, Double::sum);
             }
         }
         return skillHours;

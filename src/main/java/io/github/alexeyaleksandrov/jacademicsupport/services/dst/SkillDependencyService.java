@@ -34,12 +34,11 @@ public class SkillDependencyService {
     private final VacancyEntityRepository  vacancyRepository;
     private final SkillCanonicalRepository canonicalRepository;
     private final SkillDependencyRepository dependencyRepository;
-
-    private static final double DEFAULT_THRESHOLD = 0.30;
-    private static final int    MIN_CO_OCCURRENCE = 5;
+    private final DstSettingsService       settingsService;
 
     @Transactional
     public DependencyReport buildGraph(double threshold) {
+        final int minCoOccurrence = settingsService.get().getDepMinCoOccurrence();
         List<VacancyEntity>   vacancies  = vacancyRepository.findAll();
         List<SkillCanonical>  canonicals = canonicalRepository.findAll();
 
@@ -95,7 +94,7 @@ public class SkillDependencyService {
                 Long childId = childEntry.getKey();
                 int  coCount = childEntry.getValue();
 
-                if (coCount < MIN_CO_OCCURRENCE) { skipped++; continue; }
+                if (coCount < minCoOccurrence) { skipped++; continue; }
 
                 SkillCanonical child = canonicalMap.get(childId);
                 if (child == null) continue;
@@ -132,7 +131,7 @@ public class SkillDependencyService {
 
     @Transactional
     public DependencyReport buildGraph() {
-        return buildGraph(DEFAULT_THRESHOLD);
+        return buildGraph(settingsService.get().getDepEdgeThreshold());
     }
 
     /**

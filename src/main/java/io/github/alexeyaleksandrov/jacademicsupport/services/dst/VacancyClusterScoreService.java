@@ -2,6 +2,7 @@ package io.github.alexeyaleksandrov.jacademicsupport.services.dst;
 
 import io.github.alexeyaleksandrov.jacademicsupport.models.*;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.*;
+import io.github.alexeyaleksandrov.jacademicsupport.models.DstSettings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,14 +35,17 @@ public class VacancyClusterScoreService {
     private final SkillCanonicalRepository         canonicalRepository;
     private final SkillDependencyRepository        dependencyRepository;
     private final WorkSkillCanonicalRepository     workSkillCanonicalRepository;
-
-    private static final double WEIGHT_TITLE      = 1.0;
-    private static final double WEIGHT_SKILLS     = 0.8;
-    private static final double WEIGHT_DESC       = 0.5;
-    private static final double MIN_DEP_WEIGHT    = 0.30;
+    private final DstSettingsService               settingsService;
 
     @Transactional
     public ScoreReport computeScores() {
+        DstSettings settings = settingsService.get();
+        final double weightTitle     = settings.getWLocTitle();
+        final double weightSkills    = settings.getWLocSkills();
+        final double weightDesc      = settings.getWLocDesc();
+        final double depThreshold    = settings.getDepEdgeThreshold();
+        final double rhoDep          = settings.getRhoDep();
+
         List<VacancyEntity> vacancies = vacancyRepository.findAll();
         List<SkillsGroup>   clusters  = skillsGroupRepository.findAll();
 
@@ -52,7 +56,7 @@ public class VacancyClusterScoreService {
 
         // Build canonical → all implied canonical IDs (via dependency) map
         // (pre-computed for performance)
-        Map<Long, Set<Long>> impliedMap = buildImpliedMap();
+        Map<Long, Set<Long>> impliedMap = buildImpliedMap(depThreshold);
 
         // Pre-load ALL canonicals into memory to avoid N+1 queries inside loops
         Map<Long, SkillCanonical> canonicalCache = new HashMap<>();
@@ -117,19 +121,19 @@ public class VacancyClusterScoreService {
                     boolean inDesc       = !descLower.isEmpty()  && descLower.contains(skillNameLower);
 
                     if (inTitle) {
-                        raw += WEIGHT_TITLE;
+                        raw += weightTitle;
                         fromTitle = true;
                     }
                     if (inSkillsList) {
-                        raw += WEIGHT_SKILLS;
+                        raw += weightSkills;
                         fromSkills = true;
                     }
                     if (inDesc) {
-                        raw += WEIGHT_DESC;
+                        raw += weightDesc;
                         fromDesc = true;
                     }
                     if (inImplied) {
-                        raw += WEIGHT_SKILLS * MIN_DEP_WEIGHT;
+                        raw += weightSkills * rhoDep;
                         viaDep = true;
                     }
                 }
@@ -197,12 +201,12 @@ public class VacancyClusterScoreService {
         return map;
     }
 
-    private Map<Long, Set<Long>> buildImpliedMap() {
+    private Map<Long, Set<Long>> buildImpliedMap(double depThreshold) {
         Map<Long, Set<Long>> map = new HashMap<>();
         List<SkillDependency> allDeps = dependencyRepository.findAll();
         for (SkillDependency dep : allDeps) {
             if (dep.getWeight() == null) continue;
-            if (dep.getWeight().doubleValue() < MIN_DEP_WEIGHT) continue;
+            if (dep.getWeight().doubleValue() < depThreshold) continue;
             Long childId  = dep.getChild().getId();
             Long parentId = dep.getParent().getId();
             map.computeIfAbsent(childId, k -> new HashSet<>()).add(parentId);

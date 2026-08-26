@@ -1,6 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.services.dst.bpa;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.DstJsonFields;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@DstJsonFields
 public class BpaResult {
     private String sourceName;
     private boolean enabled;
@@ -19,14 +20,18 @@ public class BpaResult {
     private double lambda;
     private double weight;
 
-    private double kappa;
-    @JsonProperty("mT") private double mT;
-    @JsonProperty("mU") private double mU;
-    @JsonProperty("mF") private double mF;
+    /** Number of negative sources/experts behind m(F); 0 means no negative evidence. */
+    private int    negativeCount;
+    private double averageNegativeScore;
 
-    @JsonProperty("mTDiscounted") private double mTDiscounted;
-    @JsonProperty("mUDiscounted") private double mUDiscounted;
-    @JsonProperty("mFDiscounted") private double mFDiscounted;
+    private double kappa;
+    private double mT;
+    private double mU;
+    private double mF;
+
+    private double mTDiscounted;
+    private double mUDiscounted;
+    private double mFDiscounted;
 
     public static BpaResult disabled(String name) {
         BpaResult r = new BpaResult();

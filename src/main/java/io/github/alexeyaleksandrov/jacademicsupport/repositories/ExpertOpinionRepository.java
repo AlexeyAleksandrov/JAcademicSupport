@@ -63,6 +63,62 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
                                                  @Param("domain")         String domain,
                                                  @Param("professionCode") String professionCode);
     
+    // ─── Negative evidence aggregation (m(F) support) ─────────────────────────
+    // Mirrors of the POSITIVE queries above; feed the m(F) mass so that the
+    // conflict coefficient K can become non-zero and Yager's rule reachable.
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT eo.expert_id) AS negativeCount,
+               AVG(eo.skill_importance)     AS avgImportance
+        FROM expert_opinion eo
+        JOIN expert e ON e.id = eo.expert_id
+        WHERE eo.domain = :domain
+          AND eo.direction = 'NEGATIVE'
+          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
+    """)
+    List<Object[]> aggregateNegativeByDomain(@Param("domain") String domain,
+                                             @Param("professionCode") String professionCode);
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT eo.expert_id) AS negativeCount,
+               AVG(eo.skill_importance)     AS avgImportance
+        FROM expert_opinion eo
+        JOIN expert e ON e.id = eo.expert_id
+        WHERE eo.domain = :domain
+          AND eo.tech_family = :techFamily
+          AND eo.direction = 'NEGATIVE'
+          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
+    """)
+    List<Object[]> aggregateNegativeByDomainAndFamily(@Param("domain") String domain,
+                                                      @Param("techFamily") String techFamily,
+                                                      @Param("professionCode") String professionCode);
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT eo.expert_id) AS negativeCount,
+               AVG(eo.skill_importance)     AS avgImportance
+        FROM expert_opinion eo
+        JOIN expert e ON e.id = eo.expert_id
+        WHERE eo.canonical_id = :canonicalId
+          AND eo.direction = 'NEGATIVE'
+          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
+    """)
+    List<Object[]> aggregateNegativeByCanonical(@Param("canonicalId") Long canonicalId,
+                                                @Param("professionCode") String professionCode);
+
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(DISTINCT eo.expert_id) AS negativeCount,
+               AVG(eo.skill_importance)     AS avgImportance
+        FROM expert_opinion eo
+        JOIN expert e ON e.id = eo.expert_id
+        WHERE eo.canonical_id = :canonicalId
+          AND eo.domain = :domain
+          AND eo.direction = 'NEGATIVE'
+          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
+    """)
+    List<Object[]> aggregateNegativeByCanonicalAndDomain(@Param("canonicalId")    Long canonicalId,
+                                                         @Param("domain")         String domain,
+                                                         @Param("professionCode") String professionCode);
+
     // ─── Legacy queries (backward compat) ────────────────────────────────────
 
     // Найти все мнения экспертов по конкретному навыку

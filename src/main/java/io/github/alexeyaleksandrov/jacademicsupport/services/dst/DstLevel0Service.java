@@ -1,5 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.services.dst;
 
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.DstLevelMeta;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level0.DstL0DomainResult;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level0.DstL0Response;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.trace.DstTraceResponse;
@@ -33,9 +34,16 @@ public class DstLevel0Service {
     private final SkillCanonicalRepository     skillCanonicalRepository;
     private final DstQueryService              dstQueryService;
     private final DstCombinationService        combinationService;
+    private final DstSettingsService           settingsService;
+    private final DstLevelMetaFactory          metaFactory;
 
     @Transactional(readOnly = true)
     public DstL0Response analyzeLevel0(Long curriculumId) {
+        return analyzeLevel0(curriculumId, DstCalcOptions.defaults(settingsService.get()));
+    }
+
+    @Transactional(readOnly = true)
+    public DstL0Response analyzeLevel0(Long curriculumId, DstCalcOptions options) {
         DstL0Response resp = new DstL0Response();
         resp.setCurriculumId(curriculumId);
 
@@ -95,7 +103,7 @@ public class DstLevel0Service {
                         .collect(Collectors.toMap(
                                 r -> (String) r[0], r -> (String) r[1], (a, b) -> a));
 
-        // ── Proportional supply: fraction × disc.totalHours per discipline ────
+        // ── Per-discipline supply: hours of each domain inside the discipline ──
         Map<Long, List<DisciplineCoverage>> byDisc = allCoverage.stream()
                 .collect(Collectors.groupingBy(DisciplineCoverage::getDisciplineId));
         Map<Long, Integer> discHoursMap = allInCurriculum.stream()
@@ -103,6 +111,7 @@ public class DstLevel0Service {
                         d -> d.getTotalHours() != null ? d.getTotalHours() : 0));
 
         Map<String, Double> domainProportionalHours = new HashMap<>();
+        Set<Long>           touchedDisciplineIds    = new LinkedHashSet<>();
         for (Discipline disc : allInCurriculum) {
             int discTotalHours = discHoursMap.getOrDefault(disc.getId(), 0);
             if (discTotalHours == 0) continue;
@@ -110,15 +119,25 @@ public class DstLevel0Service {
             if (covList.isEmpty()) continue;
 
             Map<String, Integer> domainEffective = computeEffectiveDomainHours(
-                    covList, canonicalDomainMap, techFamilyDomainMap);
+                    covList, canonicalDomainMap, techFamilyDomainMap, options);
             int sumEff = domainEffective.values().stream().mapToInt(i -> i).sum();
             if (sumEff == 0) continue;
+            touchedDisciplineIds.add(disc.getId());
+
+            // DERIVED: the discipline's full volume is spread over its domains.
+            // EXPLICIT: the stated hours are kept as-is and only capped at the
+            // discipline volume, so Σ supply may legitimately be below 100 %.
+            double scale = DstHoursPolicy.coverageScale(
+                    options.explicitDomains(), discTotalHours, sumEff);
 
             for (Map.Entry<String, Integer> e : domainEffective.entrySet()) {
-                double fraction = (double) e.getValue() / sumEff;
-                domainProportionalHours.merge(e.getKey(), fraction * discTotalHours, Double::sum);
+                domainProportionalHours.merge(e.getKey(), e.getValue() * scale, Double::sum);
             }
         }
+
+        // ── Normalisation base T ──────────────────────────────────────────────
+        int budgetHours = resolveBudget(options, totalHours, touchedDisciplineIds, discHoursMap);
+        int nClusters   = combinationService.isNClustersAuto() ? 0 : combinationService.defaultNClusters();
 
         // ── Collect all domains (market + curriculum) ─────────────────────────
         Set<String> vacDomains = new LinkedHashSet<>();
@@ -128,24 +147,34 @@ public class DstLevel0Service {
                     .filter(Objects::nonNull)
                     .forEach(vacDomains::add);
         }
-        Set<String> rpdDomains = allCoverage.stream()
-                .map(cov -> getEffectiveDomain(cov, canonicalDomainMap, techFamilyDomainMap))
-                .filter(d -> d != null && !d.isEmpty())
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> rpdDomains = options.explicitDomains()
+                ? allCoverage.stream()
+                        .filter(this::isExplicitDomainRow)
+                        .map(DisciplineCoverage::getDomain)
+                        .filter(d -> d != null && !d.isEmpty())
+                        .collect(Collectors.toCollection(LinkedHashSet::new))
+                : allCoverage.stream()
+                        .map(cov -> getEffectiveDomain(cov, canonicalDomainMap, techFamilyDomainMap))
+                        .filter(d -> d != null && !d.isEmpty())
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
 
         Set<String> allDomains = new LinkedHashSet<>();
         allDomains.addAll(vacDomains);
         allDomains.addAll(rpdDomains);
 
+        // Auto mode: BetP denominator = actual number of level objects
+        int effectiveN = nClusters > 0 ? nClusters : Math.max(1, allDomains.size());
+
         List<DstL0DomainResult> results = new ArrayList<>();
         for (String domain : allDomains) {
             double supplyHoursD = domainProportionalHours.getOrDefault(domain, 0.0);
             int supplyHours = (int) Math.round(supplyHoursD);
-            double supply = (totalHours > 0) ? supplyHoursD / totalHours : 0.0;
+            double supply = DstHoursPolicy.supply(supplyHoursD, budgetHours);
 
             String primaryProfCode = profs.get(0).professionCode();
             DstContext ctx = new DstContext(primaryProfCode, domain, null, null);
-            DstTraceResponse trace = combinationService.computeWeighted(ctx, profs, supply, dstQueryService);
+            DstTraceResponse trace = combinationService.computeWeighted(
+                    ctx, profs, supply, dstQueryService, effectiveN);
 
             DstL0DomainResult dr = new DstL0DomainResult();
             dr.setDomain(domain);
@@ -166,7 +195,39 @@ public class DstLevel0Service {
 
         results.sort(Comparator.comparingDouble(DstL0DomainResult::getBetp).reversed());
         resp.setDomains(results);
+
+        int coveredHours = (int) Math.round(
+                domainProportionalHours.values().stream().mapToDouble(Double::doubleValue).sum());
+        resp.setMeta(metaFactory.build(options, budgetHours, coveredHours,
+                budgetLabel(options, totalHours, touchedDisciplineIds.size()), effectiveN));
         return resp;
+    }
+
+    /** Resolves T for L0 from the requested hours base / inherited parent budget. */
+    private int resolveBudget(DstCalcOptions options, int totalHours,
+                              Set<Long> touchedDisciplineIds, Map<Long, Integer> discHoursMap) {
+        return DstHoursPolicy.resolveBudget(options, totalHours, touchedDisciplineIds, discHoursMap);
+    }
+
+    private String budgetLabel(DstCalcOptions options, int totalHours, int touchedCount) {
+        Integer inherited = options.inheritedBudget();
+        if (inherited != null) {
+            return "наследуемый бюджет родительского уровня";
+        }
+        return switch (options.hoursBase()) {
+            case TOUCHED_DISCIPLINES ->
+                    "Σ часов дисциплин с покрытием (" + touchedCount + " дисц.)";
+            case SINGLE_DISCIPLINE ->
+                    "часы выбранной дисциплины #" + options.disciplineId();
+            case CURRICULUM -> "весь учебный план (" + totalHours + " ч.)";
+        };
+    }
+
+    /** True for a coverage row where the domain is stated explicitly (no family / skill). */
+    private boolean isExplicitDomainRow(DisciplineCoverage cov) {
+        return cov.getDomain() != null && !cov.getDomain().isEmpty()
+                && cov.getTechFamily() == null
+                && cov.getCanonicalId() == null;
     }
 
     private String getEffectiveDomain(DisciplineCoverage cov,
@@ -184,10 +245,27 @@ public class DstLevel0Service {
         return null;
     }
 
+    /**
+     * Hours each domain contributes inside one discipline.
+     *
+     * EXPLICIT mode counts only rows that name the domain directly.
+     * DERIVED mode keeps the historical DOMAIN ▶ FAMILY ▶ SKILL priority, where
+     * only the highest available level of every domain is counted.
+     */
     private Map<String, Integer> computeEffectiveDomainHours(
             List<DisciplineCoverage> covList,
             Map<Long, String> canonicalDomainMap,
-            Map<String, String> techFamilyDomainMap) {
+            Map<String, String> techFamilyDomainMap,
+            DstCalcOptions options) {
+
+        if (options.explicitDomains()) {
+            Map<String, Integer> explicit = new HashMap<>();
+            for (DisciplineCoverage cov : covList) {
+                if (!isExplicitDomainRow(cov)) continue;
+                explicit.merge(cov.getDomain(), cov.getHours() != null ? cov.getHours() : 0, Integer::sum);
+            }
+            return explicit;
+        }
 
         Map<String, Map<String, Integer>> byDomainAndLevel = new HashMap<>();
         for (DisciplineCoverage cov : covList) {

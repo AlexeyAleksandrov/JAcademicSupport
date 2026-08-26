@@ -1,6 +1,7 @@
 package io.github.alexeyaleksandrov.jacademicsupport.services.dst.bpa;
 
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstQueryService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstSettingsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -8,15 +9,13 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class VacBpaSourceProvider extends AbstractBpaSourceProvider {
 
-    private static final double LAMBDA = 15.0;
-    private static final double WEIGHT = 0.8;
-
-    private final DstQueryService dstQueryService;
+    private final DstQueryService   dstQueryService;
+    private final DstSettingsService settingsService;
 
     @Override public String getName()    { return "VAC"; }
-    @Override public boolean isEnabled() { return true; }
-    @Override public double getLambda()  { return LAMBDA; }
-    @Override public double getWeight()  { return WEIGHT; }
+    @Override public boolean isEnabled() { return Boolean.TRUE.equals(settingsService.get().getVacEnabled()); }
+    @Override public double getLambda()  { return settingsService.get().getLambdaVacL1(); }
+    @Override public double getWeight()  { return settingsService.get().getWVac(); }
 
     @Override
     public BpaResult compute(DstContext ctx) {

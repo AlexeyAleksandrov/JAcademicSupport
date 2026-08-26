@@ -3,6 +3,7 @@ package io.github.alexeyaleksandrov.jacademicsupport.services.dst;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.trace.DstCombinationTrace;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.trace.DstMass;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.trace.DstTraceResponse;
+import io.github.alexeyaleksandrov.jacademicsupport.models.DstSettings;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstQueryService.ProfessionWeight;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.bpa.BpaResult;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.bpa.BpaSourceProvider;
@@ -17,12 +18,21 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DstCombinationService {
 
-    private static final double TAU_DELTA   = 0.15;
-    private static final double TAU_K       = 0.4;
-    private static final double TAU_THETA   = 0.15;
-    private static final int    N_CLUSTERS  = 25;
-
     private final List<BpaSourceProvider> sources;
+    private final DstSettingsService       settingsService;
+
+    private double tauK() { return settingsService.get().getTauK(); }
+
+    /** Default BetP denominator on L0 (number of market clusters/domains). */
+    public int defaultNClusters() {
+        DstSettings s = settingsService.get();
+        return s.getNClustersL0() != null ? s.getNClustersL0() : DstSettingsDefaults.N_CLUSTERS_L0;
+    }
+
+    /** True when L0 should use the actual number of domains instead of the fixed constant. */
+    public boolean isNClustersAuto() {
+        return Boolean.TRUE.equals(settingsService.get().getNClustersL0Auto());
+    }
 
     public DstTraceResponse compute(DstContext ctx, double supply) {
         List<BpaResult> enabled = new ArrayList<>();
@@ -31,16 +41,25 @@ public class DstCombinationService {
         for (BpaSourceProvider src : sources) {
             BpaResult r = src.isEnabled() ? src.compute(ctx) : BpaResult.disabled(src.getName());
             all.add(r);
-            if (r.isEnabled() && r.getMT() > 0) enabled.add(r);
+            if (carriesEvidence(r)) enabled.add(r);
         }
 
         return finishCombination(all, enabled, supply);
     }
 
+    /**
+     * A source participates in combination when it carries any mass outside Θ —
+     * either positive (m(T)) or negative (m(F)). Without the m(F) branch a purely
+     * negative source would be silently dropped and K would stay zero.
+     */
+    private boolean carriesEvidence(BpaResult r) {
+        return r.isEnabled() && (r.getMT() > 0 || r.getMF() > 0);
+    }
+
     private double[] combineAdaptive(double m1T, double m1U, double m1F,
                                      double m2T, double m2U, double m2F) {
         double K = m1T * m2F + m1F * m2T;
-        return K >= TAU_K
+        return K >= tauK()
                 ? combineYager(m1T, m1U, m1F, m2T, m2U, m2F)
                 : combineDST(m1T, m1U, m1F, m2T, m2U, m2F);
     }
@@ -72,32 +91,20 @@ public class DstCombinationService {
                                              List<ProfessionWeight> profs,
                                              double supply,
                                              DstQueryService queryService) {
+        return computeWeighted(ctx, profs, supply, queryService, defaultNClusters());
+    }
+
+    public DstTraceResponse computeWeighted(DstContext ctx,
+                                             List<ProfessionWeight> profs,
+                                             double supply,
+                                             DstQueryService queryService,
+                                             int nClusters) {
         String domain = ctx.getDomain();
         DstQueryService.BpaResult vacRaw = queryService.getWeightedVacBpaByDomain(profs, domain);
         DstQueryService.BpaResult expRaw = queryService.getWeightedExpBpaByDomain(profs, domain);
         DstQueryService.BpaResult fcRaw  = queryService.getWeightedFcBpaByDomain(profs, domain);
 
-        List<BpaResult> all = new ArrayList<>();
-        List<BpaResult> enabled = new ArrayList<>();
-
-        for (BpaSourceProvider src : sources) {
-            DstQueryService.BpaResult raw = switch (src.getName()) {
-                case "VAC" -> vacRaw;
-                case "EXP" -> expRaw;
-                case "FC"  -> fcRaw;
-                default    -> DstQueryService.BpaResult.empty();
-            };
-            BpaResult r;
-            if (raw.relevantCount() > 0) {
-                r = src.buildFromRaw(raw);
-            } else {
-                r = BpaResult.disabled(src.getName());
-            }
-            all.add(r);
-            if (r.isEnabled() && r.getMT() > 0) enabled.add(r);
-        }
-
-        return finishCombination(all, enabled, supply, N_CLUSTERS);
+        return combineSources(supply, nClusters, vacRaw, expRaw, fcRaw);
     }
 
     public DstTraceResponse computeWeightedFamily(DstContext ctx,
@@ -111,22 +118,7 @@ public class DstCombinationService {
         DstQueryService.BpaResult expRaw = queryService.getWeightedExpBpaByFamily(profs, domain, techFamily);
         DstQueryService.BpaResult fcRaw  = queryService.getWeightedFcBpaByFamily(profs, domain, techFamily);
 
-        List<BpaResult> all = new ArrayList<>();
-        List<BpaResult> enabled = new ArrayList<>();
-
-        for (BpaSourceProvider src : sources) {
-            DstQueryService.BpaResult raw = switch (src.getName()) {
-                case "VAC" -> vacRaw;
-                case "EXP" -> expRaw;
-                case "FC"  -> fcRaw;
-                default    -> DstQueryService.BpaResult.empty();
-            };
-            BpaResult r = raw.relevantCount() > 0 ? src.buildFromRaw(raw) : BpaResult.disabled(src.getName());
-            all.add(r);
-            if (r.isEnabled() && r.getMT() > 0) enabled.add(r);
-        }
-
-        return finishCombination(all, enabled, supply, nFamilies);
+        return combineSources(supply, nFamilies, vacRaw, expRaw, fcRaw);
     }
 
     public DstTraceResponse computeWeightedSkill(DstContext ctx,
@@ -134,14 +126,22 @@ public class DstCombinationService {
                                                   double supply,
                                                   DstQueryService queryService,
                                                   int nSkills) {
-        String domain     = ctx.getDomain();
-        String techFamily = ctx.getTechFamily();
+        String domain      = ctx.getDomain();
+        String techFamily  = ctx.getTechFamily();
         Long   canonicalId = ctx.getCanonicalId();
         DstQueryService.BpaResult vacRaw = queryService.getWeightedVacBpaByFamilySkill(profs, domain, techFamily, canonicalId);
         DstQueryService.BpaResult expRaw = queryService.getWeightedExpBpaByCanonicalAndDomain(profs, canonicalId, domain);
         DstQueryService.BpaResult fcRaw  = queryService.getWeightedFcBpaByCanonicalAndDomain(profs, canonicalId, domain);
 
-        List<BpaResult> all = new ArrayList<>();
+        return combineSources(supply, nSkills, vacRaw, expRaw, fcRaw);
+    }
+
+    /** Shared source-assembly step for all three levels. */
+    private DstTraceResponse combineSources(double supply, int n,
+                                            DstQueryService.BpaResult vacRaw,
+                                            DstQueryService.BpaResult expRaw,
+                                            DstQueryService.BpaResult fcRaw) {
+        List<BpaResult> all     = new ArrayList<>();
         List<BpaResult> enabled = new ArrayList<>();
 
         for (BpaSourceProvider src : sources) {
@@ -151,16 +151,18 @@ public class DstCombinationService {
                 case "FC"  -> fcRaw;
                 default    -> DstQueryService.BpaResult.empty();
             };
-            BpaResult r = raw.relevantCount() > 0 ? src.buildFromRaw(raw) : BpaResult.disabled(src.getName());
+            BpaResult r = (src.isEnabled() && raw.hasEvidence())
+                    ? src.buildFromRaw(raw)
+                    : BpaResult.disabled(src.getName());
             all.add(r);
-            if (r.isEnabled() && r.getMT() > 0) enabled.add(r);
+            if (carriesEvidence(r)) enabled.add(r);
         }
 
-        return finishCombination(all, enabled, supply, nSkills);
+        return finishCombination(all, enabled, supply, n);
     }
 
     private DstTraceResponse finishCombination(List<BpaResult> all, List<BpaResult> enabled, double supply) {
-        return finishCombination(all, enabled, supply, N_CLUSTERS);
+        return finishCombination(all, enabled, supply, defaultNClusters());
     }
 
     private DstTraceResponse finishCombination(List<BpaResult> all, List<BpaResult> enabled, double supply, int n) {
@@ -183,7 +185,7 @@ public class DstCombinationService {
             double[] result = combineAdaptive(current[0], current[1], current[2],
                                               next.getMTDiscounted(), next.getMUDiscounted(), next.getMFDiscounted());
             double K = result[3];
-            boolean yager = K >= TAU_K;
+            boolean yager = K >= tauK();
             if (K > maxK) maxK = K;
             if (yager) usedYager = true;
 
@@ -209,14 +211,19 @@ public class DstCombinationService {
     }
 
     private String decide(double mT, double mU, double mF, double K, double delta) {
-        if (mF > 0.8 && mT < 0.1) return "obsolete";
-        if (delta > TAU_DELTA && K <= TAU_K) {
-            boolean clearSignal = mU <= TAU_THETA || delta > 0.35;
+        DstSettings s = settingsService.get();
+        double tauDelta = s.getTauDelta();
+        double tauK     = s.getTauK();
+        double tauTheta = s.getTauTheta();
+
+        if (mF > s.getObsoleteMf() && mT < s.getObsoleteMt()) return "obsolete";
+        if (delta > tauDelta && K <= tauK) {
+            boolean clearSignal = mU <= tauTheta || delta > s.getStrongSignalDelta();
             if (clearSignal)
-                return delta > 0.5 ? "strong" : "moderate";
+                return delta > s.getStrongBoostDelta() ? "strong" : "moderate";
         }
-        if (delta < -TAU_DELTA) return "reduce";
-        if (K > TAU_K || mU > TAU_THETA) return "expertise";
+        if (delta < -tauDelta) return "reduce";
+        if (K > tauK || mU > tauTheta) return "expertise";
         return "preserve";
     }
 }

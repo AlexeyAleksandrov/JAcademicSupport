@@ -29,10 +29,12 @@ public interface BpaSourceProvider {
         b.setAgreementLevel(1.0);
         b.setLambda(raw.lambda() > 0 ? raw.lambda() : getLambda());
         b.setWeight(getWeight());
+        b.setNegativeCount((int) raw.negativeCount());
+        b.setAverageNegativeScore(raw.averageNegativeScore());
 
         double mT = raw.mT();
-        double mF = 0.0;
-        double mU = 1.0 - mT;
+        double mF = raw.mF();
+        double mU = Math.max(0.0, 1.0 - mT - mF);
         double kappa = (raw.averageScore() > 0) ? mT / raw.averageScore() : mT;
         b.setKappa(kappa);
         b.setMT(mT); b.setMU(mU); b.setMF(mF);

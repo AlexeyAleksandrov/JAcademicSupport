@@ -1,6 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.dto.dst.trace;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.DstJsonFields;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,9 +8,10 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@DstJsonFields
 public class DstCombinationTrace {
     private String  label;
-    @JsonProperty("K") private double  K;
+    private double  K;
     private String  rule;
     private DstMass output;
 }
