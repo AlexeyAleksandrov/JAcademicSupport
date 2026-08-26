@@ -1,0 +1,91 @@
+source_name,source_url,forecast_date,tech,confidence,domain,tech_family
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,PHP,0.78,BACKEND,PHP
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Ruby,0.75,BACKEND,Ruby
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,VBA,0.85,GENERAL,VBA
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Objective-C,0.82,MOBILE,iOS
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,C,0.70,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,C++,0.65,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Java,0.65,BACKEND,Java
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Perl,0.75,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Haskell,0.70,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Scala,0.70,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Erlang,0.70,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,R,0.68,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Oracle,0.75,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Access,0.75,DATABASE,Реляционные
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,MySQL,0.60,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Microsoft SQL Server,0.60,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Chef,0.75,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Cordova,0.75,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Angular,0.80,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,jQuery,0.70,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Flask,0.65,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Django,0.65,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,TensorFlow,0.70,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,PyTorch,0.68,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Node.js,0.60,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,REST,0.60,BACKEND,REST
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Android,0.80,,
+Stack Overflow Developer Survey 2025,https://survey.stackoverflow.co/2025/technology/,2025-07-29,Cassandra,0.65,,
+JetBrains Developer Ecosystem 2025,https://devecosystem-2025.jetbrains.com/,2025-10-01,PHP,0.75,BACKEND,PHP
+JetBrains Developer Ecosystem 2025,https://devecosystem-2025.jetbrains.com/,2025-10-01,Ruby,0.75,BACKEND,Ruby
+JetBrains Developer Ecosystem 2025,https://devecosystem-2025.jetbrains.com/,2025-10-01,Objective-C,0.80,MOBILE,iOS
+JetBrains Developer Ecosystem 2025,https://devecosystem-2025.jetbrains.com/,2025-10-01,JavaScript,0.60,,
+JetBrains Developer Ecosystem 2025,https://devecosystem-2025.jetbrains.com/,2025-10-01,SQL,0.55,,
+JetBrains Developer Ecosystem 2025,https://devecosystem-2025.jetbrains.com/,2025-10-01,Scala,0.70,,
+JetBrains Developer Ecosystem 2025,https://devecosystem-2025.jetbrains.com/,2025-10-01,C++,0.62,,
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,Java,0.72,BACKEND,Java
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,Ruby,0.80,BACKEND,Ruby
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,PL/SQL,0.78,,
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,Hadoop,0.75,,
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,Android,0.80,,
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,R,0.78,,
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,Django,0.72,,
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,TensorFlow,0.75,,
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,PyTorch,0.72,,
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,Node.js,0.60,,
+HackerRank Skills in Retreat 2025,https://www.hackerrank.com/blog/skills-in-retreat-developer-skills-on-the-decline-in-2025/,2025-03-15,REST,0.60,BACKEND,REST
+TIOBE Index,https://www.tiobe.com/tiobe-index/,2026-08-01,MATLAB,0.75,,
+TIOBE Index,https://www.tiobe.com/tiobe-index/,2026-08-01,Delphi,0.70,,
+TIOBE Index,https://www.tiobe.com/tiobe-index/,2026-08-01,Objective-C,0.70,MOBILE,iOS
+TIOBE Index,https://www.tiobe.com/tiobe-index/,2026-08-01,Visual Basic,0.70,,
+TIOBE Index,https://www.tiobe.com/tiobe-index/,2026-08-01,PL/SQL,0.65,,
+TIOBE Index,https://www.tiobe.com/tiobe-index/,2026-08-01,Scala,0.60,,
+TIOBE Index,https://www.tiobe.com/tiobe-index/,2026-08-01,Haskell,0.60,,
+GitHub Abandoned Repositories 2026,https://www.hostkey.com/blog/168-abandoned-repositories-on-github-which-languages-are-losing-developers-and-when-code-stops-getting-updated/,2026-08-01,Ruby,0.80,BACKEND,Ruby
+GitHub Abandoned Repositories 2026,https://www.hostkey.com/blog/168-abandoned-repositories-on-github-which-languages-are-losing-developers-and-when-code-stops-getting-updated/,2026-08-01,Scala,0.78,,
+GitHub Abandoned Repositories 2026,https://www.hostkey.com/blog/168-abandoned-repositories-on-github-which-languages-are-losing-developers-and-when-code-stops-getting-updated/,2026-08-01,Java,0.65,BACKEND,Java
+PkgPulse Decline of Express 2026,https://www.pkgpulse.com/guides/decline-of-express-what-developers-switching-to-2026,2026-01-15,Express,0.75,,
+Stack Overflow 2025 Insights,https://enstacked.com/stack-overflow-developer-survey-insights/,2025-08-01,PHP,0.70,BACKEND,PHP
+Stack Overflow 2025 Insights,https://enstacked.com/stack-overflow-developer-survey-insights/,2025-08-01,Ruby,0.68,BACKEND,Ruby
+Stack Overflow 2025 Insights,https://enstacked.com/stack-overflow-developer-survey-insights/,2025-08-01,Perl,0.70,,
+Stack Overflow 2025 Insights,https://enstacked.com/stack-overflow-developer-survey-insights/,2025-08-01,Angular,0.70,,
+hh.ru IT Skills Analysis 2025,https://hh.ru/article/kakie-navyki-nuzhny-na-rynke-truda-i-skolko-oni-stoyat,2025-10-01,REST,0.75,BACKEND,REST
+hh.ru IT Skills Analysis 2025,https://hh.ru/article/kakie-navyki-nuzhny-na-rynke-truda-i-skolko-oni-stoyat,2025-10-01,Java,0.78,BACKEND,Java
+hh.ru IT Skills Analysis 2025,https://hh.ru/article/kakie-navyki-nuzhny-na-rynke-truda-i-skolko-oni-stoyat,2025-10-01,SQL,0.55,,
+hh.ru IT Skills Analysis 2025,https://hh.ru/article/kakie-navyki-nuzhny-na-rynke-truda-i-skolko-oni-stoyat,2025-10-01,Ruby on Rails,0.75,,
+Habr Career IT Salary H2 2025,https://habr.com/ru/specials/994308/,2025-12-01,Objective-C,0.55,MOBILE,iOS
+RedMonk Programming Language Rankings 2025,https://redmonk.com/sogrady/2025/06/18/language-rankings-1-25/,2025-06-18,Objective-C,0.72,MOBILE,iOS
+RedMonk Programming Language Rankings 2025,https://redmonk.com/sogrady/2025/06/18/language-rankings-1-25/,2025-06-18,Scala,0.65,,
+The Register on JetBrains 2025,https://www.theregister.com/software/2025/10/21/is-php-declining-jetbrains-says-yes-and-no/1040597,2025-10-21,PHP,0.70,BACKEND,PHP
+The Register on JetBrains 2025,https://www.theregister.com/software/2025/10/21/is-php-declining-jetbrains-says-yes-and-no/1040597,2025-10-21,Ruby,0.70,BACKEND,Ruby
+byteiota TypeScript Rust Go 2025,https://byteiota.com/typescript-rust-go-surge-javascript-plateaus-2025/,2025-10-15,JavaScript,0.55,,
+byteiota TypeScript Rust Go 2025,https://byteiota.com/typescript-rust-go-surge-javascript-plateaus-2025/,2025-10-15,PHP,0.72,BACKEND,PHP
+byteiota TypeScript Rust Go 2025,https://byteiota.com/typescript-rust-go-surge-javascript-plateaus-2025/,2025-10-15,Ruby,0.72,BACKEND,Ruby
+byteiota TypeScript Rust Go 2025,https://byteiota.com/typescript-rust-go-surge-javascript-plateaus-2025/,2025-10-15,Objective-C,0.78,MOBILE,iOS
+LPI Why Languages Rise and Fall 2026,https://www.lpi.org/blog/2026/08/06/why-do-programming-languages-rise-and-fall-part-2/,2026-08-06,Ruby,0.70,BACKEND,Ruby
+LPI Why Languages Rise and Fall 2026,https://www.lpi.org/blog/2026/08/06/why-do-programming-languages-rise-and-fall-part-2/,2026-08-06,Objective-C,0.70,MOBILE,iOS
+LPI Why Languages Rise and Fall 2026,https://www.lpi.org/blog/2026/08/06/why-do-programming-languages-rise-and-fall-part-2/,2026-08-06,Perl,0.70,,
+TechRepublic TIOBE August 2026,https://www.techrepublic.com/article/news-tiobe-august-2026-java-nears-c-plus-plus/,2026-08-27,MATLAB,0.75,,
+InfoWorld MATLAB Decline 2026,https://www.infoworld.com/article/4207496/matlab-programming-language-sinking-in-popularity.html,2026-08-08,MATLAB,0.75,,
+State of DB 2025,https://stateofdb.com/databases,2025-06-01,Oracle,0.70,,
+State of DB 2025,https://stateofdb.com/databases,2025-06-01,Couchbase,0.70,,
+State of DB 2025,https://stateofdb.com/databases,2025-06-01,Access,0.70,DATABASE,Реляционные
+State of DB 2025,https://stateofdb.com/databases,2025-06-01,Cassandra,0.65,,
+TechRepublic Stack Overflow Most Dreaded 2025,https://www.techrepublic.com/article/the-most-loved-and-most-disliked-programming-languages-revealed-in-stack-overflow-survey/,2025-08-15,VBA,0.85,GENERAL,VBA
+TechRepublic Stack Overflow Most Dreaded 2025,https://www.techrepublic.com/article/the-most-loved-and-most-disliked-programming-languages-revealed-in-stack-overflow-survey/,2025-08-15,Objective-C,0.82,MOBILE,iOS
+TechRepublic Stack Overflow Most Dreaded 2025,https://www.techrepublic.com/article/the-most-loved-and-most-disliked-programming-languages-revealed-in-stack-overflow-survey/,2025-08-15,Oracle,0.70,,
+TechRepublic Stack Overflow Most Dreaded 2025,https://www.techrepublic.com/article/the-most-loved-and-most-disliked-programming-languages-revealed-in-stack-overflow-survey/,2025-08-15,Couchbase,0.70,,
+TechRepublic Stack Overflow Most Dreaded 2025,https://www.techrepublic.com/article/the-most-loved-and-most-disliked-programming-languages-revealed-in-stack-overflow-survey/,2025-08-15,Chef,0.70,,
+TechRepublic Stack Overflow Most Dreaded 2025,https://www.techrepublic.com/article/the-most-loved-and-most-disliked-programming-languages-revealed-in-stack-overflow-survey/,2025-08-15,Cordova,0.70,,
+TechRepublic Stack Overflow Most Dreaded 2025,https://www.techrepublic.com/article/the-most-loved-and-most-disliked-programming-languages-revealed-in-stack-overflow-survey/,2025-08-15,Access,0.70,DATABASE,Реляционные
