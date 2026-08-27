@@ -42,3 +42,6 @@ build/
 # dst-demo: скомпилированные классы и артефакты сборки
 /dst-demo/out/
 /dst-demo/target/
+
+# Локальные ZIP-архивы
+*.zip
