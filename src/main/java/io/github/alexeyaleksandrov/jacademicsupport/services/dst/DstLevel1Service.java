@@ -127,6 +127,7 @@ public class DstLevel1Service {
         resp.setNFamilies(nFamilies);
 
         String primaryProfCode = profs.get(0).professionCode();
+        List<DstTraceResponse> traces = new ArrayList<>();
         List<DstL1FamilyResult> results = new ArrayList<>();
         for (String family : allFamilies) {
             double supplyHoursD = familyProportionalHours.getOrDefault(family, 0.0);
@@ -136,9 +137,17 @@ public class DstLevel1Service {
             DstContext ctx = new DstContext(primaryProfCode, domain, family, null);
             DstTraceResponse trace = combinationService.computeWeightedFamily(
                     ctx, profs, supply, dstQueryService, nFamilies);
-            decisionResolver.resolve(trace, supplyHours);
+            traces.add(trace);
 
             results.add(buildFamilyResult(family, supply, supplyHours, trace));
+        }
+
+        double totalBetP = results.stream().mapToDouble(DstL1FamilyResult::getBetp).sum();
+        for (int i = 0; i < results.size(); i++) {
+            DstTraceResponse trace = traces.get(i);
+            decisionResolver.resolve(trace, results.get(i).getSupplyHours(), totalBetP);
+            results.get(i).setRecommendation(trace.getRecommendation());
+            results.get(i).setExpertiseRequired(trace.isExpertiseRequired());
         }
 
         results.sort(Comparator.comparingDouble(DstL1FamilyResult::getBetp).reversed());

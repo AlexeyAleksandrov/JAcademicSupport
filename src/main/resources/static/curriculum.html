@@ -1098,10 +1098,13 @@ const DST_NUM_GROUPS = [
   ['Знаменатели κ и BetP', [
     ['totalExperts','N экспертов',1], ['totalSources','N источников',1], ['nClustersL0','N(BetP) на L0',1]]],
   ['Серверный DST-регламент', [
-    ['tauDelta','τ Δ_abs',0.03], ['tauK','τ K (Ягер)',0.05], ['tauTheta','τ Θ',0.01],
-    ['strongSignalDelta','сильный сигнал',0.05], ['strongBoostDelta','сильное усиление',0.05],
+    ['tauDelta','τ Δ_abs (индикатор)',0.03,'Используется только для справочной подсветки ненормированной разности BetP − supply и не влияет на итоговое решение.'],
+    ['tauK','τ K (Ягер/экспертиза)',0.05],
+    ['tauTheta','τ Θ (резерв)',0.01,'Показывается как диагностический параметр; m(Θ) не вызывает экспертизу.'],
+    ['strongSignalDelta','сильный сигнал (индикатор)',0.05,'Используется только для цвета справочного индикатора Δ_abs.'],
+    ['strongBoostDelta','сильное усиление (резерв)',0.05,'Сохранено для совместимости и сейчас не участвует в решении.'],
     ['obsoleteMf','устаревание m(F)>',0.05], ['obsoleteMt','устаревание m(T)<',0.05]]],
-  ['Аллокационный регламент (таблицы уровней)', [
+  ['Аллокационный регламент (сервер, L0–L2)', [
     ['tauAlloc','τ Δ_norm',0.01]]],
   ['Локальная релевантность вакансий и граф зависимостей (раздел 3.2)', [
     ['wLocTitle','Вес совпадения в заголовке',0.1,'Добавляется, если название навыка найдено в заголовке вакансии.'],
@@ -1460,7 +1463,7 @@ function renderL0(r) {
         <b>${recHours}</b> ч.
         <span style="${gapStyle};font-size:10px;margin-left:2px;">${gapHours>=0?'+':''}${gapHours}</span>
       </td>
-      <td><span class="${alloc.cls}" style="padding:2px 6px;border-radius:4px;font-size:11px;white-space:nowrap;" title="Δ_norm=${ppFmt(deltaNorm,2)} при τ=${(alloc.tau*100).toFixed(1)} п.п.${alloc.kind==='introduce'?' (покрытие=0)':alloc.kind==='obsolete'?' (DST: устарело, m(F) высок)':''}">${alloc.label}</span></td>
+      <td><span class="${alloc.cls}" style="padding:2px 6px;border-radius:4px;font-size:11px;white-space:nowrap;" title="Δ_norm=${ppFmt(deltaNorm,2)} при τ=${(tauAlloc()*100).toFixed(1)} п.п.${alloc.kind==='introduce'?' (покрытие=0)':alloc.kind==='delete'?' (DST: устаревание, m(F) высока)':''}">${alloc.label}</span></td>
       <td style="font-size:11px;color:var(--muted)">▶</td>
     </tr>
     <tr id="${traceId}" style="display:none;" data-domain="${esc(d.domain)}" data-curriculum="${r.curriculumId}"
@@ -1496,7 +1499,7 @@ function renderL0(r) {
         <th title="Δ_norm = nBetP − supply, в процентных пунктах от T = ${budget} ч.">Δ_norm</th>
         <th>Часов в УП</th>
         <th title="Целевые часы = nBetP × T, где T = ${budget} ч. (${esc(meta.budgetSource||'')})">Цел. часов</th>
-        <th title="Решение и флаг экспертизы формируются на сервере; «Экспертиза» заменяет действие при высоком K или m(Θ)">Решение</th>
+        <th title="Решение и флаг экспертизы формируются на сервере; «Экспертиза» заменяет действие при K ≥ τK или отсутствии внешних свидетельств">Решение</th>
         <th></th>
       </tr></thead>
       <tbody>${domainRows}</tbody>
@@ -1577,6 +1580,7 @@ function buildInlineTrace(d, alloc) {
   const aDn        = deltaNorm;
   const dec        = dstDecisionLabel(d.recommendation, d.expertiseRequired);
   const aClass     = dec.cls;
+  const noEvidence = !(d.sources || []).some(s => s.enabled);
   const aLabel     = dec.kind === 'delete' ? 'Удалить из программы'
                    : dec.kind === 'introduce' ? 'Ввести в программу' : dec.label;
   // Каждый процент сопровождается базой и переводом в часы: «+3.0 п.п. от 3852 ч. = +116 ч.»
@@ -1584,7 +1588,9 @@ function buildInlineTrace(d, alloc) {
   const aDesc      = dec.kind === 'delete'
     ? `Рынок труда демонстрирует <b>устаревание</b> данного домена (DST-сигнал: неверие m(F) = ${fmt(d.mF)} > ${fmt(dstSettings?.settings?.obsoleteMf ?? 0.8)}). Рассмотрите исключение домена из программы: сейчас ${d.supplyHours} ч., цель — <b>${recHours} ч.</b> (разрыв ${gapHours} ч.).`
     : dec.kind === 'expertise'
-    ? `Данные источников конфликтуют или слишком неопределённы (K = ${fmt(d.K)}${d.usedYager ? ', применено правило Ягера' : ''}, m(Θ) = ${fmt(d.mU)}). Рекомендуется экспертная оценка перед изменением часов: сейчас ${d.supplyHours||0} ч., целевой объём — <b>${recHours} ч.</b> из ${baseNote}.`
+    ? (noEvidence
+      ? `Во внешних источниках нет свидетельств по данному домену. Отсутствие данных не интерпретируется как негативный сигнал; перед изменением часов требуется экспертная оценка.`
+      : `Обнаружен высокий конфликт источников: K = ${fmt(d.K)} ≥ τK = ${fmt(dstSettings?.settings?.tauK ?? 0.4)}${d.usedYager ? ', применено правило Ягера' : ''}. Рекомендуется экспертная оценка перед изменением часов: сейчас ${d.supplyHours||0} ч., целевой объём — <b>${recHours} ч.</b> из ${baseNote}.`)
     : dec.kind === 'introduce'
     ? `Домен <b>отсутствует в учебном плане</b> (0 ч.), однако рынок труда формирует на него спрос (nBetP = ${(nBetp*100).toFixed(1)}% от бюджета уровня). Рекомендуется ввести тематический блок или спецкурс: целевой объём — <b>${recHours} ч.</b> из ${baseNote} (разрыв +${gapHours} ч.).`
     : dec.kind === 'boost'
@@ -1662,7 +1668,7 @@ function buildInlineTrace(d, alloc) {
   // ─── Шаг 5: Итог BetP ────────────────────────────────────────────────────
   const betpFormula  = `m*(T) + m*(U)/${N_CLUSTERS} = ${fmt(d.mT)} + ${fmt(d.mU)}/${N_CLUSTERS}`;
   const deltaColor   = d.delta > dstNumber('tauDelta', 0.03) ? 'var(--red)' : d.delta < -dstNumber('tauDelta', 0.03) ? 'var(--green)' : 'var(--muted)';
-  const dnColor      = deltaNorm > dstNumber('tauDelta', 0.03) ? 'var(--yellow)' : deltaNorm < -dstNumber('tauDelta', 0.03) ? 'var(--green)' : 'var(--muted)';
+  const dnColor      = deltaNorm > tauAlloc() ? 'var(--yellow)' : deltaNorm < -tauAlloc() ? 'var(--green)' : 'var(--muted)';
   const gaugeNPos    = Math.min(98, Math.max(2, Math.round((deltaNorm + (1/15)) / (2/15) * 100)));
 
   const tStyle  = 'border-collapse:collapse;width:100%;font-size:12px;margin-bottom:10px;';
@@ -1716,7 +1722,7 @@ function buildInlineTrace(d, alloc) {
                 <div style="color:var(--muted);font-size:10px;">T = ${baseNote}</div></td></tr>
         <tr><td>Δ_norm = nBetP − supply = ${(nBetp*100).toFixed(2)}% − ${((d.supply||0)*100).toFixed(2)}% = <b style="color:${dnColor}">${ppFmt(deltaNorm,2)}</b></td>
             <td style="color:var(--muted);font-size:10px;">В часах: ${ppFmt(deltaNorm,2)} × ${budget} ч. = <b style="color:${dnColor}">${ppHours(deltaNorm, budget)}</b>.
-                Порог Δ (сервер) τ = ${(dstNumber('tauDelta', 0.03)*100).toFixed(1)} п.п. (${Math.round(dstNumber('tauDelta', 0.03)*budget)} ч.)</td></tr>
+                Порог Δ_norm (сервер) τ = ${(tauAlloc()*100).toFixed(1)} п.п. (${Math.round(tauAlloc()*budget)} ч.)</td></tr>
       </tbody>
     </table>
     <div class="${aClass}" style="border-radius:6px;padding:10px 12px;margin-top:10px;border:1px solid;">
@@ -1725,10 +1731,10 @@ function buildInlineTrace(d, alloc) {
       <div style="font-size:11px;line-height:1.55;opacity:0.9;margin-bottom:10px;">${aDesc}</div>
       <div style="margin:4px 0 2px;">
         <div style="display:flex;justify-content:space-between;font-size:9px;opacity:0.65;margin-bottom:4px;"><span>Сократить</span><span>Баланс</span><span>Усилить</span></div>
-        <div style="position:relative;height:6px;border-radius:3px;background:linear-gradient(to right,#22c55e,#6b7280 50%,#f59e0b);"><div style="position:absolute;left:${symmetricGaugePosition(deltaNorm, dstNumber('tauDelta', 0.03))}%;top:50%;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid ${deltaNorm>dstNumber('tauDelta', 0.03)?'#f59e0b':deltaNorm<-dstNumber('tauDelta', 0.03)?'#22c55e':'#6b7280'};transform:translate(-50%,-50%);box-shadow:0 0 4px rgba(0,0,0,.5);"></div></div>
+        <div style="position:relative;height:6px;border-radius:3px;background:linear-gradient(to right,#22c55e,#6b7280 50%,#f59e0b);"><div style="position:absolute;left:${symmetricGaugePosition(deltaNorm, tauAlloc())}%;top:50%;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid ${deltaNorm>tauAlloc()?'#f59e0b':deltaNorm<-tauAlloc()?'#22c55e':'#6b7280'};transform:translate(-50%,-50%);box-shadow:0 0 4px rgba(0,0,0,.5);"></div></div>
         <div style="display:flex;justify-content:space-between;font-size:9px;opacity:0.55;margin-top:3px;"><span>Δ_norm = −15 п.п.</span><span>Δ_norm = 0</span><span>Δ_norm = +15 п.п.</span></div>
       </div>
-      <div style="font-size:10px;opacity:0.75;margin-top:4px;">Δ_norm = <b>${ppFmt(deltaNorm,2)}</b> (${ppHours(deltaNorm, budget)} от ${budget} ч.) &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${((d.supply||0)*100).toFixed(2)}%</b> &nbsp;|&nbsp; τ = <b>${(dstNumber('tauDelta', 0.03)*100).toFixed(1)} п.п.</b></div>
+      <div style="font-size:10px;opacity:0.75;margin-top:4px;">Δ_norm = <b>${ppFmt(deltaNorm,2)}</b> (${ppHours(deltaNorm, budget)} от ${budget} ч.) &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${((d.supply||0)*100).toFixed(2)}%</b> &nbsp;|&nbsp; τ = <b>${(tauAlloc()*100).toFixed(1)} п.п.</b></div>
     </div>
     <details style="margin-top:8px;">
       <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">Рыночный DST-сигнал (справочно, Δ_abs = ${(d.delta>=0?'+':'')+fmt(d.delta)}): ${recLabelRu}</summary>
@@ -1867,13 +1873,16 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
   const aDn       = deltaNorm;
   const dec       = dstDecisionLabel(f.recommendation, f.expertiseRequired);
   const aClass    = dec.cls;
+  const noEvidence = !(f.sources || []).some(s => s.enabled);
   const aLabel    = dec.kind === 'delete' ? 'Удалить из программы'
                   : dec.kind === 'introduce' ? 'Ввести в программу' : dec.label;
   const dnPhrase  = `<b>${ppFmt(aDn)}</b> от ${baseNote} = <b>${ppHours(aDn, domHours)}</b>`;
   const aDesc     = dec.kind === 'delete'
     ? `Рынок труда демонстрирует <b>устаревание</b> данного семейства (DST-сигнал: m(F) = ${fmt(f.mF)}). Рассмотрите исключение: сейчас ${f.supplyHours} ч., цель — <b>${recHours} ч.</b> (разрыв ${gapHours} ч.).`
     : dec.kind === 'expertise'
-    ? `Данные источников конфликтуют или слишком неопределённы (K = ${fmt(f.K)}${f.usedYager ? ', применено правило Ягера' : ''}, m(Θ) = ${fmt(f.mU)}). Рекомендуется экспертная оценка: сейчас ${f.supplyHours || 0} ч., целевой объём — <b>${recHours} ч.</b> из ${baseNote}.`
+    ? (noEvidence
+      ? `Во внешних источниках нет свидетельств по данному семейству. Отсутствие данных не интерпретируется как негативный сигнал; требуется экспертная оценка.`
+      : `Обнаружен высокий конфликт источников: K = ${fmt(f.K)} ≥ τK = ${fmt(dstSettings?.settings?.tauK ?? 0.4)}${f.usedYager ? ', применено правило Ягера' : ''}. Рекомендуется экспертная оценка: сейчас ${f.supplyHours || 0} ч., целевой объём — <b>${recHours} ч.</b> из ${baseNote}.`)
     : dec.kind === 'introduce'
     ? `Семейство <b>отсутствует в учебном плане</b> (0 ч.), однако рынок формирует спрос (nBetP = ${(nBetp*100).toFixed(1)}% от бюджета домена). Целевой объём — <b>${recHours} ч.</b> из ${baseNote}`
     : dec.kind === 'boost'
@@ -1933,7 +1942,7 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
 
   const betpFormula = `m*(T) + m*(U)/${nFamilies} = ${fmt(f.mT)} + ${fmt(f.mU)}/${nFamilies}`;
   const deltaColor  = f.delta > dstNumber('tauDelta', 0.03) ? 'var(--red)' : f.delta < -dstNumber('tauDelta', 0.03) ? 'var(--green)' : 'var(--muted)';
-  const dnColor     = deltaNorm > dstNumber('tauDelta', 0.03) ? 'var(--yellow)' : deltaNorm < -dstNumber('tauDelta', 0.03) ? 'var(--green)' : 'var(--muted)';
+  const dnColor     = deltaNorm > tauAlloc() ? 'var(--yellow)' : deltaNorm < -tauAlloc() ? 'var(--green)' : 'var(--muted)';
 
   const tStyle  = 'border-collapse:collapse;width:100%;font-size:12px;margin-bottom:10px;';
   const hStyle  = 'background:var(--bg2);color:var(--muted);padding:3px 6px;font-weight:600;font-size:10px;text-align:left;';
@@ -1986,14 +1995,14 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
                 <div style="color:var(--muted);font-size:10px;">T = ${baseNote}</div></td></tr>
         <tr><td>Δ_norm = nBetP − supply = ${(nBetp*100).toFixed(2)}% − ${((f.supply||0)*100).toFixed(2)}% = <b style="color:${dnColor}">${ppFmt(deltaNorm,2)}</b></td>
             <td style="color:var(--muted);font-size:10px;">В часах: ${ppFmt(deltaNorm,2)} × ${domHours} ч. = <b style="color:${dnColor}">${ppHours(deltaNorm, domHours)}</b>.
-                Порог τ = ${(dstNumber('tauDelta', 0.03)*100).toFixed(1)} п.п. (${Math.round(dstNumber('tauDelta', 0.03)*domHours)} ч.)</td></tr>
+                Порог Δ_norm τ = ${(tauAlloc()*100).toFixed(1)} п.п. (${Math.round(tauAlloc()*domHours)} ч.)</td></tr>
       </tbody>
     </table>
     <div class="${aClass}" style="border-radius:6px;padding:10px 12px;margin-top:10px;border:1px solid;">
       <div style="font-size:9px;opacity:0.7;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px;">Аллокационная рекомендация (Δ_norm = nBetP − supply, п.п. от ${domHours} ч.)</div>
       <div style="font-weight:700;font-size:13px;margin-bottom:5px;">${aLabel}</div>
       <div style="font-size:11px;line-height:1.55;opacity:0.9;margin-bottom:10px;">${aDesc}</div>
-      <div style="font-size:10px;opacity:0.75;margin-top:4px;">Δ_norm = <b>${ppFmt(deltaNorm,2)}</b> (${ppHours(deltaNorm, domHours)} от ${domHours} ч.) &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${((f.supply||0)*100).toFixed(2)}%</b> &nbsp;|&nbsp; τ = <b>${(dstNumber('tauDelta', 0.03)*100).toFixed(1)} п.п.</b></div>
+      <div style="font-size:10px;opacity:0.75;margin-top:4px;">Δ_norm = <b>${ppFmt(deltaNorm,2)}</b> (${ppHours(deltaNorm, domHours)} от ${domHours} ч.) &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${((f.supply||0)*100).toFixed(2)}%</b> &nbsp;|&nbsp; τ = <b>${(tauAlloc()*100).toFixed(1)} п.п.</b></div>
     </div>
     <details style="margin-top:8px;">
       <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">Рыночный DST-сигнал (справочно, Δ_abs = ${(f.delta>=0?'+':'')+fmt(f.delta)}): ${recLabelRu}</summary>
@@ -2144,13 +2153,16 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP, meta) {
   const aDn       = deltaNorm;
   const dec       = dstDecisionLabel(sk.recommendation, sk.expertiseRequired);
   const aClass    = dec.cls;
+  const noEvidence = !(sk.sources || []).some(s => s.enabled);
   const aLabel    = dec.kind === 'delete' ? 'Удалить из программы'
                   : dec.kind === 'introduce' ? 'Ввести в программу' : dec.label;
   const dnPhrase  = `<b>${ppFmt(aDn)}</b> от ${baseNote} = <b>${ppHours(aDn, famHours)}</b>`;
   const aDesc     = dec.kind === 'delete'
     ? `DST-сигнал указывает на <b>устаревание</b> навыка (m(F) = ${fmt(sk.mF)}). Цель — <b>${recHours} ч.</b> (сейчас ${sk.supplyHours} ч.).`
     : dec.kind === 'expertise'
-    ? `Данные источников конфликтуют или слишком неопределённы (K = ${fmt(sk.K)}${sk.usedYager ? ', применено правило Ягера' : ''}, m(Θ) = ${fmt(sk.mU)}). Рекомендуется экспертная оценка: сейчас ${sk.supplyHours || 0} ч., целевой объём — <b>${recHours} ч.</b> из ${baseNote}.`
+    ? (noEvidence
+      ? `Во внешних источниках нет свидетельств по данному навыку. Отсутствие данных не интерпретируется как негативный сигнал; требуется экспертная оценка.`
+      : `Обнаружен высокий конфликт источников: K = ${fmt(sk.K)} ≥ τK = ${fmt(dstSettings?.settings?.tauK ?? 0.4)}${sk.usedYager ? ', применено правило Ягера' : ''}. Рекомендуется экспертная оценка: сейчас ${sk.supplyHours || 0} ч., целевой объём — <b>${recHours} ч.</b> из ${baseNote}.`)
     : dec.kind === 'introduce'
     ? `Навык <b>отсутствует в программе</b>, но востребован рынком (nBetP = ${(nBetp*100).toFixed(1)}% от бюджета семейства). Целевой объём — <b>${recHours} ч.</b> из ${baseNote}`
     : dec.kind === 'boost'
@@ -2203,7 +2215,7 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP, meta) {
   }
   const betpFormula = `m*(T) + m*(U)/${nSkills} = ${fmt(sk.mT)} + ${fmt(sk.mU)}/${nSkills}`;
   const deltaColor  = sk.delta > dstNumber('tauDelta', 0.03) ? 'var(--red)' : sk.delta < -dstNumber('tauDelta', 0.03) ? 'var(--green)' : 'var(--muted)';
-  const dnColor     = deltaNorm > dstNumber('tauDelta', 0.03) ? 'var(--yellow)' : deltaNorm < -dstNumber('tauDelta', 0.03) ? 'var(--green)' : 'var(--muted)';
+  const dnColor     = deltaNorm > tauAlloc() ? 'var(--yellow)' : deltaNorm < -tauAlloc() ? 'var(--green)' : 'var(--muted)';
   const gaugePos    = Math.min(98, Math.max(2, Math.round((sk.delta + 1) / 2 * 100)));
   const gaugeColor  = sk.delta > dstNumber('strongSignalDelta', 0.35) ? '#ef4444'
                     : sk.delta > dstNumber('tauDelta', 0.03) ? '#f59e0b'
@@ -2249,14 +2261,14 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP, meta) {
                 <div style="color:var(--muted);font-size:10px;">T = ${baseNote}</div></td></tr>
         <tr><td>Δ_norm = nBetP − supply = ${(nBetp*100).toFixed(2)}% − ${((sk.supply||0)*100).toFixed(2)}% = <b style="color:${dnColor}">${ppFmt(deltaNorm,2)}</b></td>
             <td style="color:var(--muted);font-size:10px;">В часах: ${ppFmt(deltaNorm,2)} × ${famHours} ч. = <b style="color:${dnColor}">${ppHours(deltaNorm, famHours)}</b>.
-                Порог τ = ${(dstNumber('tauDelta', 0.03)*100).toFixed(1)} п.п. (${Math.round(dstNumber('tauDelta', 0.03)*famHours)} ч.)</td></tr>
+                Порог Δ_norm τ = ${(tauAlloc()*100).toFixed(1)} п.п. (${Math.round(tauAlloc()*famHours)} ч.)</td></tr>
       </tbody>
     </table>
     <div class="${aClass}" style="border-radius:6px;padding:10px 12px;margin-top:10px;border:1px solid;">
       <div style="font-size:9px;opacity:0.7;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px;">Аллокационная рекомендация (Δ_norm = nBetP − supply, п.п. от ${famHours} ч.)</div>
       <div style="font-weight:700;font-size:13px;margin-bottom:5px;">${aLabel}</div>
       <div style="font-size:11px;line-height:1.55;opacity:0.9;margin-bottom:8px;">${aDesc}</div>
-      <div style="font-size:10px;opacity:0.75;">Δ_norm = <b>${ppFmt(deltaNorm,2)}</b> (${ppHours(deltaNorm, famHours)} от ${famHours} ч.) &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${((sk.supply||0)*100).toFixed(2)}%</b> &nbsp;|&nbsp; τ = <b>${(dstNumber('tauDelta', 0.03)*100).toFixed(1)} п.п.</b></div>
+      <div style="font-size:10px;opacity:0.75;">Δ_norm = <b>${ppFmt(deltaNorm,2)}</b> (${ppHours(deltaNorm, famHours)} от ${famHours} ч.) &nbsp;|&nbsp; nBetP = <b>${(nBetp*100).toFixed(2)}%</b> &nbsp;|&nbsp; supply = <b>${((sk.supply||0)*100).toFixed(2)}%</b> &nbsp;|&nbsp; τ = <b>${(tauAlloc()*100).toFixed(1)} п.п.</b></div>
     </div>
     <details style="margin-top:8px;">
       <summary style="font-size:10px;color:var(--muted);cursor:pointer;padding:4px 0;">Рыночный DST-сигнал (Δ_abs = ${(sk.delta>=0?'+':'')+fmt(sk.delta)}): ${recLabelRu}</summary>

@@ -50,8 +50,10 @@ public final class DstSettingsDefaults {
     public static final boolean N_CLUSTERS_L0_AUTO = false;
 
     // ── Server-side DST decision regulation ──────────────────────────────────
+    /** Legacy absolute-gap threshold retained for diagnostic display only. */
     public static final double TAU_DELTA          = 0.03;
     public static final double TAU_K              = 0.40;
+    /** Reserved uncertainty threshold; it does not trigger expertise. */
     public static final double TAU_THETA          = 0.50;
     public static final double STRONG_SIGNAL_DELTA = 0.35;
     public static final double STRONG_BOOST_DELTA  = 0.50;
@@ -59,6 +61,7 @@ public final class DstSettingsDefaults {
     public static final double OBSOLETE_MT        = 0.10;
 
     // ── Client-side allocation regulation ────────────────────────────────────
+    /** Normalized allocation threshold used by the server decision resolver. */
     public static final double TAU_ALLOC = 0.03;
 
     // ── Negative evidence (m(F)) ─────────────────────────────────────────────

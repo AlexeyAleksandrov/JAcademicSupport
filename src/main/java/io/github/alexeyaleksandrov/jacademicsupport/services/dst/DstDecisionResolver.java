@@ -6,12 +6,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
- * Translates DST combination numbers (mT, mU, mF, K, delta) into the final
- * allocation recommendation and the expertise flag.
+ * Translates DST combination numbers (mT, mU, mF, K) and the normalized
+ * allocation gap into the final recommendation and the expertise flag.
  *
  * <p>The allocation action ({@code recommendation}) is independent from the
- * confidence flag ({@code expertiseRequired}). The UI shows the action normally,
- * but replaces it with an "Экспертиза" warning when the flag is set.
+ * confidence flag ({@code expertiseRequired}). The flag is raised for a high
+ * source conflict or when no active source carries evidence. The UI shows the
+ * action normally, but replaces it with an "Экспертиза" warning when the flag
+ * is set.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,10 +34,20 @@ public class DstDecisionResolver {
             return;
         }
         DstSettings s = settingsService.get();
-        double tauDelta = s.getTauDelta();
+        double tauDeltaNorm = s.getTauAlloc() != null
+                ? s.getTauAlloc() : DstSettingsDefaults.TAU_ALLOC;
         double tauK = s.getTauK();
         double obsoleteMf = s.getObsoleteMf();
         double obsoleteMt = s.getObsoleteMt();
+
+        // Absence of evidence must not be interpreted as negative evidence.
+        // Without this guard an object present in the curriculum receives
+        // BetP=0 and can be incorrectly classified as "reduce".
+        if (trace.getError() != null) {
+            trace.setRecommendation("preserve");
+            trace.setExpertiseRequired(true);
+            return;
+        }
 
         double mT = trace.getMT();
         double mF = trace.getMF();
@@ -49,11 +61,11 @@ public class DstDecisionResolver {
         String recommendation;
         if (mF > obsoleteMf && mT < obsoleteMt && supplyHours > 0) {
             recommendation = "delete";
-        } else if (supplyHours == 0 && deltaNorm > tauDelta) {
+        } else if (supplyHours == 0 && deltaNorm > tauDeltaNorm) {
             recommendation = "introduce";
-        } else if (supplyHours > 0 && deltaNorm > tauDelta) {
+        } else if (supplyHours > 0 && deltaNorm > tauDeltaNorm) {
             recommendation = "boost";
-        } else if (deltaNorm < -tauDelta) {
+        } else if (deltaNorm < -tauDeltaNorm) {
             recommendation = "reduce";
         } else {
             recommendation = "preserve";

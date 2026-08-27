@@ -149,4 +149,33 @@ class DstDecisionResolverTest {
 
         assertFalse(r.isExpertiseRequired());
     }
+
+    @Test
+    void normalizedDecisionUsesTauAllocRatherThanLegacyAbsoluteThreshold() {
+        DstSettings tuned = new DstSettings();
+        tuned.setTauDelta(0.90);
+        tuned.setTauAlloc(0.03);
+        DstSettingsService settings = mock(DstSettingsService.class);
+        when(settings.get()).thenReturn(tuned);
+        DstDecisionResolver resolver = new DstDecisionResolver(settings);
+        DstTraceResponse r = trace(0.60, 0.20, 0.20, 0.0, 0.05);
+
+        resolver.resolve(r, 20, 1.0);
+
+        assertEquals("boost", r.getRecommendation(),
+                "решение по Δ_norm должно использовать tauAlloc=0.03, а не tauDelta=0.90");
+    }
+
+    @Test
+    void missingEvidenceRequiresExpertiseInsteadOfReducingHours() {
+        DstDecisionResolver resolver = new DstDecisionResolver(settingsWithDefaults());
+        DstTraceResponse r = trace(0.0, 0.0, 0.0, 0.0, -0.20);
+        r.setError("Нет данных ни в одном из активных источников");
+
+        resolver.resolve(r, 20, 1.0);
+
+        assertEquals("preserve", r.getRecommendation());
+        assertTrue(r.isExpertiseRequired(),
+                "отсутствие данных нельзя интерпретировать как негативное свидетельство");
+    }
 }
