@@ -1,11 +1,13 @@
 package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.curriculum;
 
 import io.github.alexeyaleksandrov.jacademicsupport.dto.curriculum.DisciplineCoverageDto;
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.DisciplineCoverageTreeDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.curriculum.DisciplineCoverageResponseDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.curriculum.DisciplineDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.curriculum.DisciplineResponseDto;
 import io.github.alexeyaleksandrov.jacademicsupport.services.curriculum.DisciplineCoverageService;
 import io.github.alexeyaleksandrov.jacademicsupport.services.curriculum.DisciplineService;
+import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstDisciplineTree;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +21,7 @@ public class DisciplineController {
 
     private final DisciplineService disciplineService;
     private final DisciplineCoverageService coverageService;
+    private final DstDisciplineTree disciplineTree;
 
     @PostMapping
     public DisciplineResponseDto create(@RequestBody DisciplineDto dto) {
@@ -44,6 +47,11 @@ public class DisciplineController {
     @GetMapping("/{id}/coverage")
     public List<DisciplineCoverageResponseDto> getCoverage(@PathVariable Long id) {
         return coverageService.getByDisciplineId(id);
+    }
+
+    @GetMapping("/{id}/coverage-hierarchy")
+    public DisciplineCoverageTreeDto getCoverageHierarchy(@PathVariable Long id) {
+        return disciplineTree.build(id);
     }
 
     @PostMapping("/{id}/coverage")

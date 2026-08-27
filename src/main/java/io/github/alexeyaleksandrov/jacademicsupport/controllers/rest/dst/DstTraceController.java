@@ -6,6 +6,7 @@ import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level1.DstL1Response
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level2.DstL2DisciplineResponse;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level2.DstL2Response;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstCalcOptions;
+import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstHierarchyViolationException;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel0Service;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel1Service;
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.DstLevel2Service;
@@ -36,7 +37,13 @@ public class DstTraceController {
     private final DstLevel2Service   dstLevel2Service;
     private final DstSettingsService settingsService;
 
-    private DstCalcOptions options(String domainMode, String familyMode, String skillMode,
+    @ExceptionHandler(DstHierarchyViolationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, Object> hierarchyViolation(DstHierarchyViolationException ex) {
+        return Map.of("error", "Нарушена иерархия часов", "violations", ex.getViolations());
+    }
+
+    private DstCalcOptions options(String treeMode, String domainMode, String familyMode, String skillMode,
                                    String hoursBase, String budgetMode, Integer budgetHours,
                                    Long disciplineId) {
         if (budgetHours != null && budgetHours < 0) {
@@ -48,8 +55,10 @@ public class DstTraceController {
                     "disciplineId: ожидается положительный идентификатор");
         }
         try {
-            return DstCalcOptions.of(settingsService.get(),
-                    domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId);
+            return treeMode != null
+                    ? DstCalcOptions.of(settingsService.get(), treeMode, hoursBase, budgetMode, budgetHours, disciplineId)
+                    : DstCalcOptions.of(settingsService.get(), domainMode, familyMode, skillMode,
+                            hoursBase, budgetMode, budgetHours, disciplineId);
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Недопустимое значение режима расчёта", ex);
@@ -61,6 +70,7 @@ public class DstTraceController {
      */
     @GetMapping("/curriculum/{curriculumId}/level0")
     public DstL0Response level0ByCurriculum(@PathVariable Long curriculumId,
+                                             @RequestParam(required = false) String treeMode,
                                              @RequestParam(required = false) String domainMode,
                                              @RequestParam(required = false) String familyMode,
                                              @RequestParam(required = false) String skillMode,
@@ -69,7 +79,7 @@ public class DstTraceController {
                                              @RequestParam(required = false) Integer budgetHours,
                                              @RequestParam(required = false) Long disciplineId) {
         return dstLevel0Service.analyzeLevel0(curriculumId,
-                options(domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId));
+                options(treeMode, domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId));
     }
 
     @GetMapping("/curriculum/{curriculumId}/domain/{domain}/supply-breakdown")
@@ -86,7 +96,8 @@ public class DstTraceController {
     @GetMapping("/curriculum/{curriculumId}/level1")
     public DstL1Response level1ByCurriculumDomain(@PathVariable Long curriculumId,
                                                    @RequestParam String domain,
-                                                   @RequestParam(required = false) String domainMode,
+                                                   @RequestParam(required = false) String treeMode,
+                                             @RequestParam(required = false) String domainMode,
                                                    @RequestParam(required = false) String familyMode,
                                                    @RequestParam(required = false) String skillMode,
                                                    @RequestParam(required = false) String hoursBase,
@@ -94,7 +105,7 @@ public class DstTraceController {
                                                    @RequestParam(required = false) Integer budgetHours,
                                                    @RequestParam(required = false) Long disciplineId) {
         return dstLevel1Service.analyzeLevel1(curriculumId, domain,
-                options(domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId));
+                options(treeMode, domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId));
     }
 
     /**
@@ -103,14 +114,15 @@ public class DstTraceController {
      */
     @GetMapping("/discipline/{disciplineId}/level1")
     public DstL1DisciplineResponse level1ByDiscipline(@PathVariable Long disciplineId,
-                                                       @RequestParam(required = false) String domainMode,
+                                                       @RequestParam(required = false) String treeMode,
+                                             @RequestParam(required = false) String domainMode,
                                                        @RequestParam(required = false) String familyMode,
                                                        @RequestParam(required = false) String skillMode,
                                                        @RequestParam(required = false) String hoursBase,
                                                        @RequestParam(required = false) String budgetMode,
                                                        @RequestParam(required = false) Integer budgetHours) {
         return dstLevel1Service.analyzeLevel1ForDiscipline(disciplineId,
-                options(domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId));
+                options(treeMode, domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId));
     }
 
     /**
@@ -120,7 +132,8 @@ public class DstTraceController {
     public DstL2Response level2ByCurriculumFamily(@PathVariable Long curriculumId,
                                                    @RequestParam String domain,
                                                    @RequestParam String techFamily,
-                                                   @RequestParam(required = false) String domainMode,
+                                                   @RequestParam(required = false) String treeMode,
+                                             @RequestParam(required = false) String domainMode,
                                                    @RequestParam(required = false) String familyMode,
                                                    @RequestParam(required = false) String skillMode,
                                                    @RequestParam(required = false) String hoursBase,
@@ -128,7 +141,7 @@ public class DstTraceController {
                                                    @RequestParam(required = false) Integer budgetHours,
                                                    @RequestParam(required = false) Long disciplineId) {
         return dstLevel2Service.analyzeLevel2(curriculumId, domain, techFamily,
-                options(domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId));
+                options(treeMode, domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId));
     }
 
     /**
@@ -138,13 +151,14 @@ public class DstTraceController {
     public DstL2DisciplineResponse level2ByDisciplineFamily(@PathVariable Long disciplineId,
                                                              @RequestParam String domain,
                                                              @RequestParam String techFamily,
-                                                             @RequestParam(required = false) String domainMode,
+                                                             @RequestParam(required = false) String treeMode,
+                                             @RequestParam(required = false) String domainMode,
                                                              @RequestParam(required = false) String familyMode,
                                                              @RequestParam(required = false) String skillMode,
                                                              @RequestParam(required = false) String hoursBase,
                                                              @RequestParam(required = false) String budgetMode,
                                                              @RequestParam(required = false) Integer budgetHours) {
         return dstLevel2Service.analyzeLevel2ForDisciplineAndFamily(disciplineId, domain, techFamily,
-                options(domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId));
+                options(treeMode, domainMode, familyMode, skillMode, hoursBase, budgetMode, budgetHours, disciplineId));
     }
 }

@@ -1,5 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.services.dst;
 
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.DisciplineCoverageTreeDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level2.DstL2DisciplineResponse;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level2.DstL2FamilySection;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level2.DstL2Response;
@@ -38,6 +39,7 @@ public class DstLevel2Service {
     private final DstCombinationService          combinationService;
     private final DstSettingsService             settingsService;
     private final DstLevelMetaFactory            metaFactory;
+    private final DstDisciplineTree              disciplineTree;
 
     @Transactional(readOnly = true)
     public DstL2Response analyzeLevel2(Long curriculumId, String domain, String techFamily) {
@@ -205,19 +207,15 @@ public class DstLevel2Service {
                 .mapToInt(c -> c.getHours() != null ? c.getHours() : 0).sum();
 
         Map<Long, Double> skillProportionalHours = new LinkedHashMap<>();
-        if (sumSkillsInFamily > 0) {
-            // EXPLICIT: stated hours as-is, capped at the discipline volume.
-            // DERIVED: historical behaviour — the coverage share of the whole discipline.
-            double scale = options.explicitSkills()
-                    ? DstHoursPolicy.coverageScale(true, totalHours, sumSkillsInFamily)
-                    : DstHoursPolicy.coverageScale(false, totalHours, sumAllCoverage);
-            for (DisciplineCoverage cov : covList) {
-                if (!domain.equals(getEffectiveDomain(cov, meta))) continue;
-                if (!techFamily.equals(getEffectiveTechFamily(cov, meta))) continue;
-                if (cov.getCanonicalId() == null) continue;
-                int hours = cov.getHours() != null ? cov.getHours() : 0;
-                skillProportionalHours.merge(cov.getCanonicalId(), hours * scale, Double::sum);
-            }
+        DisciplineCoverageTreeDto tree = disciplineTree.build(disc, covList);
+        if (options.fullTree()) disciplineTree.validate(tree);
+        DisciplineCoverageTreeDto.Node domainNode = tree.getDomains().stream()
+                .filter(node -> domain.equals(node.getLabel())).findFirst().orElse(null);
+        DisciplineCoverageTreeDto.Node familyNode = domainNode == null ? null : domainNode.getChildren().stream()
+                .filter(node -> techFamily.equals(node.getLabel())).findFirst().orElse(null);
+        if (familyNode != null) {
+            for (DisciplineCoverageTreeDto.Node skill : familyNode.getChildren())
+                skillProportionalHours.put(skill.getCanonicalId(), (double) skill.getTotalHours());
         }
 
         String primaryProfCode = profs.get(0).professionCode();
@@ -339,25 +337,17 @@ public class DstLevel2Service {
             List<DisciplineCoverage> covList = byDisc.getOrDefault(disc.getId(), List.of());
             if (covList.isEmpty()) continue;
 
-            int sumSkillsInFamily = covList.stream()
-                    .filter(c -> c.getCanonicalId() != null
-                              && targetDomain.equals(getEffectiveDomain(c, meta))
-                              && targetFamily.equals(getEffectiveTechFamily(c, meta)))
-                    .mapToInt(c -> c.getHours() != null ? c.getHours() : 0).sum();
-            if (sumSkillsInFamily == 0) continue;
+            DisciplineCoverageTreeDto tree = disciplineTree.build(disc, covList);
+            if (options.fullTree()) disciplineTree.validate(tree);
+            DisciplineCoverageTreeDto.Node domainNode = tree.getDomains().stream()
+                    .filter(node -> targetDomain.equals(node.getLabel())).findFirst().orElse(null);
+            if (domainNode == null) continue;
+            DisciplineCoverageTreeDto.Node familyNode = domainNode.getChildren().stream()
+                    .filter(node -> targetFamily.equals(node.getLabel())).findFirst().orElse(null);
+            if (familyNode == null || familyNode.getChildren().isEmpty()) continue;
             touchedDisciplineIds.add(disc.getId());
-
-            double scale = DstHoursPolicy.coverageScale(
-                    options.explicitSkills(), discTotalHours, sumSkillsInFamily);
-
-            for (DisciplineCoverage cov : covList) {
-                String dom    = getEffectiveDomain(cov, meta);
-                String family = getEffectiveTechFamily(cov, meta);
-                Long   canonicalId = cov.getCanonicalId();
-                if (!targetDomain.equals(dom) || !targetFamily.equals(family)) continue;
-                if (canonicalId == null) continue;
-                int hours = cov.getHours() != null ? cov.getHours() : 0;
-                skillHours.merge(canonicalId, hours * scale, Double::sum);
+            for (DisciplineCoverageTreeDto.Node skill : familyNode.getChildren()) {
+                skillHours.merge(skill.getCanonicalId(), (double) skill.getTotalHours(), Double::sum);
             }
         }
         return skillHours;

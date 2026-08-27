@@ -1,5 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.services.dst;
 
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.DisciplineCoverageTreeDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level1.DstL1DisciplineResponse;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level1.DstL1DomainSection;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level1.DstL1FamilyResult;
@@ -38,6 +39,7 @@ public class DstLevel1Service {
     private final DstCombinationService         combinationService;
     private final DstSettingsService            settingsService;
     private final DstLevelMetaFactory           metaFactory;
+    private final DstDisciplineTree             disciplineTree;
 
     @Transactional(readOnly = true)
     public DstL1Response analyzeLevel1(Long curriculumId, String domain) {
@@ -188,21 +190,13 @@ public class DstLevel1Service {
         }
 
         Map<String, Map<String, Double>> domainFamilyHours = new LinkedHashMap<>();
-        Set<String> domainsInDisc = new LinkedHashSet<>();
-        for (DisciplineCoverage cov : covList) {
-            String dom = getEffectiveDomain(cov, canonicalMeta);
-            if (dom != null && !dom.isEmpty()) domainsInDisc.add(dom);
-        }
-        for (String dom : domainsInDisc) {
-            Map<String, Integer> famEff = computeEffectiveFamilyHours(covList, dom, canonicalMeta, options);
-            int sumFamEff = famEff.values().stream().mapToInt(i -> i).sum();
-            if (sumFamEff == 0) continue;
-            double scale = DstHoursPolicy.coverageScale(
-                    options.explicitFamilies(), totalHours, sumFamEff);
-            for (Map.Entry<String, Integer> fe : famEff.entrySet()) {
-                domainFamilyHours
-                        .computeIfAbsent(dom, k -> new LinkedHashMap<>())
-                        .merge(fe.getKey(), fe.getValue() * scale, Double::sum);
+        DisciplineCoverageTreeDto tree = disciplineTree.build(disc, covList);
+        if (options.fullTree()) disciplineTree.validate(tree);
+        for (DisciplineCoverageTreeDto.Node domainNode : tree.getDomains()) {
+            for (DisciplineCoverageTreeDto.Node family : domainNode.getChildren()) {
+                int hours = options.fullTree() ? family.getTotalHours() : family.getExplicitHours();
+                if (hours > 0) domainFamilyHours.computeIfAbsent(domainNode.getLabel(), key -> new LinkedHashMap<>())
+                        .put(family.getLabel(), (double) hours);
             }
         }
 
@@ -317,16 +311,19 @@ public class DstLevel1Service {
             List<DisciplineCoverage> covList = byDisc.getOrDefault(disc.getId(), List.of());
             if (covList.isEmpty()) continue;
 
-            Map<String, Integer> famEff = computeEffectiveFamilyHours(covList, targetDomain, meta, options);
-            int sumFamEff = famEff.values().stream().mapToInt(i -> i).sum();
-            if (sumFamEff == 0) continue;
-            touchedDisciplineIds.add(disc.getId());
-
-            double scale = DstHoursPolicy.coverageScale(
-                    options.explicitFamilies(), discTotalHours, sumFamEff);
-            for (Map.Entry<String, Integer> e : famEff.entrySet()) {
-                familyHours.merge(e.getKey(), e.getValue() * scale, Double::sum);
+            DisciplineCoverageTreeDto tree = disciplineTree.build(disc, covList);
+            if (options.fullTree()) disciplineTree.validate(tree);
+            DisciplineCoverageTreeDto.Node domainNode = tree.getDomains().stream()
+                    .filter(node -> targetDomain.equals(node.getLabel())).findFirst().orElse(null);
+            if (domainNode == null) continue;
+            boolean touched = false;
+            for (DisciplineCoverageTreeDto.Node family : domainNode.getChildren()) {
+                int hours = options.fullTree() ? family.getTotalHours() : family.getExplicitHours();
+                if (hours <= 0) continue;
+                touched = true;
+                familyHours.merge(family.getLabel(), (double) hours, Double::sum);
             }
+            if (touched) touchedDisciplineIds.add(disc.getId());
         }
         return familyHours;
     }

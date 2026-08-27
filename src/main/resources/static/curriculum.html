@@ -514,6 +514,11 @@ function renderL1Discipline(resp) {
     const secMeta   = {...meta, budgetHours: domHours,
                        budgetSource: `часы домена «${sec.domain}» в дисциплине`};
 
+    const childCurrentSum = families.reduce((sum, family) => sum + (family.supplyHours || 0), 0);
+    const childTargetSum = families.reduce((sum, family) => {
+      const normalized = totalBetP > 0 ? (family.betp || 0) / totalBetP : 0;
+      return sum + Math.round(normalized * domHours);
+    }, 0);
     const nFamiliesL1 = sec.nFamilies || families.length;
     const rows = families.map((f, i) => {
       const nBetp     = totalBetP > 0 ? f.betp / totalBetP : 0;
@@ -577,6 +582,7 @@ function renderL1Discipline(resp) {
             <td style="padding-top:3px;"><b>${domHours} ч.</b></td><td colspan="2"></td>
           </tr></tfoot>
         </table>
+        ${hoursConsistencyBlock('домен → семейства', childCurrentSum, domHours, childTargetSum, domHours)}
       </div>`;
   }).join('');
 
@@ -735,7 +741,7 @@ async function deleteDiscipline(id) {
 }
 
 // ─── COVERAGE PANEL ────────────────────────────────────────────────
-function renderCoveragePanel(d) {
+async function renderCoveragePanel(d) {
   document.getElementById('rightHeader').innerHTML = `
     <div class="disc-meta">
       <input class="name-inp" id="edit_name" value="${esc(d.name)}"/>
@@ -750,42 +756,38 @@ function renderCoveragePanel(d) {
   const fams   = coverage.filter(c=>c.techFamily && !c.canonicalId);
   const skills = coverage.filter(c=>c.canonicalId);
 
-  const totalCovHours = coverage.reduce((s,c)=>s+(c.hours||0), 0);
-
-  // Вычисляем эффективные часы по иерархии DOMAIN > FAMILY > SKILL
-  const _byDomLvl = {};
-  for (const cov of coverage) {
-    const dom = cov.canonicalId ? cov.canonicalDomain
-              : (cov.domain || null);
-    if (!dom) continue;
-    const lvl = cov.canonicalId ? 'SKILL' : cov.techFamily ? 'FAMILY' : 'DOMAIN';
-    if (!_byDomLvl[dom]) _byDomLvl[dom] = {};
-    _byDomLvl[dom][lvl] = (_byDomLvl[dom][lvl] || 0) + (cov.hours || 0);
+  let hierarchyHtml = '';
+  try {
+    const response = await fetch(`${API}/api/disciplines/${d.id}/coverage-hierarchy`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    hierarchyHtml = renderCoverageHierarchy(await response.json());
+  } catch (e) {
+    hierarchyHtml = `<div class="empty">Не удалось проверить иерархию часов.</div>`;
   }
-  const _effDom = {};
-  for (const [dom, lvls] of Object.entries(_byDomLvl))
-    _effDom[dom] = lvls['DOMAIN'] || lvls['FAMILY'] || lvls['SKILL'] || 0;
-  const _sumEff = Object.values(_effDom).reduce((a,b)=>a+b, 0);
-  const _effParts = Object.entries(_effDom).map(([d,h])=>`<b>${esc(d)}</b>&nbsp;${h}&nbsp;ч.`).join(' + ');
-  const _domH  = doms.reduce((s,c)=>s+(c.hours||0), 0);
-  const _famH  = fams.reduce((s,c)=>s+(c.hours||0), 0);
-  const _skH   = skills.reduce((s,c)=>s+(c.hours||0), 0);
-
-  const overflowHtml = (d.totalHours && totalCovHours > d.totalHours)
-    ? `<div style="background:rgba(234,179,8,.08);border:1px solid var(--yellow,#eab308);border-radius:6px;padding:7px 12px;margin-bottom:10px;font-size:11px;color:var(--yellow,#eab308);line-height:1.5;">
-        Суммарно введено <b>${totalCovHours} ч.</b> при объёме дисциплины <b>${d.totalHours} ч.</b>
-        (домены&nbsp;${_domH}&nbsp;ч. + семейства&nbsp;${_famH}&nbsp;ч. + навыки&nbsp;${_skH}&nbsp;ч.)<br>
-        <span style="opacity:.85;">DST применяет иерархию <b>домен&nbsp;▶&nbsp;семейство&nbsp;▶&nbsp;навык</b>: для каждого домена считается только наивысший уровень.
-        Эффективно: ${_effParts} = <b>${_sumEff}&nbsp;ч.</b> → нормализация до <b>${d.totalHours}&nbsp;ч.</b></span>
-       </div>`
-    : '';
 
   document.getElementById('coveragePanel').innerHTML = `
-    ${overflowHtml}
+    ${hierarchyHtml}
     ${buildBlock('domain','','ДОМЕН','domain', doms, d.id)}
     ${buildBlock('techFamily','','СЕМЕЙСТВО','techFamily', fams, d.id)}
     ${buildBlock('skill','','НАВЫК','skill', skills, d.id)}
   `;
+}
+
+function renderCoverageHierarchy(tree) {
+  const bad = (tree.violations || []).length > 0;
+  const nodeHtml = (node, depth=0) => {
+    const implicit = node.implicit ? `<span class="badge" style="color:var(--accent);">неявно из ${esc(node.derivedFrom||'деталей')}</span>` : '';
+    const violation = node.violation ? `<span style="color:#ef4444;">превышение ${node.violation.excess} ч.</span>` : '';
+    return `<div style="margin-left:${depth*14}px;padding:3px 6px;border-left:2px solid ${node.violation?'#ef4444':'var(--border)'};font-size:11px;">
+      <b>${esc(node.label)}</b>: ${node.totalHours} ч. ${implicit} ${violation}
+      ${(node.children||[]).map(child=>nodeHtml(child, depth+1)).join('')}
+    </div>`;
+  };
+  return `<div style="background:${bad?'rgba(239,68,68,.08)':'rgba(34,197,94,.06)'};border:1px solid ${bad?'#ef4444':'#22c55e'};border-radius:6px;padding:8px 10px;margin-bottom:10px;">
+    <div style="font-size:11px;margin-bottom:5px;"><b>Проверка полного дерева:</b> ${tree.allocatedHours}/${tree.totalHours} ч.
+      ${tree.excessHours ? `<span style="color:#ef4444;">превышение ${tree.excessHours} ч.</span>` : `<span style="opacity:.7;">не распределено ${tree.unallocatedHours} ч.</span>`}</div>
+    ${(tree.domains||[]).map(node=>nodeHtml(node)).join('')}
+  </div>`;
 }
 
 function buildBlock(type, icon, title, inputType, items, discId) {
@@ -1072,9 +1074,7 @@ const DST_FLAGS = [
     'Учитывать записи NEGATIVE: они формируют m(F), создают конфликт K и при K ≥ τK переключают комбинацию на правило Ягера.']
 ];
 const DST_MODES = [
-  ['domainMode','L0 домены',[['DERIVED','выводить из семейств/навыков'],['EXPLICIT','только явно указанные']]],
-  ['familyMode','L1 семейства',[['DERIVED','выводить из навыков'],['EXPLICIT','только явно указанные']]],
-  ['skillMode','L2 навыки',[['DERIVED','доля от объёма дисциплины'],['EXPLICIT','только явно указанные']]],
+  ['treeMode','Дерево часов',[['FULL_TREE','полное дерево с проверкой'],['EXPLICIT_ONLY','только явные записи']]],
   ['hoursBase','База нормировки',[['CURRICULUM','часы учебного плана'],['TOUCHED_DISCIPLINES','Σ часов затронутых дисциплин'],['SINGLE_DISCIPLINE','часы одной дисциплины']]],
   ['budgetMode','Бюджет уровня',[['INDEPENDENT','независимый на каждом уровне'],['INHERIT_CURRENT','наследовать текущие часы родителя'],['INHERIT_TARGET','наследовать целевые часы родителя']]]
 ];
@@ -1110,9 +1110,7 @@ function dstQuery(extra) {
   const s = dstSettings?.settings;
   const p = new URLSearchParams();
   if (s) {
-    p.set('domainMode', s.domainMode || 'DERIVED');
-    p.set('familyMode', s.familyMode || 'DERIVED');
-    p.set('skillMode',  s.skillMode  || 'DERIVED');
+    p.set('treeMode', s.treeMode || 'FULL_TREE');
     p.set('hoursBase',  s.hoursBase  || 'CURRICULUM');
     p.set('budgetMode', s.budgetMode || 'INDEPENDENT');
     if (s.hoursBase === 'SINGLE_DISCIPLINE') {
@@ -1315,6 +1313,23 @@ function symmetricGaugePosition(value, threshold) {
   return Math.min(96, Math.max(4, Math.round((value + span) / (2 * span) * 100)));
 }
 
+function hoursConsistencyBlock(label, childCurrent, parentCurrent, childTarget, parentTarget) {
+  const row = (title, child, parent) => {
+    const excess = child - parent;
+    const ok = excess <= 0;
+    const color = ok ? 'var(--green)' : 'var(--red)';
+    const status = ok ? `соответствует, остаток ${parent-child} ч.` : `превышение ${excess} ч.`;
+    return `<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0;color:${color};">
+      <span>${title}: Σ детей <b>${child} ч.</b> ≤ родитель <b>${parent} ч.</b></span><b>${status}</b>
+    </div>`;
+  };
+  return `<div style="margin-top:7px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;background:var(--bg2);font-size:10px;">
+    <div style="font-weight:700;color:var(--muted);margin-bottom:2px;">Проверка часов ${label}</div>
+    ${row('Часы в УП', childCurrent, parentCurrent)}
+    ${row('Целевые часы', childTarget, parentTarget)}
+  </div>`;
+}
+
 /**
  * Явный блок нормировки над таблицей уровня: формула, фактическая Σ BetP,
  * бюджет T с указанием источника и предупреждение о нераспределённых часах.
@@ -1323,7 +1338,7 @@ function normBlock(meta, sumBetP, objectCount, objectName) {
   const budget = meta?.budgetHours || 0;
   const unalloc = meta?.unallocatedHours || 0;
   const overalloc = meta?.overallocatedHours || 0;
-  const modeNote = meta ? `режимы: L0 ${meta.domainMode} · L1 ${meta.familyMode} · L2 ${meta.skillMode} · база ${meta.hoursBase} · бюджет ${meta.budgetMode}` : '';
+  const modeNote = meta ? `дерево: ${meta.treeMode || 'FULL_TREE'} · база ${meta.hoursBase} · бюджет ${meta.budgetMode}` : '';
   const unallocHtml = unalloc > 0
     ? `<div style="color:var(--yellow);margin-top:3px;">Не распределено: <b>${unalloc} ч.</b> из ${budget} ч.
          — покрытие не заполняет бюджет уровня, поэтому Σ supply &lt; 100 %.</div>`
@@ -1357,6 +1372,11 @@ function renderL0(r) {
   const totalBetP = (r.domains||[]).reduce((s, d) => s + (d.betp || 0), 0);
   const meta      = r.meta || {};
   const budget    = meta.budgetHours || r.totalCurriculumHours || 0;
+  const childCurrentSum = (r.domains || []).reduce((sum, domain) => sum + (domain.supplyHours || 0), 0);
+  const childTargetSum = (r.domains || []).reduce((sum, domain) => {
+    const normalized = totalBetP > 0 ? (domain.betp || 0) / totalBetP : 0;
+    return sum + Math.round(normalized * budget);
+  }, 0);
 
   const domainRows = (r.domains||[]).map((d,i) => {
     const betpPct    = Math.round(d.betp*100);
@@ -1432,7 +1452,8 @@ function renderL0(r) {
       </tr></thead>
       <tbody>${domainRows}</tbody>
       <tfoot><tr style="font-size:10px;color:var(--muted);"><td colspan="5" style="text-align:right;padding-top:4px;">Σ целевых часов = T:</td><td style="padding-top:4px;"><b>${budget} ч.</b></td><td colspan="2"></td></tr></tfoot>
-    </table>`;
+    </table>
+    ${hoursConsistencyBlock('УП → L0', childCurrentSum, budget, childTargetSum, budget)}`;
 }
 
 function toggleL0Trace(id) {
@@ -1455,7 +1476,8 @@ function toggleL0Trace(id) {
           l1Btn.textContent = 'Скрыть семейства';
           if (l1Div.dataset.loaded !== 'true') {
             loadLevel1Families(l1Div, el.dataset.curriculum, el.dataset.domain,
-              inheritBudget(+el.dataset.curHours, +el.dataset.tgtHours));
+              inheritBudget(+el.dataset.curHours, +el.dataset.tgtHours),
+              +el.dataset.curHours, +el.dataset.tgtHours);
           }
         } else {
           l1Div.style.display = 'none';
@@ -1682,7 +1704,7 @@ function buildInlineTrace(d, alloc) {
     </div>`;
 }
 
-function loadLevel1Families(div, curriculumId, domain, extraParams) {
+function loadLevel1Families(div, curriculumId, domain, extraParams, parentCurrentHours, parentTargetHours) {
   div.dataset.loaded = 'true';
   div.innerHTML = '<span style="color:var(--muted);font-size:10px;">Загрузка анализа семейств...</span>';
   fetch(`/api/dst/curriculum/${encodeURIComponent(curriculumId)}/level1?domain=${encodeURIComponent(domain)}${dstQuery(extraParams)}`)
@@ -1700,6 +1722,13 @@ function loadLevel1Families(div, curriculumId, domain, extraParams) {
       const totalBetP = families.reduce((s, f) => s + (f.betp || 0), 0);
       const meta      = resp.meta || {};
       const totalDomainHours = meta.budgetHours || resp.totalDomainHours || 0;
+      const parentCurrent = Number.isFinite(parentCurrentHours) ? parentCurrentHours : totalDomainHours;
+      const parentTarget = Number.isFinite(parentTargetHours) ? parentTargetHours : totalDomainHours;
+      const childCurrentSum = families.reduce((sum, family) => sum + (family.supplyHours || 0), 0);
+      const childTargetSum = families.reduce((sum, family) => {
+        const normalized = totalBetP > 0 ? (family.betp || 0) / totalBetP : 0;
+        return sum + Math.round(normalized * totalDomainHours);
+      }, 0);
 
       const nFamilies = resp.nFamilies || families.length;
       const rows = families.map((f, i) => {
@@ -1764,7 +1793,8 @@ function loadLevel1Families(div, curriculumId, domain, extraParams) {
             <td style="padding-top:3px;"><b>${totalDomainHours} ч.</b></td>
             <td colspan="2"></td>
           </tr></tfoot>
-        </table>`;
+        </table>
+        ${hoursConsistencyBlock('L0 → L1', childCurrentSum, parentCurrent, childTargetSum, parentTarget)}`;
     })
     .catch(() => { div.innerHTML = '<span style="color:var(--red);font-size:10px;">Ошибка загрузки уровня 1</span>'; });
 }
@@ -1954,7 +1984,7 @@ function loadL2Inline(containerId, curriculumId, domain, techFamily, curHours, t
   div.innerHTML = '<span style="color:var(--muted);font-size:10px;">Загрузка Level 2...</span>';
   fetch(`/api/dst/curriculum/${encodeURIComponent(curriculumId)}/level2?domain=${encodeURIComponent(domain)}&techFamily=${encodeURIComponent(techFamily)}${dstQuery(inheritBudget(curHours, tgtHours))}`)
     .then(r => r.ok ? r.json() : null)
-    .then(resp => renderL2Skills(div, resp, false))
+    .then(resp => renderL2Skills(div, resp, false, curHours, tgtHours))
     .catch(() => { div.innerHTML = '<span style="color:var(--red);font-size:10px;">Ошибка загрузки Level 2</span>'; });
 }
 
@@ -1967,19 +1997,26 @@ function loadL2InlineForDiscipline(containerId, disciplineId, domain, techFamily
   fetch(`/api/dst/discipline/${encodeURIComponent(disciplineId)}/level2?domain=${encodeURIComponent(domain)}&techFamily=${encodeURIComponent(techFamily)}${dstQuery(inheritBudget(curHours, tgtHours))}`)
     .then(r => r.ok ? r.json() : null)
     .then(resp => {
-      if (resp && resp.sections && resp.sections.length) renderL2Skills(div, {...resp.sections[0], meta: resp.meta}, true);
+      if (resp && resp.sections && resp.sections.length) renderL2Skills(div, {...resp.sections[0], meta: resp.meta}, true, curHours, tgtHours);
       else div.innerHTML = `<span style="color:var(--red);font-size:10px;">${resp?.error || 'Нет данных Level 2'}</span>`;
     })
     .catch(() => { div.innerHTML = '<span style="color:var(--red);font-size:10px;">Ошибка загрузки Level 2</span>'; });
 }
 
-function renderL2Skills(div, resp, isSection) {
+function renderL2Skills(div, resp, isSection, parentCurrentHours, parentTargetHours) {
   if (!resp || resp.error) { div.innerHTML = `<span style="color:var(--red);font-size:10px;">${resp?.error || 'Нет данных'}</span>`; return; }
   const skills = resp.skills || [];
   if (!skills.length) { div.innerHTML = '<span style="color:var(--muted);font-size:10px;">Навыки не найдены</span>'; return; }
   const totalBetP = skills.reduce((s, sk) => s + (sk.betp || 0), 0);
   const meta      = resp.meta || {};
   const famHours  = meta.budgetHours || (isSection ? (resp.familyHours || 0) : (resp.totalFamilyHours || 0));
+  const parentCurrent = Number.isFinite(parentCurrentHours) ? parentCurrentHours : famHours;
+  const parentTarget = Number.isFinite(parentTargetHours) ? parentTargetHours : famHours;
+  const childCurrentSum = skills.reduce((sum, skill) => sum + (skill.supplyHours || 0), 0);
+  const childTargetSum = skills.reduce((sum, skill) => {
+    const normalized = totalBetP > 0 ? (skill.betp || 0) / totalBetP : 0;
+    return sum + Math.round(normalized * famHours);
+  }, 0);
   const nSkills   = resp.nSkills || skills.length;
   const rows = skills.map((sk, i) => {
     const nBetp    = totalBetP > 0 ? sk.betp / totalBetP : 0;
@@ -2040,7 +2077,8 @@ function renderL2Skills(div, resp, isSection) {
         <td colspan="5" style="text-align:right;padding-top:3px;">Σ целевых часов = T:</td>
         <td style="padding-top:3px;"><b>${famHours} ч.</b></td><td colspan="2"></td>
       </tr></tfoot>
-    </table>`;
+    </table>
+    ${hoursConsistencyBlock('L1 → L2', childCurrentSum, parentCurrent, childTargetSum, parentTarget)}`;
 }
 
 function buildL2SkillTrace(sk, nSkills, famHours, totalBetP, meta) {

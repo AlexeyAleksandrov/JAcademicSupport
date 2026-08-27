@@ -91,6 +91,7 @@ public class DstSettings {
     @Column(name = "cluster_min_score")     private Double  clusterMinScore    = DstSettingsDefaults.CLUSTER_MIN_SCORE;
 
     // ── Default L0-L2 calculation modes ──────────────────────────────────────
+    @Column(name = "tree_mode", length = 20) private String treeMode = DstSettingsDefaults.TREE_MODE;
     @Column(name = "domain_mode", length = 20) private String domainMode = DstSettingsDefaults.DOMAIN_MODE;
     @Column(name = "family_mode", length = 20) private String familyMode = DstSettingsDefaults.FAMILY_MODE;
     @Column(name = "skill_mode",  length = 20) private String skillMode  = DstSettingsDefaults.SKILL_MODE;

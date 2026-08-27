@@ -24,6 +24,7 @@ public class DstLevelMeta {
     /** coveredHours − budgetHours; > 0 when current coverage exceeds the selected budget. */
     private int    overallocatedHours;
 
+    private String  treeMode;
     private String  domainMode;
     private String  familyMode;
     private String  skillMode;

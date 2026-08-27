@@ -10,6 +10,7 @@ final class DstHoursPolicy {
 
     private DstHoursPolicy() {}
 
+    @Deprecated
     static double coverageScale(boolean explicit, int disciplineHours, int effectiveHours) {
         if (effectiveHours <= 0) return 0.0;
         double ratio = (double) Math.max(0, disciplineHours) / effectiveHours;

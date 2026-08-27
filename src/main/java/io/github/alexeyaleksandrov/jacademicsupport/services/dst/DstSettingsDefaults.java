@@ -74,6 +74,7 @@ public final class DstSettingsDefaults {
     public static final double CLUSTER_MIN_SCORE    = 0.01;
 
     // ── Default L0-L2 calculation modes ──────────────────────────────────────
+    public static final String TREE_MODE   = "FULL_TREE";
     public static final String DOMAIN_MODE = "DERIVED";
     public static final String FAMILY_MODE = "DERIVED";
     public static final String SKILL_MODE  = "DERIVED";

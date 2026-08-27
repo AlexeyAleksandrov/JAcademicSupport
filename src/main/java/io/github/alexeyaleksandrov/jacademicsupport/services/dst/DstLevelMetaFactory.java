@@ -26,6 +26,7 @@ public class DstLevelMetaFactory {
         meta.setCoveredHours(coveredHours);
         meta.setUnallocatedHours(Math.max(0, budgetHours - coveredHours));
         meta.setOverallocatedHours(Math.max(0, coveredHours - budgetHours));
+        meta.setTreeMode(options.treeMode().name());
         meta.setDomainMode(options.domainMode().name());
         meta.setFamilyMode(options.familyMode().name());
         meta.setSkillMode(options.skillMode().name());

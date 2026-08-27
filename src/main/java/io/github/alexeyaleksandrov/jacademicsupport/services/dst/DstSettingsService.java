@@ -158,6 +158,7 @@ public class DstSettingsService {
         if (from.getRhoDep()             != null) to.setRhoDep(from.getRhoDep());
         if (from.getClusterMinScore()    != null) to.setClusterMinScore(from.getClusterMinScore());
 
+        if (from.getTreeMode()   != null) to.setTreeMode(from.getTreeMode());
         if (from.getDomainMode() != null) to.setDomainMode(from.getDomainMode());
         if (from.getFamilyMode() != null) to.setFamilyMode(from.getFamilyMode());
         if (from.getSkillMode()  != null) to.setSkillMode(from.getSkillMode());
@@ -204,6 +205,7 @@ public class DstSettingsService {
         range("rhoDep", s.getRhoDep(), 0, 1);
         nonNegative("clusterMinScore", s.getClusterMinScore());
 
+        enumValue("treeMode", s.getTreeMode(), Set.of("FULL_TREE", "EXPLICIT_ONLY"));
         enumValue("domainMode", s.getDomainMode(), Set.of("DERIVED", "EXPLICIT"));
         enumValue("familyMode", s.getFamilyMode(), Set.of("DERIVED", "EXPLICIT"));
         enumValue("skillMode", s.getSkillMode(), Set.of("DERIVED", "EXPLICIT"));

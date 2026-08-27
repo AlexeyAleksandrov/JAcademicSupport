@@ -1,5 +1,6 @@
 package io.github.alexeyaleksandrov.jacademicsupport.services.dst;
 
+import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.DisciplineCoverageTreeDto;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.DstLevelMeta;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level0.DstL0DomainResult;
 import io.github.alexeyaleksandrov.jacademicsupport.dto.dst.level0.DstL0Response;
@@ -36,6 +37,7 @@ public class DstLevel0Service {
     private final DstCombinationService        combinationService;
     private final DstSettingsService           settingsService;
     private final DstLevelMetaFactory          metaFactory;
+    private final DstDisciplineTree            disciplineTree;
 
     @Transactional(readOnly = true)
     public DstL0Response analyzeLevel0(Long curriculumId) {
@@ -118,21 +120,16 @@ public class DstLevel0Service {
             List<DisciplineCoverage> covList = byDisc.getOrDefault(disc.getId(), List.of());
             if (covList.isEmpty()) continue;
 
-            Map<String, Integer> domainEffective = computeEffectiveDomainHours(
-                    covList, canonicalDomainMap, techFamilyDomainMap, options);
-            int sumEff = domainEffective.values().stream().mapToInt(i -> i).sum();
-            if (sumEff == 0) continue;
-            touchedDisciplineIds.add(disc.getId());
-
-            // DERIVED: the discipline's full volume is spread over its domains.
-            // EXPLICIT: the stated hours are kept as-is and only capped at the
-            // discipline volume, so Σ supply may legitimately be below 100 %.
-            double scale = DstHoursPolicy.coverageScale(
-                    options.explicitDomains(), discTotalHours, sumEff);
-
-            for (Map.Entry<String, Integer> e : domainEffective.entrySet()) {
-                domainProportionalHours.merge(e.getKey(), e.getValue() * scale, Double::sum);
+            DisciplineCoverageTreeDto tree = disciplineTree.build(disc, covList);
+            if (options.fullTree()) disciplineTree.validate(tree);
+            int sumEff = 0;
+            for (DisciplineCoverageTreeDto.Node domain : tree.getDomains()) {
+                int hours = options.fullTree() ? domain.getTotalHours() : domain.getExplicitHours();
+                if (hours <= 0) continue;
+                sumEff += hours;
+                domainProportionalHours.merge(domain.getLabel(), (double) hours, Double::sum);
             }
+            if (sumEff > 0) touchedDisciplineIds.add(disc.getId());
         }
 
         // ── Normalisation base T ──────────────────────────────────────────────
@@ -147,16 +144,7 @@ public class DstLevel0Service {
                     .filter(Objects::nonNull)
                     .forEach(vacDomains::add);
         }
-        Set<String> rpdDomains = options.explicitDomains()
-                ? allCoverage.stream()
-                        .filter(this::isExplicitDomainRow)
-                        .map(DisciplineCoverage::getDomain)
-                        .filter(d -> d != null && !d.isEmpty())
-                        .collect(Collectors.toCollection(LinkedHashSet::new))
-                : allCoverage.stream()
-                        .map(cov -> getEffectiveDomain(cov, canonicalDomainMap, techFamilyDomainMap))
-                        .filter(d -> d != null && !d.isEmpty())
-                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> rpdDomains = new LinkedHashSet<>(domainProportionalHours.keySet());
 
         Set<String> allDomains = new LinkedHashSet<>();
         allDomains.addAll(vacDomains);
