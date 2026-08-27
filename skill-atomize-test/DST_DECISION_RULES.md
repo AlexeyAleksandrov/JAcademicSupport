@@ -2,109 +2,121 @@
 
 ## 1. Где реализованы решения
 
-Решения формируются в двух местах:
+Решение формируется **на сервере**; клиент только отображает результат.
 
-1. **Сервер (Java):** `services/dst/DstCombinationService.java` — метод `decide(...)`.
-   - Возвращает одну из строк: `obsolete`, `strong`, `moderate`, `reduce`, `expertise`, `preserve`.
-   - Вставляется в `DstTraceResponse.recommendation`.
+1. **Сервер (Java):**
+   - `services/dst/DstCombinationService.java` — собирает источники, вычисляет массы `mT/mU/mF`, конфликт `K`, `BetP`, `delta` и флаг `usedYager`.
+   - `services/dst/DstDecisionResolver.java` — по массам, `delta` и фактическим часам `supplyHours` вычисляет:
+     - `recommendation` — аллокационное действие;
+     - `expertiseRequired` — флаг недостаточной надёжности данных.
 
-2. **Клиент (JS):** `resources/static/curriculum.html` — функция `allocDecide(...)`.
-   - Дополняет серверную рекомендацию до **пяти выходных формулировок**: `Удалить`, `Ввести`, `Усилить`, `Сократить`, `Сохранить`.
-   - Именно здесь появляется правило **«Ввести»**.
+2. **Клиент (JS):** `resources/static/curriculum.html` — функция `dstDecisionLabel(...)`.
+   - Только мапит серверные поля `recommendation` + `expertiseRequired` в CSS-класс и русскую подпись.
+   - Если `expertiseRequired == true`, в колонке «Решение» показывается **«Экспертиза»**, независимо от `recommendation`.
 
 ---
 
-## 2. Серверная логика: `DstCombinationService.decide`
+## 2. Серверная логика: `DstDecisionResolver.resolve`
 
-Полный метод:
+Метод принимает `DstTraceResponse`, `int supplyHours` и сумму `totalBetP` по всему уровню:
 
 ```java
-private String decide(double mT, double mU, double mF, double K, double delta) {
+public void resolve(DstTraceResponse trace, int supplyHours, double totalBetP) {
     DstSettings s = settingsService.get();
-    double tauDelta = s.getTauDelta();
-    double tauK     = s.getTauK();
-    double tauTheta = s.getTauTheta();
+    double tauDelta     = s.getTauDelta();     // 0.15
+    double tauK         = s.getTauK();         // 0.40
+    double obsoleteMf   = s.getObsoleteMf();   // 0.80
+    double obsoleteMt   = s.getObsoleteMt();   // 0.10
 
-    if (mF > s.getObsoleteMf() && mT < s.getObsoleteMt()) return "obsolete";
-    if (delta > tauDelta && K <= tauK) {
-        boolean clearSignal = mU <= tauTheta || delta > s.getStrongSignalDelta();
-        if (clearSignal)
-            return delta > s.getStrongBoostDelta() ? "strong" : "moderate";
+    double mT = trace.getMT(), mF = trace.getMF();
+    double K  = trace.getK();
+    double betp   = trace.getBetp();
+    double supply = trace.getSupply();
+
+    // Решение принимается по нормированному разрыву Δ_norm = nBetP − supply,
+    // который совпадает с Δ_norm на фронтенде, а не по абсолютному BetP − supply.
+    double nBetP     = totalBetP > 0 ? betp / totalBetP : 0.0;
+    double deltaNorm = nBetP - supply;
+
+    String recommendation;
+    if (mF > obsoleteMf && mT < obsoleteMt && supplyHours > 0) {
+        recommendation = "delete";
+    } else if (supplyHours == 0 && deltaNorm > tauDelta) {
+        recommendation = "introduce";
+    } else if (supplyHours > 0 && deltaNorm > tauDelta) {
+        recommendation = "boost";
+    } else if (deltaNorm < -tauDelta) {
+        recommendation = "reduce";
+    } else {
+        recommendation = "preserve";
     }
-    if (delta < -tauDelta) return "reduce";
-    if (K > tauK || mU > tauTheta) return "expertise";
-    return "preserve";
+
+    boolean expertiseRequired = K >= tauK;
+
+    trace.setRecommendation(recommendation);
+    trace.setExpertiseRequired(expertiseRequired);
 }
 ```
 
-Переменные:
-
-- `mT` / `mU` / `mF` — итоговые массы после комбинирования.
-- `delta = BetP − supply` — абсолютный разрыв (доли, 0..1).
-- `K` — максимальный конфликт при комбинировании.
-
-### 2.1. Таблица серверных решений
+### 2.1. Таблица аллокационных действий
 
 | Условие | Пороги | Рекомендация (RU) | Код |
 |---|---|---|---|
-| `mF > OBSOLETE_MF` **и** `mT < OBSOLETE_MT` | `0.80` / `0.10` | Технология устарела, удалить | `obsolete` |
-| `delta > TAU_DELTA` **и** `K ≤ TAU_K` **и** (`mU ≤ TAU_THETA` **или** `delta > STRONG_SIGNAL_DELTA`) **и** `delta > STRONG_BOOST_DELTA` | `0.15` / `0.40` / `0.15` / `0.35` / `0.50` | Значительно увеличить часы (срочно усилить) | `strong` |
-| `delta > TAU_DELTA` **и** `K ≤ TAU_K` **и** (`mU ≤ TAU_THETA` **или** `delta > STRONG_SIGNAL_DELTA`) **и** `delta ≤ STRONG_BOOST_DELTA` | — | Небольшое усиление | `moderate` |
-| `delta < -TAU_DELTA` | `0.15` | Сократить часы | `reduce` |
-| `K > TAU_K` **или** `mU > TAU_THETA` | `0.40` / `0.15` | Требуется экспертиза | `expertise` |
-| Остальные случаи | — | Часы в норме (сохранить) | `preserve` |
+| `mF > OBSOLETE_MF` **и** `mT < OBSOLETE_MT` **и** `supplyHours > 0` | `0.80` / `0.10` | Удалить | `delete` |
+| `supplyHours == 0` **и** `delta > TAU_DELTA` | `0.15` | Ввести | `introduce` |
+| `supplyHours > 0` **и** `delta > TAU_DELTA` | `0.15` | Усилить | `boost` |
+| `delta < -TAU_DELTA` | `0.15` | Сократить | `reduce` |
+| Остальные случаи | — | Сохранить | `preserve` |
 
-### 2.2. Важный нюанс: «Ввести» на сервере отсутствует
+### 2.2. Флаг экспертизы
 
-В `decide(...)` **нет** отдельного правила `introduce` / «Ввести». Вернуть `preserve` может быть и объект с `supply = 0` — клиент сам перекраивает это в «Ввести».
+`expertiseRequired = true` только при `K >= TAU_K` (`0.40`).
+
+Эта граница совпадает с переключением комбинирования на правило Ягера: если источники конфликтуют, рекомендуется экспертная оценка.
+
+Флаг не зависит от аллокационного действия. В интерфейсе он заменяет действие предупреждением **«Экспертиза»**, но в трассе оба сигнала видны отдельно.
+
+**Примечание.** Проверка `mU > TAU_THETA` была отключена, поскольку скомбинированная неопределённость почти всегда превышает разумный порог и приводит к ложным срабатываниям.
 
 ---
 
-## 3. Клиентская логика: `curriculum.html allocDecide`
-
-Функция переводит серверную рекомендацию и нормированный разрыв `Δ_norm = nBetP − supply` в итоговую надпись.
+## 3. Клиентская логика: `curriculum.html dstDecisionLabel`
 
 ```javascript
-function allocDecide(supplyHours, deltaNorm, serverRec) {
-  const tau = tauAlloc();
-  const isObsolete = serverRec === 'obsolete' && (supplyHours || 0) > 0;
-  const isUncov    = (supplyHours || 0) === 0 && deltaNorm > 0;
-  if (isObsolete) return {label: 'Удалить',   kind: 'obsolete'};
-  if (isUncov)    return {label: 'Ввести',    kind: 'introduce'};
-  if (deltaNorm >  tau) return {label: 'Усилить',   kind: 'boost'};
-  if (deltaNorm < -tau) return {label: 'Сократить', kind: 'reduce'};
-  return {label: 'Сохранить', kind: 'preserve'};
+function dstDecisionLabel(recommendation, expertiseRequired) {
+  if (expertiseRequired) return {cls: 'rec-expertise', label: 'Экспертиза', kind: 'expertise'};
+  switch (recommendation) {
+    case 'delete':    return {cls: 'rec-reduce',    label: 'Удалить',   kind: 'delete'};
+    case 'introduce': return {cls: 'rec-introduce', label: 'Ввести',    kind: 'introduce'};
+    case 'boost':     return {cls: 'rec-moderate',  label: 'Усилить',   kind: 'boost'};
+    case 'reduce':    return {cls: 'rec-strong',    label: 'Сократить', kind: 'reduce'};
+    case 'preserve':
+    default:          return {cls: 'rec-preserve', label: 'Сохранить', kind: 'preserve'};
+  }
 }
 ```
 
-### 3.1. Таблица клиентских решений
+### 3.1. Отображение в таблицах L0–L2
 
-| Условие | Порог | Рекомендация | kind |
+| `expertiseRequired` | `recommendation` | Подпись в колонке «Решение» | kind |
 |---|---|---|---|
-| `serverRec === 'obsolete'` **и** `supplyHours > 0` | — | Удалить | `obsolete` |
-| `supplyHours === 0` **и** `deltaNorm > 0` | — | Ввести | `introduce` |
-| `deltaNorm > TAU_ALLOC` | `0.03` | Усилить | `boost` |
-| `deltaNorm < -TAU_ALLOC` | `0.03` | Сократить | `reduce` |
-| Остальные | — | Сохранить | `preserve` |
+| `true` | любое | **Экспертиза** | `expertise` |
+| `false` | `delete` | Удалить | `delete` |
+| `false` | `introduce` | Ввести | `introduce` |
+| `false` | `boost` | Усилить | `boost` |
+| `false` | `reduce` | Сократить | `reduce` |
+| `false` | `preserve` | Сохранить | `preserve` |
 
-`TAU_ALLOC` берётся из `dstSettings.settings.tauAlloc`, fallback `0.03` (3 п.п. от бюджета уровня).
+На фронтенде больше **нет** самостоятельного порога `TAU_ALLOC` для принятия решения. Порог `tauAlloc` остаётся только для окраски колонки `Δ_norm` и для совместимости настроек.
 
 ---
 
 ## 4. Полный путь «от сервера к экрану»
 
-1. Java: `DstCombinationService.decide` → `recommendation` (`strong` / `moderate` / `reduce` / `obsolete` / `expertise` / `preserve`).
-2. Клиент: `curriculum.html` `allocDecide` → финальная надпись (`Удалить` / `Ввести` / `Усилить` / `Сократить` / `Сохранить`).
-3. В окне трасса (`curriculum.html` строка 1604) серверная `recommendation` отображается как:
-
-| Серверный код | Подпись в трассе |
-|---|---|
-| `strong` | Срочно усилить |
-| `moderate` | Усилить умеренно |
-| `preserve` | Баланс |
-| `reduce` | Сократить |
-| `obsolete` | Устарело (m(F)↑) |
-| `expertise` | Экспертиза |
+1. Java: `DstCombinationService` → `DstTraceResponse` с `mT/mU/mF/K/delta/usedYager`.
+2. Java: `DstDecisionResolver.resolve(trace, supplyHours)` → заполняет `recommendation` (`delete` / `introduce` / `boost` / `reduce` / `preserve`) и `expertiseRequired`.
+3. `DstLevel0Service`, `DstLevel1Service`, `DstLevel2Service` копируют оба поля в результирующие DTO.
+4. Клиент: `dstDecisionLabel(...)` → финальная надпись и CSS-класс.
 
 ---
 
@@ -117,29 +129,25 @@ function allocDecide(supplyHours, deltaNorm, serverRec) {
 
 | Порог | Параметр | Default | Текущее в БД | Описание |
 |---|---|---|---|---|
-| `τΔ` | `tauDelta` | `0.15` | `0.15` | Абсолютный разрыв `BetP − supply` для усиления/сокращения |
-| `τK` | `tauK` | `0.40` | `0.40` | Переключение с Демпстера на Ягер |
-| `τΘ` | `tauTheta` | `0.15` | `0.15` | Неопределённость, при которой сразу экспертиза |
-| Сильный сигнал | `strongSignalDelta` | `0.35` | `0.35` | `delta > 0.35` — считать сигнал чистым без проверки `mU` |
-| Сильное усиление | `strongBoostDelta` | `0.50` | `0.50` | Граница между `moderate` и `strong` |
+| `τΔ` | `tauDelta` | `0.03` | `0.03` | Нормированный разрыв `nBetP − supply` (Δ_norm) для усиления/сокращения/введения |
+| `τK` | `tauK` | `0.40` | `0.40` | Переключение с Демпстера на Ягер; граница флага экспертизы (`K >= τK`) |
+| `τΘ` | `tauTheta` | `0.50` | `0.50` | В настоящий момент не используется для экспертизы (флаг основан только на `K`); сохранён для совместимости |
 | Устаревание m(F) | `obsoleteMf` | `0.80` | `0.80` | `mF` выше — технология устарела |
 | Устаревание m(T) | `obsoleteMt` | `0.10` | `0.10` | `mT` ниже — технология не востребована |
-| Аллокационный τ | `tauAlloc` | `0.03` | `0.03` | Порог для `Δ_norm = nBetP − supply` в клиенте |
+| Аллокационный τ (устарел на клиенте) | `tauAlloc` | `0.03` | `0.03` | Теперь используется только для окраски `Δ_norm`; решение считается на сервере |
 | N(BetP) L0 | `nClustersL0` | `25` | `25` | Знаменатель BetP на уровне L0 |
 | w(VAC) | `wVac` | `0.8` | `0.8` | Вес источника VAC |
 | w(EXP) | `wExp` | `0.9` | `0.9` | Вес источника EXP |
 | w(FC) | `wFc` | `0.6` | `0.6` | Вес источника FC |
 
+**Примечание.** Параметры `strongSignalDelta` и `strongBoostDelta` больше не используются для деления «Усилить» на подвиды.
+
 ---
 
-## 6. Что добавить в статью (Table 2)
+## 6. Исправленные расхождения
 
-Для полноты в таблицу статьи нужно включить:
-
-1. **«Ввести»** — `supplyHours === 0` и `Δ_norm > 0` (клиентская `allocDecide`).
-2. **Разделение «Усилить»** на две ступени:
-   - `strong` (сервер: `delta > 0.5` при чистом сигнале).
-   - `moderate` (сервер: `0.15 < delta ≤ 0.5` при чистом сигнале).
-3. **Уточнение, что `expertise` срабатывает по двум признакам**: `K > 0.4` (правило Ягера) **или** `mU > 0.15` (высокая неопределённость).
-4. **Уточнение условия для `obsolete`**: `mF > 0.8` **и одновременно** `mT < 0.1`.
-5. **Клиентский аллокационный порог** `TAU_ALLOC = 0.03` — именно он управляет финальными надписями `Усилить` / `Сократить` / `Сохранить` в таблицах уровней L0–L2.
+1. **Единый источник истины.** Решение считается только в `DstDecisionResolver`; `allocDecide()` удалена.
+2. **«Экспертиза» достижима.** Она появляется в основной колонке, когда `expertiseRequired == true`, а не скрывается в трассе.
+3. **«Ввести» с порогом.** Срабатывает только при `supplyHours == 0` **и** `delta > τΔ` (`0.15`), а не при любом положительном `Δ_norm`.
+4. **Граница `K` выровнена.** Экспертиза требуется при `K >= 0.40`, что совпадает с переключением на правило Ягера.
+5. **«Удалить» достижимо.** Достаточно доминирующей негативной массы (`mF > 0.8`, `mT < 0.1`) при ненулевых часах в УП; исчезновение «Удалить» при отсутствии EXP-негативов больше не является проблемой логики отображения.

@@ -50,9 +50,9 @@ public final class DstSettingsDefaults {
     public static final boolean N_CLUSTERS_L0_AUTO = false;
 
     // ── Server-side DST decision regulation ──────────────────────────────────
-    public static final double TAU_DELTA          = 0.15;
+    public static final double TAU_DELTA          = 0.03;
     public static final double TAU_K              = 0.40;
-    public static final double TAU_THETA          = 0.15;
+    public static final double TAU_THETA          = 0.50;
     public static final double STRONG_SIGNAL_DELTA = 0.35;
     public static final double STRONG_BOOST_DELTA  = 0.50;
     public static final double OBSOLETE_MF        = 0.80;

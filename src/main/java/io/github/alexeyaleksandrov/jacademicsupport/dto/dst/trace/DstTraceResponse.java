@@ -21,5 +21,6 @@ public class DstTraceResponse {
     private int     nClusters;
     private boolean usedYager;
     private String  recommendation;
+    private boolean expertiseRequired;
     private String  error;
 }

@@ -22,6 +22,7 @@ public class DstL0DomainResult {
     private double  delta;
     private boolean usedYager;
     private String  recommendation;
+    private boolean expertiseRequired;
 
     private List<BpaResult>           sources;
     private List<DstCombinationTrace> combinations;

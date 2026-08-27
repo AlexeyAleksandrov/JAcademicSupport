@@ -37,6 +37,7 @@ public class DstLevel2Service {
     private final SkillCanonicalRepository       skillCanonicalRepository;
     private final DstQueryService                dstQueryService;
     private final DstCombinationService          combinationService;
+    private final DstDecisionResolver            decisionResolver;
     private final DstSettingsService             settingsService;
     private final DstLevelMetaFactory            metaFactory;
     private final DstDisciplineTree              disciplineTree;
@@ -136,6 +137,7 @@ public class DstLevel2Service {
             DstContext ctx = new DstContext(primaryProfCode, domain, techFamily, canonicalId);
             DstTraceResponse trace = combinationService.computeWeightedSkill(
                     ctx, profs, supply, dstQueryService, nSkills);
+            decisionResolver.resolve(trace, supplyHours);
 
             results.add(buildSkillResult(canonicalId, skillNameMap.getOrDefault(canonicalId, "Навык #" + canonicalId),
                     supply, supplyHours, trace));
@@ -249,6 +251,7 @@ public class DstLevel2Service {
         }
         Map<Long, String> skillNameMap = buildSkillNameMap(allSkillIds, meta, covList);
 
+        List<DstTraceResponse> traces = new ArrayList<>();
         List<DstL2SkillResult> results = new ArrayList<>();
         for (Long canonicalId : allSkillIds) {
             double supplyHoursD = skillProportionalHours.getOrDefault(canonicalId, 0.0);
@@ -258,9 +261,18 @@ public class DstLevel2Service {
             DstContext ctx = new DstContext(primaryProfCode, domain, techFamily, canonicalId);
             DstTraceResponse trace = combinationService.computeWeightedSkill(
                     ctx, profs, supply, dstQueryService, nSkills);
+            traces.add(trace);
 
             results.add(buildSkillResult(canonicalId, skillNameMap.getOrDefault(canonicalId, "Навык #" + canonicalId),
                     supply, supplyHours, trace));
+        }
+
+        double totalBetP = results.stream().mapToDouble(DstL2SkillResult::getBetp).sum();
+        for (int i = 0; i < results.size(); i++) {
+            DstTraceResponse trace = traces.get(i);
+            decisionResolver.resolve(trace, results.get(i).getSupplyHours(), totalBetP);
+            results.get(i).setRecommendation(trace.getRecommendation());
+            results.get(i).setExpertiseRequired(trace.isExpertiseRequired());
         }
         results.sort(Comparator.comparingDouble(DstL2SkillResult::getBetp).reversed());
 
@@ -314,6 +326,7 @@ public class DstLevel2Service {
         r.setDelta(trace.getDelta());
         r.setUsedYager(trace.isUsedYager());
         r.setRecommendation(trace.getRecommendation());
+        r.setExpertiseRequired(trace.isExpertiseRequired());
         r.setSources(trace.getSources());
         r.setCombinations(trace.getCombinations());
         return r;

@@ -116,18 +116,21 @@ class DstCombinationServiceTest {
 
     @Test
     void obsoleteIsReachableWhenNegativeMassDominates() {
-        // Both sources push F: final mF > 0.8 and mT < 0.1 → "obsolete" / «Удалить»
+        // Both sources push F: final mF > 0.8 and mT < 0.1
+        DstSettingsService settings = settingsWithDefaults();
         DstCombinationService service = new DstCombinationService(
                 List.of(provider("EXP", 0.0, 0.1, 0.9),
                         provider("FC", 0.0, 0.15, 0.85)),
-                settingsWithDefaults());
+                settings);
 
         DstTraceResponse resp = service.compute(new DstContext("backend", "DevOps", null, null), 0.5);
+        new DstDecisionResolver(settings).resolve(resp, 50, resp.getBetp());
 
         assertNull(resp.getError());
         assertTrue(resp.getMF() > 0.8, "ожидалась доминирующая негативная масса, получено mF=" + resp.getMF());
         assertTrue(resp.getMT() < 0.1);
-        assertEquals("obsolete", resp.getRecommendation());
+        assertEquals("delete", resp.getRecommendation());
+        assertFalse(resp.isExpertiseRequired());
     }
 
     @Test

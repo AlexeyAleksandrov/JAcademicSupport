@@ -35,6 +35,7 @@ public class DstLevel0Service {
     private final SkillCanonicalRepository     skillCanonicalRepository;
     private final DstQueryService              dstQueryService;
     private final DstCombinationService        combinationService;
+    private final DstDecisionResolver          decisionResolver;
     private final DstSettingsService           settingsService;
     private final DstLevelMetaFactory          metaFactory;
     private final DstDisciplineTree            disciplineTree;
@@ -153,6 +154,7 @@ public class DstLevel0Service {
         // Auto mode: BetP denominator = actual number of level objects
         int effectiveN = nClusters > 0 ? nClusters : Math.max(1, allDomains.size());
 
+        List<DstTraceResponse> traces = new ArrayList<>();
         List<DstL0DomainResult> results = new ArrayList<>();
         for (String domain : allDomains) {
             double supplyHoursD = domainProportionalHours.getOrDefault(domain, 0.0);
@@ -163,6 +165,7 @@ public class DstLevel0Service {
             DstContext ctx = new DstContext(primaryProfCode, domain, null, null);
             DstTraceResponse trace = combinationService.computeWeighted(
                     ctx, profs, supply, dstQueryService, effectiveN);
+            traces.add(trace);
 
             DstL0DomainResult dr = new DstL0DomainResult();
             dr.setDomain(domain);
@@ -175,10 +178,17 @@ public class DstLevel0Service {
             dr.setSupplyHours(supplyHours);
             dr.setDelta(trace.getDelta());
             dr.setUsedYager(trace.isUsedYager());
-            dr.setRecommendation(trace.getRecommendation());
             dr.setSources(trace.getSources());
             dr.setCombinations(trace.getCombinations());
             results.add(dr);
+        }
+
+        double totalBetP = results.stream().mapToDouble(DstL0DomainResult::getBetp).sum();
+        for (int i = 0; i < results.size(); i++) {
+            DstTraceResponse trace = traces.get(i);
+            decisionResolver.resolve(trace, results.get(i).getSupplyHours(), totalBetP);
+            results.get(i).setRecommendation(trace.getRecommendation());
+            results.get(i).setExpertiseRequired(trace.isExpertiseRequired());
         }
 
         results.sort(Comparator.comparingDouble(DstL0DomainResult::getBetp).reversed());

@@ -37,6 +37,7 @@ public class DstLevel1Service {
     private final SkillCanonicalRepository      skillCanonicalRepository;
     private final DstQueryService               dstQueryService;
     private final DstCombinationService         combinationService;
+    private final DstDecisionResolver           decisionResolver;
     private final DstSettingsService            settingsService;
     private final DstLevelMetaFactory           metaFactory;
     private final DstDisciplineTree             disciplineTree;
@@ -135,6 +136,7 @@ public class DstLevel1Service {
             DstContext ctx = new DstContext(primaryProfCode, domain, family, null);
             DstTraceResponse trace = combinationService.computeWeightedFamily(
                     ctx, profs, supply, dstQueryService, nFamilies);
+            decisionResolver.resolve(trace, supplyHours);
 
             results.add(buildFamilyResult(family, supply, supplyHours, trace));
         }
@@ -222,6 +224,7 @@ public class DstLevel1Service {
                     ? Math.max(1, allFamilies.size())
                     : Math.max(1, vacFamilies.size());
 
+            List<DstTraceResponse> traces = new ArrayList<>();
             List<DstL1FamilyResult> familyResults = new ArrayList<>();
             for (String family : allFamilies) {
                 double supplyHoursD = familyHours.getOrDefault(family, 0.0);
@@ -231,8 +234,17 @@ public class DstLevel1Service {
                 DstContext ctx = new DstContext(primaryProfCode, domain, family, null);
                 DstTraceResponse trace = combinationService.computeWeightedFamily(
                         ctx, profs, supply, dstQueryService, nFamilies);
+                traces.add(trace);
 
                 familyResults.add(buildFamilyResult(family, supply, supplyHours, trace));
+            }
+
+            double totalBetP = familyResults.stream().mapToDouble(DstL1FamilyResult::getBetp).sum();
+            for (int i = 0; i < familyResults.size(); i++) {
+                DstTraceResponse trace = traces.get(i);
+                decisionResolver.resolve(trace, familyResults.get(i).getSupplyHours(), totalBetP);
+                familyResults.get(i).setRecommendation(trace.getRecommendation());
+                familyResults.get(i).setExpertiseRequired(trace.isExpertiseRequired());
             }
             familyResults.sort(Comparator.comparingDouble(DstL1FamilyResult::getBetp).reversed());
 
@@ -289,6 +301,7 @@ public class DstLevel1Service {
         r.setDelta(trace.getDelta());
         r.setUsedYager(trace.isUsedYager());
         r.setRecommendation(trace.getRecommendation());
+        r.setExpertiseRequired(trace.isExpertiseRequired());
         r.setSources(trace.getSources());
         r.setCombinations(trace.getCombinations());
         return r;

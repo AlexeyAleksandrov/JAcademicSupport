@@ -206,24 +206,6 @@ public class DstCombinationService {
         resp.setK(maxK);
         resp.setBetp(betp); resp.setDelta(delta); resp.setSupply(supply);
         resp.setNClusters(n); resp.setUsedYager(usedYager);
-        resp.setRecommendation(decide(mT, mU, mF, maxK, delta));
         return resp;
-    }
-
-    private String decide(double mT, double mU, double mF, double K, double delta) {
-        DstSettings s = settingsService.get();
-        double tauDelta = s.getTauDelta();
-        double tauK     = s.getTauK();
-        double tauTheta = s.getTauTheta();
-
-        if (mF > s.getObsoleteMf() && mT < s.getObsoleteMt()) return "obsolete";
-        if (delta > tauDelta && K <= tauK) {
-            boolean clearSignal = mU <= tauTheta || delta > s.getStrongSignalDelta();
-            if (clearSignal)
-                return delta > s.getStrongBoostDelta() ? "strong" : "moderate";
-        }
-        if (delta < -tauDelta) return "reduce";
-        if (K > tauK || mU > tauTheta) return "expertise";
-        return "preserve";
     }
 }
