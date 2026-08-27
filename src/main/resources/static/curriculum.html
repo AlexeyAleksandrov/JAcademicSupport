@@ -783,9 +783,11 @@ function renderCoverageHierarchy(tree) {
       ${(node.children||[]).map(child=>nodeHtml(child, depth+1)).join('')}
     </div>`;
   };
+  const warningsHtml = (tree.warnings || []).map(warning => `<div style="color:var(--yellow);font-size:10px;">${esc(warning)}</div>`).join('');
   return `<div style="background:${bad?'rgba(239,68,68,.08)':'rgba(34,197,94,.06)'};border:1px solid ${bad?'#ef4444':'#22c55e'};border-radius:6px;padding:8px 10px;margin-bottom:10px;">
     <div style="font-size:11px;margin-bottom:5px;"><b>Проверка полного дерева:</b> ${tree.allocatedHours}/${tree.totalHours} ч.
       ${tree.excessHours ? `<span style="color:#ef4444;">превышение ${tree.excessHours} ч.</span>` : `<span style="opacity:.7;">не распределено ${tree.unallocatedHours} ч.</span>`}</div>
+    ${warningsHtml}
     ${(tree.domains||[]).map(node=>nodeHtml(node)).join('')}
   </div>`;
 }
@@ -824,18 +826,18 @@ function buildBlock(type, icon, title, inputType, items, discId) {
       </select>`;
   } else {
     inputHtml = `
-      <select id="inp_skill_dom_${discId}" onchange="onSkillDomChange(${discId})" style="flex:0 0 88px;" title="Фильтр по домену">
-        <option value="">домен...</option>
+      <select id="inp_skill_dom_${discId}" onchange="onSkillDomChange(${discId})" style="flex:0 0 150px;" title="Обязательный домен записи навыка">
+        <option value="">— домен навыка * —</option>
         ${domains.map(d=>`<option value="${d}">${d}</option>`).join('')}
       </select>
-      <select id="inp_skill_fam_${discId}" style="flex:0 0 100px;" title="Фильтр по семейству">
-        <option value="">семейство...</option>
+      <select id="inp_skill_fam_${discId}" onchange="clearSelectedSkill(${discId});updateSkillSearchState(${discId})" style="flex:0 0 170px;" title="Обязательное семейство записи навыка">
+        <option value="">— семейство навыка * —</option>
+        <option value="__NO_FAMILY__">Без семейства</option>
         ${families.map(f=>`<option value="${f}">${f}</option>`).join('')}
       </select>
-      <div class="autocomplete-wrapper">
-        <input id="inp_skill_${discId}" placeholder="Поиск навыка..." oninput="acSkill(this,${discId})"/>
-        <div class="autocomplete-list" id="ac_skill_${discId}" style="display:none"></div>
-      </div>`;
+      <select id="inp_skill_${discId}" onchange="selectSkill(${discId},this.value)" style="min-width:190px;" title="Навык выбранной классификации" disabled>
+        <option value="">— сначала выберите домен и семейство —</option>
+      </select>`;
   }
 
   return `<div class="block">
@@ -845,13 +847,16 @@ function buildBlock(type, icon, title, inputType, items, discId) {
       <input class="hours-inp" id="inp_hrs_${type}_${discId}" type="number" placeholder="ч." min="0"/>
       <button class="btn btn-sm" onclick="addCoverage('${type}',${discId})">+</button>
     </div>
+    ${inputType === 'skill' ? '<div style="font-size:10px;color:var(--muted);padding:3px 2px 5px;">* Домен и семейство сохраняются вместе с навыком. Поиск показывает только навыки выбранной классификации.</div>' : ''}
     <div class="block-list" id="list_${type}_${discId}">${itemsHtml}</div>
   </div>`;
 }
 
 function buildSkillBadge(c, type) {
   if (type === 'skill') {
-    const parts = [c.canonicalDomain, c.canonicalTechFamily].filter(Boolean);
+    const effectiveDomain = c.domain || c.canonicalDomain;
+    const effectiveFamily = c.techFamily || c.canonicalTechFamily || 'Без семейства';
+    const parts = [effectiveDomain, effectiveFamily].filter(Boolean);
     if (!parts.length) return '';
     return `<span style="font-size:10px;color:var(--muted);background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;white-space:nowrap;flex-shrink:0;">${parts.join(' / ')}</span>`;
   }
@@ -888,7 +893,8 @@ async function saveDiscInline(id) {
 }
 
 // ─── COVERAGE CRUD ─────────────────────────────────────────────────
-let acSkillMap = {}; // id -> {id, name, domain, techFamily}
+let acSkillMap = {};
+let acSkillCandidates = {};
 
 async function addCoverage(type, discId) {
   let professionCode=null, domain=null, techFamily=null, canonicalId=null;
@@ -909,8 +915,17 @@ async function addCoverage(type, discId) {
     if (!techFamily) { alert('Выберите семейство'); return; }
   } else {
     const inp = document.getElementById(`inp_skill_${discId}`);
+    const domValue = document.getElementById(`inp_skill_dom_${discId}`)?.value || '';
+    const famValue = document.getElementById(`inp_skill_fam_${discId}`)?.value || '';
+    if (!domValue) { alert('Выберите домен навыка'); return; }
+    if (!famValue) { alert('Выберите семейство или «Без семейства»'); return; }
     const selected = acSkillMap[`skill_${discId}`];
     if (!selected) { alert('Выберите навык из списка'); return; }
+    domain = domValue;
+    techFamily = famValue === '__NO_FAMILY__' ? null : famValue;
+    if (selected.domain !== domain || (selected.techFamily || null) !== techFamily) {
+      alert('Выбранный навык не соответствует домену и семейству. Выберите навык заново.'); return;
+    }
     canonicalId = selected.id;
     inp.value = '';
     delete acSkillMap[`skill_${discId}`];
@@ -972,13 +987,15 @@ async function acSkill(inp, discId) {
   acTimer = setTimeout(async () => {
     const domFilter = document.getElementById(`inp_skill_dom_${discId}`)?.value || '';
     const famFilter = document.getElementById(`inp_skill_fam_${discId}`)?.value || '';
-    let url = `${API}/api/skill-canonical/search?q=${encodeURIComponent(q)}&limit=15`;
-    if (domFilter) url += `&domain=${encodeURIComponent(domFilter)}`;
-    if (famFilter) url += `&family=${encodeURIComponent(famFilter)}`;
+    if (!domFilter || !famFilter) { listEl.style.display='none'; return; }
+    let url = `${API}/api/skill-canonical/search?q=${encodeURIComponent(q)}&limit=15&domain=${encodeURIComponent(domFilter)}`;
+    if (famFilter === '__NO_FAMILY__') url += '&familyMissing=true';
+    else url += `&family=${encodeURIComponent(famFilter)}`;
     const results = await fetch(url).then(r=>r.json());
+    acSkillCandidates[discId] = Object.fromEntries(results.map(skill => [skill.id, skill]));
     if (!results.length) { listEl.style.display='none'; return; }
     listEl.innerHTML = results.map(s=>`
-      <div onclick="selectSkill(${discId},${s.id},'${esc(s.name)}')">
+      <div onclick="selectSkill(${discId},${s.id})">
         ${esc(s.name)} <small>${s.domain||''} ${s.techFamily?'/ '+s.techFamily:''}</small>
       </div>`).join('');
     listEl.style.display = '';
@@ -998,15 +1015,46 @@ function onSkillDomChange(discId) {
   const dom = document.getElementById(`inp_skill_dom_${discId}`).value;
   const famSel = document.getElementById(`inp_skill_fam_${discId}`);
   const fams = dom ? (familiesByDomain[dom] || []) : families;
-  famSel.innerHTML = `<option value="">семейство...</option>`
+  famSel.innerHTML = `<option value="">— семейство навыка * —</option><option value="__NO_FAMILY__">Без семейства</option>`
     + fams.map(f=>`<option value="${f}">${f}</option>`).join('');
   famSel.value = '';
+  clearSelectedSkill(discId);
+  updateSkillSearchState(discId);
 }
 
-function selectSkill(discId, id, name) {
-  acSkillMap[`skill_${discId}`] = {id, name};
-  document.getElementById(`inp_skill_${discId}`).value = name;
-  document.getElementById(`ac_skill_${discId}`).style.display='none';
+function clearSelectedSkill(discId) {
+  delete acSkillMap[`skill_${discId}`];
+  const input = document.getElementById(`inp_skill_${discId}`);
+  if (input) input.value = '';
+}
+
+async function updateSkillSearchState(discId) {
+  const domain = document.getElementById(`inp_skill_dom_${discId}`)?.value;
+  const family = document.getElementById(`inp_skill_fam_${discId}`)?.value;
+  const select = document.getElementById(`inp_skill_${discId}`);
+  if (!select) return;
+  delete acSkillMap[`skill_${discId}`];
+  if (!domain || !family) {
+    select.disabled = true;
+    select.innerHTML = '<option value="">— сначала выберите домен и семейство —</option>';
+    return;
+  }
+  select.disabled = true;
+  select.innerHTML = '<option value="">Загрузка навыков...</option>';
+  let url = `${API}/api/skill-canonical/search?q=&limit=500&domain=${encodeURIComponent(domain)}`;
+  if (family === '__NO_FAMILY__') url += '&familyMissing=true';
+  else url += `&family=${encodeURIComponent(family)}`;
+  const results = await fetch(url).then(response => response.ok ? response.json() : []);
+  acSkillCandidates[discId] = Object.fromEntries(results.map(skill => [skill.id, skill]));
+  select.innerHTML = '<option value="">— выберите навык —</option>'
+    + results.map(skill => `<option value="${skill.id}">${esc(skill.name)}</option>`).join('');
+  select.disabled = false;
+}
+
+function selectSkill(discId, id) {
+  const selected = acSkillCandidates[discId]?.[id];
+  if (selected) acSkillMap[`skill_${discId}`] = selected;
+  else delete acSkillMap[`skill_${discId}`];
 }
 
 let professions = [];

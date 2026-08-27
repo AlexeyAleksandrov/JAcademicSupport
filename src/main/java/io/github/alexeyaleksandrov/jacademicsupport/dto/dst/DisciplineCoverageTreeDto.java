@@ -15,6 +15,7 @@ public class DisciplineCoverageTreeDto {
     private int excessHours;
     private List<Node> domains = new ArrayList<>();
     private List<Violation> violations = new ArrayList<>();
+    private List<String> warnings = new ArrayList<>();
 
     @Data
     public static class Node {

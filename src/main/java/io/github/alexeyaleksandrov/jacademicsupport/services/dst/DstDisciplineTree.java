@@ -42,9 +42,19 @@ public class DstDisciplineTree {
                         .collect(Collectors.toMap(r -> (String) r[0], r -> (String) r[1], (a, b) -> a));
 
         Map<String, DomainAccumulator> domains = new LinkedHashMap<>();
+        List<String> warnings = new ArrayList<>();
         for (DisciplineCoverage row : coverage) {
             int hours = Math.max(0, row.getHours() == null ? 0 : row.getHours());
             SkillCanonical skill = row.getCanonicalId() == null ? null : skills.get(row.getCanonicalId());
+            if (skill != null) {
+                if (!present(row.getDomain())) warnings.add("Навык «" + skill.getName() + "»: домен выведен из canonical");
+                else if (!Objects.equals(row.getDomain(), skill.getDomain())) warnings.add("Навык «" + skill.getName()
+                        + "»: домен записи «" + row.getDomain() + "» не совпадает с canonical «" + skill.getDomain() + "»");
+                if (present(skill.getTechFamily()) && !present(row.getTechFamily())) warnings.add("Навык «" + skill.getName()
+                        + "»: семейство выведено из canonical");
+                else if (!Objects.equals(normalize(row.getTechFamily()), normalize(skill.getTechFamily()))) warnings.add("Навык «"
+                        + skill.getName() + "»: семейство записи не совпадает с canonical");
+            }
             String familyDomain = present(row.getTechFamily()) ? familyDomains.get(row.getTechFamily()) : null;
             String domain = first(row.getDomain(), skill == null ? null : skill.getDomain(), familyDomain);
             if (!present(domain)) continue;
@@ -65,6 +75,7 @@ public class DstDisciplineTree {
         result.setDisciplineId(discipline.getId());
         result.setDisciplineName(discipline.getName());
         result.setTotalHours(Math.max(0, discipline.getTotalHours() == null ? 0 : discipline.getTotalHours()));
+        result.setWarnings(warnings);
         for (DomainAccumulator domain : domains.values()) result.getDomains().add(toDomain(domain, result));
         int allocated = result.getDomains().stream().mapToInt(DisciplineCoverageTreeDto.Node::getTotalHours).sum();
         result.setAllocatedHours(allocated);
@@ -128,6 +139,7 @@ public class DstDisciplineTree {
     }
 
     private boolean present(String value) { return value != null && !value.isBlank(); }
+    private String normalize(String value) { return present(value) ? value.trim() : null; }
     private String first(String... values) { return Arrays.stream(values).filter(this::present).findFirst().orElse(null); }
 
     private static class DomainAccumulator { final String name; int explicitHours; final Map<String, FamilyAccumulator> families = new LinkedHashMap<>(); DomainAccumulator(String name) { this.name = name; } }

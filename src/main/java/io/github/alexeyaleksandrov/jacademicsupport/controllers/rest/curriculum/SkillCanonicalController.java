@@ -22,8 +22,13 @@ public class SkillCanonicalController {
             @RequestParam(defaultValue = "") String q,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(required = false) String domain,
-            @RequestParam(required = false) String family) {
-        if (q.isBlank() && domain == null && family == null) return List.of();
+            @RequestParam(required = false) String family,
+            @RequestParam(defaultValue = "false") boolean familyMissing) {
+        if (q.isBlank() && domain == null && family == null && !familyMissing) return List.of();
+        if (familyMissing) {
+            if (domain == null || domain.isBlank()) return List.of();
+            return skillCanonicalRepository.searchByNameWithoutFamily(q, domain, PageRequest.of(0, limit));
+        }
         return skillCanonicalRepository.searchByNameFiltered(q, domain, family, PageRequest.of(0, limit));
     }
 

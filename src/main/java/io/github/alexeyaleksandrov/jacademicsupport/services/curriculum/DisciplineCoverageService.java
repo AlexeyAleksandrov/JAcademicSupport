@@ -6,13 +6,17 @@ import io.github.alexeyaleksandrov.jacademicsupport.models.DisciplineCoverage;
 import io.github.alexeyaleksandrov.jacademicsupport.models.Profession;
 import io.github.alexeyaleksandrov.jacademicsupport.models.SkillCanonical;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.DisciplineCoverageRepository;
+import io.github.alexeyaleksandrov.jacademicsupport.repositories.DisciplineRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.ProfessionRepository;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.SkillCanonicalRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -21,6 +25,7 @@ import java.util.stream.Collectors;
 public class DisciplineCoverageService {
 
     private final DisciplineCoverageRepository coverageRepository;
+    private final DisciplineRepository disciplineRepository;
     private final SkillCanonicalRepository skillCanonicalRepository;
     private final ProfessionRepository professionRepository;
 
@@ -30,6 +35,8 @@ public class DisciplineCoverageService {
     }
 
     public DisciplineCoverageResponseDto create(Long disciplineId, DisciplineCoverageDto dto) {
+        if (!disciplineRepository.existsById(disciplineId)) badRequest("Дисциплина не найдена: " + disciplineId);
+        validateClassification(dto);
         DisciplineCoverage entry = new DisciplineCoverage();
         entry.setDisciplineId(disciplineId);
         entry.setProfessionCode(dto.getProfessionCode());
@@ -116,6 +123,45 @@ public class DisciplineCoverageService {
         dto.setCanonicalDomain(canonicalDomain);
         dto.setCanonicalTechFamily(canonicalTechFamily);
         return dto;
+    }
+
+    private void validateClassification(DisciplineCoverageDto dto) {
+        if (dto == null) badRequest("Пустая запись покрытия");
+        String domain = normalize(dto.getDomain());
+        String family = normalize(dto.getTechFamily());
+        dto.setDomain(domain);
+        dto.setTechFamily(family);
+        if (dto.getCanonicalId() != null) {
+            SkillCanonical skill = skillCanonicalRepository.findById(dto.getCanonicalId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Канонический навык не найден: " + dto.getCanonicalId()));
+            if (domain == null) badRequest("Для навыка необходимо явно выбрать домен");
+            if (!domain.equals(skill.getDomain())) {
+                badRequest("Домен записи «" + domain + "» не совпадает с доменом навыка «" + skill.getDomain() + "»");
+            }
+            String canonicalFamily = normalize(skill.getTechFamily());
+            if (!Objects.equals(family, canonicalFamily)) {
+                badRequest("Семейство записи «" + display(family) + "» не совпадает с семейством навыка «"
+                        + display(canonicalFamily) + "»");
+            }
+        } else if (family != null) {
+            if (domain == null) badRequest("Для семейства необходимо явно выбрать домен");
+            if (!skillCanonicalRepository.existsByDomainAndTechFamily(domain, family)) {
+                badRequest("Семейство «" + family + "» не относится к домену «" + domain + "»");
+            }
+        }
+    }
+
+    private String normalize(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String display(String value) {
+        return value == null ? "Без семейства" : value;
+    }
+
+    private void badRequest(String message) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
     }
 
     private SkillCanonical resolveCanonical(Long canonicalId) {

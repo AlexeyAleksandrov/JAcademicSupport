@@ -30,6 +30,16 @@ public interface SkillCanonicalRepository extends JpaRepository<SkillCanonical, 
             @Param("family") String family,
             org.springframework.data.domain.Pageable pageable);
 
+    @Query("SELECT sc FROM SkillCanonical sc WHERE " +
+           "(:q = '' OR LOWER(sc.name) LIKE LOWER(CONCAT('%',:q,'%'))) " +
+           "AND sc.domain = :domain AND sc.techFamily IS NULL ORDER BY sc.name")
+    List<SkillCanonical> searchByNameWithoutFamily(
+            @Param("q") String q,
+            @Param("domain") String domain,
+            org.springframework.data.domain.Pageable pageable);
+
+    boolean existsByDomainAndTechFamily(String domain, String techFamily);
+
     @Query(nativeQuery = true, value = "SELECT DISTINCT domain FROM skill_canonical WHERE domain IS NOT NULL ORDER BY domain")
     List<String> findDistinctDomains();
 
