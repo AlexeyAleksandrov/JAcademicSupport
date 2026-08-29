@@ -9,6 +9,55 @@ import java.util.List;
 
 public interface ForesightRepository extends JpaRepository<ForesightEntity, Long> {
 
+    /** See ExpertOpinionRepository.PROFESSION_SCOPE for the inference policy. */
+    String PROFESSION_SCOPE = """
+          AND (
+                :professionCode IS NULL
+                OR f.profession_code = :professionCode
+                OR (
+                    COALESCE(f.profession_code, '') = ''
+                    AND (
+                        (f.canonical_id IS NOT NULL AND EXISTS (
+                            SELECT 1
+                            FROM work_skill_canonical rel_wsc
+                            JOIN vacancy_skills rel_vs     ON rel_vs.skills_id = rel_wsc.work_skill_id
+                            JOIN vacancy_profession rel_vp ON rel_vp.vacancy_id = rel_vs.vacancy_entity_id
+                            JOIN profession rel_p          ON rel_p.id = rel_vp.profession_id
+                            WHERE rel_wsc.canonical_id = f.canonical_id AND rel_p.code = :professionCode
+                        ))
+                        OR (f.canonical_id IS NULL AND f.work_skill_id IS NOT NULL AND EXISTS (
+                            SELECT 1
+                            FROM vacancy_skills rel_vs
+                            JOIN vacancy_profession rel_vp ON rel_vp.vacancy_id = rel_vs.vacancy_entity_id
+                            JOIN profession rel_p          ON rel_p.id = rel_vp.profession_id
+                            WHERE rel_vs.skills_id = f.work_skill_id AND rel_p.code = :professionCode
+                        ))
+                        OR (f.canonical_id IS NULL AND f.work_skill_id IS NULL
+                            AND f.tech_family IS NOT NULL AND EXISTS (
+                            SELECT 1
+                            FROM skill_canonical rel_sc
+                            JOIN work_skill_canonical rel_wsc ON rel_wsc.canonical_id = rel_sc.id
+                            JOIN vacancy_skills rel_vs         ON rel_vs.skills_id = rel_wsc.work_skill_id
+                            JOIN vacancy_profession rel_vp     ON rel_vp.vacancy_id = rel_vs.vacancy_entity_id
+                            JOIN profession rel_p              ON rel_p.id = rel_vp.profession_id
+                            WHERE rel_sc.domain = f.domain AND rel_sc.tech_family = f.tech_family
+                              AND rel_p.code = :professionCode
+                        ))
+                        OR (f.canonical_id IS NULL AND f.work_skill_id IS NULL
+                            AND f.tech_family IS NULL AND EXISTS (
+                            SELECT 1
+                            FROM skill_canonical rel_sc
+                            JOIN work_skill_canonical rel_wsc ON rel_wsc.canonical_id = rel_sc.id
+                            JOIN vacancy_skills rel_vs         ON rel_vs.skills_id = rel_wsc.work_skill_id
+                            JOIN vacancy_profession rel_vp     ON rel_vp.vacancy_id = rel_vs.vacancy_entity_id
+                            JOIN profession rel_p              ON rel_p.id = rel_vp.profession_id
+                            WHERE rel_sc.domain = f.domain AND rel_p.code = :professionCode
+                        ))
+                    )
+                )
+          )
+        """;
+
     // ─── DST aggregation queries (L0/L1/L2) ───────────────────────────────────
 
     @Query(nativeQuery = true, value = """
@@ -17,8 +66,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         FROM foresight f
         WHERE f.domain = :domain
           AND f.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateByDomain(@Param("domain") String domain,
                                     @Param("professionCode") String professionCode);
 
@@ -29,8 +77,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         WHERE f.domain = :domain
           AND f.tech_family = :techFamily
           AND f.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateByDomainAndFamily(@Param("domain") String domain,
                                              @Param("techFamily") String techFamily,
                                              @Param("professionCode") String professionCode);
@@ -41,8 +88,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         FROM foresight f
         WHERE f.canonical_id = :canonicalId
           AND f.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateByCanonical(@Param("canonicalId") Long canonicalId,
                                        @Param("professionCode") String professionCode);
 
@@ -53,8 +99,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         WHERE f.canonical_id = :canonicalId
           AND f.domain = :domain
           AND f.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateByCanonicalAndDomain(@Param("canonicalId")    Long canonicalId,
                                                  @Param("domain")         String domain,
                                                  @Param("professionCode") String professionCode);
@@ -69,8 +114,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         FROM foresight f
         WHERE f.domain = :domain
           AND f.direction = 'NEGATIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateNegativeByDomain(@Param("domain") String domain,
                                              @Param("professionCode") String professionCode);
 
@@ -81,8 +125,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         WHERE f.domain = :domain
           AND f.tech_family = :techFamily
           AND f.direction = 'NEGATIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateNegativeByDomainAndFamily(@Param("domain") String domain,
                                                       @Param("techFamily") String techFamily,
                                                       @Param("professionCode") String professionCode);
@@ -93,8 +136,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         FROM foresight f
         WHERE f.canonical_id = :canonicalId
           AND f.direction = 'NEGATIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateNegativeByCanonical(@Param("canonicalId") Long canonicalId,
                                                 @Param("professionCode") String professionCode);
 
@@ -105,8 +147,7 @@ public interface ForesightRepository extends JpaRepository<ForesightEntity, Long
         WHERE f.canonical_id = :canonicalId
           AND f.domain = :domain
           AND f.direction = 'NEGATIVE'
-          AND (:professionCode IS NULL OR f.profession_code = :professionCode OR COALESCE(f.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateNegativeByCanonicalAndDomain(@Param("canonicalId")    Long canonicalId,
                                                          @Param("domain")         String domain,
                                                          @Param("professionCode") String professionCode);

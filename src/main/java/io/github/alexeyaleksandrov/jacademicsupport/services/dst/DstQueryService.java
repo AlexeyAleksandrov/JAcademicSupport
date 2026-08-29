@@ -285,7 +285,10 @@ public class DstQueryService {
     ) {}
 
     /**
-     * BPA result for a single DST source (VAC, EXP or FC) at a given level.
+     * BPA result for one DST source (VAC, EXP or FC) at a given level.
+     * A direct result uses the formulas below. A curriculum-weighted result is
+     * a convex sum of direct results and exposes the exact terms in
+     * {@code professionContributions}; its aggregate counts are informational.
      *
      * mT = m(T) = κ⁺ × averageScore          — support for hypothesis "relevant"
      * mF = m(F) = κ⁻ × averageNegativeScore  — support for hypothesis "not relevant"
@@ -298,22 +301,54 @@ public class DstQueryService {
             long   relevantCount,
             long   totalCount,
             double lambda,
+            double kappa,
             double averageScore,
             double mT,
             double mTheta,
             long   negativeCount,
+            double negativeKappa,
             double averageNegativeScore,
-            double mF
+            double mF,
+            double massNormalizationFactor,
+            List<ProfessionBpaContribution> professionContributions
     ) {
         public static BpaResult empty() {
-            return new BpaResult(0, 0, 0.0, 0.0, 0.0, 1.0, 0, 0.0, 0.0);
+            return new BpaResult(0, 0, 0.0, 0.0, 0.0, 0.0, 1.0,
+                    0, 0.0, 0.0, 0.0, 1.0, List.of());
         }
 
         /** True when the source carries any evidence at all (positive or negative). */
         public boolean hasEvidence() {
-            return relevantCount > 0 || negativeCount > 0;
+            return mT > 0.0 || mF > 0.0 || relevantCount > 0 || negativeCount > 0;
+        }
+
+        public boolean professionWeighted() {
+            return professionContributions != null && !professionContributions.isEmpty();
         }
     }
+
+    /** Exact per-profession term of a curriculum-weighted BPA mixture. */
+    public record ProfessionBpaContribution(
+            String professionCode,
+            String professionName,
+            double weight,
+            boolean hasEvidence,
+            long relevantCount,
+            long totalCount,
+            double lambda,
+            double kappa,
+            double averageScore,
+            long negativeCount,
+            double negativeKappa,
+            double averageNegativeScore,
+            double massNormalizationFactor,
+            double mT,
+            double mTheta,
+            double mF,
+            double weightedMT,
+            double weightedMTheta,
+            double weightedMF
+    ) {}
 
     private double lambdaExpL1()     { return settingsService.get().getLambdaExpL1(); }
     private double lambdaFcL1()      { return settingsService.get().getLambdaFcL1(); }
@@ -332,7 +367,7 @@ public class DstQueryService {
         return flag == null || flag;
     }
 
-    private BpaResult computeBpa(long relevantCount, double avgScore, long total, double lambda) {
+    private static BpaResult computeBpa(long relevantCount, double avgScore, long total, double lambda) {
         return computeBpa(relevantCount, avgScore, 0L, 0.0, total, lambda);
     }
 
@@ -341,23 +376,28 @@ public class DstQueryService {
      * κ = 1 − exp(−λ·n/N) is applied independently to both directions; if the
      * resulting masses exceed 1 they are scaled down so that m(Θ) ≥ 0.
      */
-    private BpaResult computeBpa(long relevantCount, double avgScore,
-                                 long negativeCount, double avgNegativeScore,
-                                 long total, double lambda) {
-        if (total == 0 || (relevantCount == 0 && negativeCount == 0)) return BpaResult.empty();
+    static BpaResult computeBpa(long relevantCount, double avgScore,
+                                long negativeCount, double avgNegativeScore,
+                                long total, double lambda) {
+        if (total == 0) return BpaResult.empty();
 
-        double mT = relevantCount > 0
-                ? (1.0 - Math.exp(-lambda * (double) relevantCount / total)) * avgScore
+        double kappa = relevantCount > 0
+                ? 1.0 - Math.exp(-lambda * (double) relevantCount / total)
                 : 0.0;
-        double mF = negativeCount > 0
-                ? (1.0 - Math.exp(-lambda * (double) negativeCount / total)) * avgNegativeScore
+        double negativeKappa = negativeCount > 0
+                ? 1.0 - Math.exp(-lambda * (double) negativeCount / total)
                 : 0.0;
+        double mT = kappa * avgScore;
+        double mF = negativeKappa * avgNegativeScore;
 
         double sum = mT + mF;
-        if (sum > 1.0) { mT /= sum; mF /= sum; }
+        double normalizationFactor = sum > 1.0 ? 1.0 / sum : 1.0;
+        mT *= normalizationFactor;
+        mF *= normalizationFactor;
 
-        return new BpaResult(relevantCount, total, lambda, avgScore, mT, 1.0 - mT - mF,
-                negativeCount, avgNegativeScore, mF);
+        return new BpaResult(relevantCount, total, lambda, kappa, avgScore,
+                mT, 1.0 - mT - mF, negativeCount, negativeKappa,
+                avgNegativeScore, mF, normalizationFactor, List.of());
     }
 
     private BpaResult extractBpa(List<Object[]> rows, long total, double lambda) {
@@ -383,7 +423,6 @@ public class DstQueryService {
             negAvg = row[1] != null ? ((Number) row[1]).doubleValue() : 0.0;
         }
 
-        if (cnt == 0 && negCnt == 0) return BpaResult.empty();
         return computeBpa(cnt, avg, negCnt, negAvg, total, lambda);
     }
 
@@ -433,43 +472,71 @@ public class DstQueryService {
     }
 
     /**
-     * Weighted mixture of per-profession BPAs. Both m(T) and m(F) are averaged
-     * with the curriculum profession weights, so negative evidence survives the
-     * mixture and can still produce conflict downstream.
+     * Convex mixture of already-computed per-profession BPAs.
+     *
+     * The curriculum weights are normalised across every profession, including
+     * professions without evidence for the current object. An empty profession
+     * therefore contributes pure ignorance m(Θ)=1 instead of silently donating
+     * its share to professions that happen to have data.
      */
-    private BpaResult weightedAverage(List<ProfessionWeight> profs,
-                                      java.util.function.Function<ProfessionWeight, BpaResult> fn) {
-        double sumW = 0.0, sumMT = 0.0, sumMF = 0.0, sumCnt = 0.0, sumNegCnt = 0.0, sumTotal = 0.0;
-        double sumNegScore = 0.0, sumNegScoreW = 0.0;
-        double lambda = 0.0;
+    static BpaResult weightedAverage(List<ProfessionWeight> profs,
+                                     java.util.function.Function<ProfessionWeight, BpaResult> fn) {
+        if (profs == null || profs.isEmpty()) return BpaResult.empty();
+
         for (ProfessionWeight pw : profs) {
-            BpaResult r = fn.apply(pw);
-            if (r.hasEvidence()) {
-                sumMT     += pw.weight() * r.mT();
-                sumMF     += pw.weight() * r.mF();
-                sumCnt    += pw.weight() * r.relevantCount();
-                sumNegCnt += pw.weight() * r.negativeCount();
-                sumTotal  += pw.weight() * r.totalCount();
-                lambda     = r.lambda();
-                sumW      += pw.weight();
-                // Средняя negative-уверенность усредняется только по источникам,
-                // где негатив реально есть, иначе её размывают нули.
-                if (r.negativeCount() > 0) {
-                    sumNegScore  += pw.weight() * r.averageNegativeScore();
-                    sumNegScoreW += pw.weight();
-                }
+            if (!Double.isFinite(pw.weight()) || pw.weight() < 0.0) {
+                throw new IllegalArgumentException("Profession weight must be finite and non-negative: "
+                        + pw.professionCode());
             }
         }
-        if (sumW == 0) return BpaResult.empty();
-        double mT = sumMT / sumW;
-        double mF = sumMF / sumW;
-        double sum = mT + mF;
-        if (sum > 1.0) { mT /= sum; mF /= sum; }
-        long cnt    = (long) Math.round(sumCnt / sumW);
-        long negCnt = (long) Math.round(sumNegCnt / sumW);
-        long tot    = (long) (sumTotal / sumW);
-        double negScore = sumNegScoreW > 0 ? sumNegScore / sumNegScoreW : 0.0;
-        return new BpaResult(cnt, tot, lambda, mT, mT, 1.0 - mT - mF, negCnt, negScore, mF);
+
+        double rawWeightSum = profs.stream().mapToDouble(ProfessionWeight::weight).sum();
+        boolean equalWeights = rawWeightSum <= 0.0;
+        double equalWeight = 1.0 / profs.size();
+
+        double sumMT = 0.0, sumMTheta = 0.0, sumMF = 0.0;
+        double sumKappa = 0.0, sumNegativeKappa = 0.0;
+        double sumScore = 0.0, sumNegativeScore = 0.0;
+        double sumCnt = 0.0, sumNegCnt = 0.0, sumTotal = 0.0;
+        double lambda = 0.0;
+        List<ProfessionBpaContribution> contributions = new ArrayList<>();
+
+        for (ProfessionWeight pw : profs) {
+            double weight = equalWeights ? equalWeight : pw.weight() / rawWeightSum;
+            BpaResult r = fn.apply(new ProfessionWeight(
+                    pw.professionCode(), pw.professionName(), weight));
+
+            sumMT            += weight * r.mT();
+            sumMTheta        += weight * r.mTheta();
+            sumMF            += weight * r.mF();
+            sumKappa         += weight * r.kappa();
+            sumNegativeKappa += weight * r.negativeKappa();
+            sumScore         += weight * r.averageScore();
+            sumNegativeScore += weight * r.averageNegativeScore();
+            sumCnt           += weight * r.relevantCount();
+            sumNegCnt        += weight * r.negativeCount();
+            sumTotal         += weight * r.totalCount();
+            if (lambda == 0.0 && r.lambda() > 0.0) lambda = r.lambda();
+
+            contributions.add(new ProfessionBpaContribution(
+                    pw.professionCode(), pw.professionName(), weight, r.hasEvidence(),
+                    r.relevantCount(), r.totalCount(), r.lambda(), r.kappa(), r.averageScore(),
+                    r.negativeCount(), r.negativeKappa(), r.averageNegativeScore(),
+                    r.massNormalizationFactor(), r.mT(), r.mTheta(), r.mF(),
+                    weight * r.mT(), weight * r.mTheta(), weight * r.mF()));
+        }
+
+        double massSum = sumMT + sumMTheta + sumMF;
+        if (massSum > 0.0) {
+            sumMT /= massSum;
+            sumMTheta /= massSum;
+            sumMF /= massSum;
+        }
+
+        return new BpaResult(
+                Math.round(sumCnt), Math.round(sumTotal), lambda, sumKappa, sumScore,
+                sumMT, sumMTheta, Math.round(sumNegCnt), sumNegativeKappa,
+                sumNegativeScore, sumMF, 1.0, List.copyOf(contributions));
     }
 
     @Transactional(readOnly = true)
@@ -491,7 +558,7 @@ public class DstQueryService {
         if (profCode == null || domain == null || techFamily == null || canonicalId == null) return BpaResult.empty();
         long total    = canonicalRepository.countVacanciesByTechFamilyAndDomainAndProfession(profCode, domain, techFamily);
         long relevant = canonicalRepository.countVacanciesByCanonicalAndProfession(profCode, canonicalId);
-        if (total == 0 || relevant == 0) return BpaResult.empty();
+        if (total == 0) return BpaResult.empty();
         return computeBpa(relevant, 1.0, total, lambdaVacL2());
     }
 
@@ -612,7 +679,7 @@ public class DstQueryService {
         if (profCode == null) return BpaResult.empty();
         long total    = canonicalRepository.countTotalVacanciesForProfession(profCode);
         long relevant = canonicalRepository.countVacanciesByProfessionAndDomain(profCode, domain);
-        if (total == 0 || relevant == 0) return BpaResult.empty();
+        if (total == 0) return BpaResult.empty();
         return computeBpa(relevant, 1.0, total, lambdaVacDomain());
     }
 
@@ -621,7 +688,7 @@ public class DstQueryService {
         if (profCode == null || domain == null || techFamily == null) return BpaResult.empty();
         long total    = canonicalRepository.countTotalVacanciesForProfessionAndDomain(profCode, domain);
         long relevant = canonicalRepository.countVacanciesByTechFamilyAndDomainAndProfession(profCode, domain, techFamily);
-        if (total == 0 || relevant == 0) return BpaResult.empty();
+        if (total == 0) return BpaResult.empty();
         return computeBpa(relevant, 1.0, total, lambdaVacL1());
     }
 

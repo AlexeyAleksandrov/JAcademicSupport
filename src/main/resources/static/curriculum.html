@@ -431,7 +431,8 @@ function editProfRow(code, name, weight) {
 
 async function saveProfRow(code) {
   const name   = document.getElementById(`edit_pname_${code}`)?.value.trim() || code;
-  const weight = parseFloat(document.getElementById(`edit_pw_${code}`)?.value) || 1;
+  const parsedWeight = parseFloat(document.getElementById(`edit_pw_${code}`)?.value);
+  const weight = Number.isFinite(parsedWeight) ? parsedWeight : 1;
   await fetch(`${API}/api/curriculum/${selectedCurriculumId}/professions`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -443,7 +444,8 @@ async function saveProfRow(code) {
 async function addCurriculumProfession() {
   const code   = document.getElementById('inp_prof_code').value.trim().toLowerCase();
   const name   = document.getElementById('inp_prof_name').value.trim();
-  const weight = parseFloat(document.getElementById('inp_prof_weight').value)||1;
+  const parsedWeight = parseFloat(document.getElementById('inp_prof_weight').value);
+  const weight = Number.isFinite(parsedWeight) ? parsedWeight : 1;
   if (!code) { alert('Укажите код профессии'); return; }
   await fetch(`${API}/api/curriculum/${selectedCurriculumId}/professions`, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -1567,6 +1569,74 @@ function loadDisciplineBreakdown(div, curriculumId, domain) {
     .catch(() => { div.innerHTML = '<span style="color:var(--red);font-size:10px;">Ошибка загрузки</span>'; });
 }
 
+function traceSourceColor(sourceName) {
+  return ({VAC:'var(--purple)', EXP:'var(--yellow)', FC:'var(--accent)'})[sourceName] || 'var(--muted)';
+}
+
+function traceSourceInputRow(s) {
+  const col = traceSourceColor(s.sourceName);
+  if (!s.enabled) return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="5" style="color:var(--muted)">⊘ нет данных</td></tr>`;
+
+  if (s.professionWeighted) {
+    const contributions = s.professionContributions || [];
+    const weights = contributions.map(p =>
+      `<span style="white-space:nowrap">${esc(p.professionCode)}=${(p.weight*100).toFixed(1)}%</span>`).join(' · ');
+    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
+      <td colspan="4">BPA отдельно по ${contributions.length} профессиям: <span style="color:var(--muted)">${weights}</span></td>
+      <td>w=${fmt(s.weight)}</td></tr>`;
+  }
+
+  const neg = (s.negativeCount || 0) > 0
+    ? ` <span style="color:var(--red)" title="негативные свидетельства → m(F)">neg=${s.negativeCount}</span>` : '';
+  return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
+    <td>total=${s.totalCount}</td><td>relevant=${s.relevantCount}${neg}</td>
+    <td>avgScore=${fmt(s.averageScore)}</td><td>λ=${fmt(s.lambda)}</td><td>w=${fmt(s.weight)}</td></tr>`;
+}
+
+function traceProfessionBpaRow(p) {
+  const positive = p.totalCount > 0
+    ? `κ⁺=1−e^(−${fmt(p.lambda)}×${p.relevantCount}/${p.totalCount})=<b>${fmt(p.kappa)}</b>`
+    : `κ⁺=0 <span style="color:var(--muted)">(нет базы наблюдений)</span>`;
+  const negative = (p.negativeCount || 0) > 0
+    ? `<br>κ⁻=1−e^(−${fmt(p.lambda)}×${p.negativeCount}/${p.totalCount})=<b style="color:var(--red)">${fmt(p.negativeKappa)}</b>`
+    : '';
+  const normalization = (p.massNormalizationFactor || 1) < 0.999999
+    ? `<br><span style="color:var(--yellow)">массы нормированы ×${fmt(p.massNormalizationFactor)}</span>` : '';
+  const evidence = p.hasEvidence ? '' : ' <span style="color:var(--muted)">(нет свидетельств → m(Θ)=1)</span>';
+  return `<tr>
+    <td style="padding:3px 5px;white-space:nowrap"><b>${esc(p.professionCode)}</b><br><span style="color:var(--purple)">${(p.weight*100).toFixed(1)}%</span></td>
+    <td style="padding:3px 5px">${positive}${negative}${normalization}</td>
+    <td style="padding:3px 5px">score⁺=${fmt(p.averageScore)}<br>score⁻=${fmt(p.averageNegativeScore)}</td>
+    <td style="padding:3px 5px">m(T)=${fmt(p.mT)}<br>m(Θ)=${fmt(p.mTheta)}<br>m(F)=${fmt(p.mF)}${evidence}</td>
+    <td style="padding:3px 5px">w·m(T)=<b>${fmt(p.weightedMT)}</b><br>w·m(Θ)=<b>${fmt(p.weightedMTheta)}</b><br>w·m(F)=<b>${fmt(p.weightedMF)}</b></td>
+  </tr>`;
+}
+
+function traceSourceBpaRow(s) {
+  const col = traceSourceColor(s.sourceName);
+  if (!s.enabled) return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="2" style="color:var(--muted)">⊘</td></tr>`;
+
+  if (s.professionWeighted) {
+    const contributions = s.professionContributions || [];
+    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="2">
+      <div>κ⁺<sub>взв</sub> = Σwᵢκᵢ = <b>${fmt(s.kappa)}</b>; κ⁻<sub>взв</sub> = <b>${fmt(s.negativeKappa)}</b></div>
+      <div>m(T) = Σwᵢmᵢ(T) = <b>${fmt(s.mT)}</b>; m(Θ) = Σwᵢmᵢ(Θ) = <b>${fmt(s.mU)}</b>; m(F) = Σwᵢmᵢ(F) = <b>${fmt(s.mF)}</b></div>
+      <details style="margin-top:5px"><summary style="cursor:pointer;color:var(--muted)">Раскрыть вклад профессий</summary>
+        <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px"><tbody>${contributions.map(traceProfessionBpaRow).join('')}</tbody></table>
+      </details>
+    </td></tr>`;
+  }
+
+  const negCnt = s.negativeCount || 0;
+  const mfLine = negCnt > 0
+    ? `m(F) = κ⁻·score⁻ = <b style="color:var(--red)">${fmt(s.mF)}</b>
+       <span style="color:var(--muted);font-size:10px">(κ⁻=${fmt(s.negativeKappa)}, avg conf⁻=${fmt(s.averageNegativeScore)})</span>`
+    : `m(F) = <b>${fmt(s.mF)}</b> <span style="color:var(--muted);font-size:10px">(нет негативных свидетельств)</span>`;
+  return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
+    <td>κ = 1−e^(−${fmt(s.lambda)}×${s.relevantCount}/${s.totalCount}) = <b>${fmt(s.kappa)}</b></td>
+    <td>m(T) = κ·score = <b>${fmt(s.mT)}</b><br>m(Θ) = 1−m(T)−m(F) = <b>${fmt(s.mU)}</b><br>${mfLine}</td></tr>`;
+}
+
 function buildInlineTrace(d, alloc) {
   const nBetp      = alloc ? alloc.nBetp      : 0;
   const deltaNorm  = alloc ? alloc.deltaNorm  : 0;
@@ -1602,46 +1672,15 @@ function buildInlineTrace(d, alloc) {
   const combos  = d.combinations || [];
   const N_CLUSTERS = meta.nClusters || dstSettings?.settings?.nClustersL0 || 25;
 
-  const srcColor = {VAC:'var(--purple)', EXP:'var(--yellow)', FC:'var(--accent)'};
-
   // ─── Шаг 1: Входные данные ────────────────────────────────────────────────
-  const step1 = sources.map(s => {
-    const col = srcColor[s.sourceName] || 'var(--muted)';
-    if (!s.enabled) return `
-      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
-          <td colspan="5" style="color:var(--muted)">⊘ нет данных</td></tr>`;
-    const neg = (s.negativeCount || 0) > 0
-      ? ` <span style="color:var(--red)" title="негативные свидетельства → m(F)">neg=${s.negativeCount}</span>` : '';
-    return `
-      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
-          <td>total=${s.totalCount}</td>
-          <td>relevant=${s.relevantCount}${neg}</td>
-          <td>avgScore=${fmt(s.averageScore)}</td>
-          <td>λ=${fmt(s.lambda)}</td>
-          <td>w=${fmt(s.weight)}</td></tr>`;
-  }).join('');
+  const step1 = sources.map(traceSourceInputRow).join('');
 
   // ─── Шаг 2: BPA (κ, m(T), m(U), m(F)) ────────────────────────────────────
-  const step2 = sources.map(s => {
-    const col = srcColor[s.sourceName] || 'var(--muted)';
-    if (!s.enabled) return `
-      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
-          <td colspan="4" style="color:var(--muted)">⊘</td></tr>`;
-    const kappaFormula = `1−e^(−${fmt(s.lambda)}×${s.relevantCount}/${s.totalCount})`;
-    const negCnt = s.negativeCount || 0;
-    const mfLine = negCnt > 0
-      ? `m(F) = κ⁻·score⁻ = <b style="color:var(--red)">${fmt(s.mF)}</b>
-         <span style="color:var(--muted);font-size:10px;">(κ⁻ = 1−e^(−${fmt(s.lambda)}×${negCnt}/${s.totalCount}), avg conf⁻ = ${fmt(s.averageNegativeScore)}; значения усреднены по профессиям УП)</span>`
-      : `m(F) = <b>${fmt(s.mF)}</b> <span style="color:var(--muted);font-size:10px;">(нет негативных свидетельств)</span>`;
-    return `
-      <tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
-          <td>κ = ${kappaFormula} = <b>${fmt(s.kappa)}</b></td>
-          <td>m(T) = κ·score = <b>${fmt(s.mT)}</b><br>m(U) = 1−m(T)−m(F) = <b>${fmt(s.mU)}</b><br>${mfLine}</td></tr>`;
-  }).join('');
+  const step2 = sources.map(traceSourceBpaRow).join('');
 
   // ─── Шаг 3: Дисконтирование ───────────────────────────────────────────────
   const step3 = sources.filter(s=>s.enabled).map(s => {
-    const col = srcColor[s.sourceName] || 'var(--muted)';
+    const col = traceSourceColor(s.sourceName);
     return `
       <tr><td><b style="color:${col}">${esc(s.sourceName)}</b><br><span style="color:var(--muted);font-size:10px">w=${fmt(s.weight)}</span></td>
           <td>m'(T) = ${fmt(s.mT)}·${fmt(s.weight)} = <b>${fmt(s.mTDiscounted)}</b><br>m'(U) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b><br>m'(F) = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
@@ -1693,7 +1732,7 @@ function buildInlineTrace(d, alloc) {
       <tbody>${step1}</tbody>
     </table>
     <table class="it" style="${tStyle}">
-      <thead><tr><th colspan="3" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
+      <thead><tr><th colspan="3" style="${hStyle}">Шаг 2 — BPA по профессиям и взвешенная сумма по долям УП</th></tr></thead>
       <tbody>${step2}</tbody>
     </table>
     <table class="it" style="${tStyle}">
@@ -1893,33 +1932,11 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
 
   const sources = f.sources || [];
   const combos  = f.combinations || [];
-  const srcColor = {VAC:'var(--purple)', EXP:'var(--yellow)', FC:'var(--accent)'};
-
-  const step1 = sources.map(s => {
-    const col = srcColor[s.sourceName] || 'var(--muted)';
-    if (!s.enabled) return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="5" style="color:var(--muted)">⊘ нет данных</td></tr>`;
-    const neg = (s.negativeCount || 0) > 0 ? ` <span style="color:var(--red)" title="негативные свидетельства → m(F)">neg=${s.negativeCount}</span>` : '';
-    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
-        <td>total=${s.totalCount}</td><td>relevant=${s.relevantCount}${neg}</td>
-        <td>avgScore=${fmt(s.averageScore)}</td><td>λ=${fmt(s.lambda)}</td><td>w=${fmt(s.weight)}</td></tr>`;
-  }).join('');
-
-  const step2 = sources.map(s => {
-    const col = srcColor[s.sourceName] || 'var(--muted)';
-    if (!s.enabled) return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="4" style="color:var(--muted)">⊘</td></tr>`;
-    const kappaFormula = `1−e^(−${fmt(s.lambda)}×${s.relevantCount}/${s.totalCount})`;
-    const negCnt = s.negativeCount || 0;
-    const mfLine = negCnt > 0
-      ? `m(F) = κ⁻·score⁻ = <b style="color:var(--red)">${fmt(s.mF)}</b>
-         <span style="color:var(--muted);font-size:10px;">(κ⁻ = 1−e^(−${fmt(s.lambda)}×${negCnt}/${s.totalCount}), avg conf⁻ = ${fmt(s.averageNegativeScore)}; значения усреднены по профессиям УП)</span>`
-      : `m(F) = <b>${fmt(s.mF)}</b> <span style="color:var(--muted);font-size:10px;">(нет негативных свидетельств)</span>`;
-    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
-        <td>κ = ${kappaFormula} = <b>${fmt(s.kappa)}</b></td>
-        <td>m(T) = κ·score = <b>${fmt(s.mT)}</b><br>m(U) = 1−m(T)−m(F) = <b>${fmt(s.mU)}</b><br>${mfLine}</td></tr>`;
-  }).join('');
+  const step1 = sources.map(traceSourceInputRow).join('');
+  const step2 = sources.map(traceSourceBpaRow).join('');
 
   const step3 = sources.filter(s=>s.enabled).map(s => {
-    const col = srcColor[s.sourceName] || 'var(--muted)';
+    const col = traceSourceColor(s.sourceName);
     return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b><br><span style="color:var(--muted);font-size:10px">w=${fmt(s.weight)}</span></td>
         <td>m'(T) = ${fmt(s.mT)}·${fmt(s.weight)} = <b>${fmt(s.mTDiscounted)}</b><br>m'(U) = ${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)}) = <b>${fmt(s.mUDiscounted)}</b><br>m'(F) = ${fmt(s.mF)}·${fmt(s.weight)} = <b>${fmt(s.mFDiscounted)}</b></td></tr>`;
   }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
@@ -1966,7 +1983,7 @@ function buildL1FamilyTrace(f, nFamilies, domHours, totalBetP, l2Config) {
       <tbody>${step1}</tbody>
     </table>
     <table class="itf" style="${tStyle}">
-      <thead><tr><th colspan="3" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
+      <thead><tr><th colspan="3" style="${hStyle}">Шаг 2 — BPA по профессиям и взвешенная сумма по долям УП</th></tr></thead>
       <tbody>${step2}</tbody>
     </table>
     <table class="itf" style="${tStyle}">
@@ -2172,32 +2189,13 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP, meta) {
     : `Распределение часов соответствует рыночному приоритету (nBetP ≈ ${(nBetp*100).toFixed(1)}%). Целевой объём: <b>${recHours} ч.</b> из ${baseNote}`;
   const sources = sk.sources || [];
   const combos  = sk.combinations || [];
-  const srcColor = {VAC:'var(--purple)', EXP:'var(--yellow)', FC:'var(--accent)'};
   const tStyle  = 'border-collapse:collapse;width:100%;font-size:12px;margin-bottom:10px;';
   const hStyle  = 'background:var(--bg2);color:var(--muted);padding:3px 6px;font-weight:600;font-size:10px;text-align:left;';
   const tdStyle = 'padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;font-family:\'JetBrains Mono\',monospace;';
-  const step1 = sources.map(s => {
-    const col = srcColor[s.sourceName] || 'var(--muted)';
-    if (!s.enabled) return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="5" style="color:var(--muted)">⊘ нет данных</td></tr>`;
-    const neg = (s.negativeCount || 0) > 0 ? ` <span style="color:var(--red)" title="негативные свидетельства → m(F)">neg=${s.negativeCount}</span>` : '';
-    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
-      <td>total=${s.totalCount}</td><td>relevant=${s.relevantCount}${neg}</td>
-      <td>avgScore=${fmt(s.averageScore)}</td><td>λ=${fmt(s.lambda)}</td><td>w=${fmt(s.weight)}</td></tr>`;
-  }).join('');
-  const step2 = sources.map(s => {
-    const col = srcColor[s.sourceName] || 'var(--muted)';
-    if (!s.enabled) return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td><td colspan="4" style="color:var(--muted)">⊘</td></tr>`;
-    const negCnt = s.negativeCount || 0;
-    const mfLine = negCnt > 0
-      ? `m(F) = κ⁻·score⁻ = <b style="color:var(--red)">${fmt(s.mF)}</b>
-         <span style="color:var(--muted);font-size:10px;">(κ⁻ = 1−e^(−${fmt(s.lambda)}×${negCnt}/${s.totalCount}), avg conf⁻ = ${fmt(s.averageNegativeScore)}; значения усреднены по профессиям УП)</span>`
-      : `m(F) = <b>${fmt(s.mF)}</b> <span style="color:var(--muted);font-size:10px;">(нет негативных свидетельств)</span>`;
-    return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b></td>
-      <td>κ = 1−e^(−${fmt(s.lambda)}×${s.relevantCount}/${s.totalCount}) = <b>${fmt(s.kappa)}</b></td>
-      <td>m(T) = κ·score = <b>${fmt(s.mT)}</b><br>m(U) = 1−m(T)−m(F) = <b>${fmt(s.mU)}</b><br>${mfLine}</td></tr>`;
-  }).join('');
+  const step1 = sources.map(traceSourceInputRow).join('');
+  const step2 = sources.map(traceSourceBpaRow).join('');
   const step3 = sources.filter(s=>s.enabled).map(s => {
-    const col = srcColor[s.sourceName] || 'var(--muted)';
+    const col = traceSourceColor(s.sourceName);
     return `<tr><td><b style="color:${col}">${esc(s.sourceName)}</b><br><span style="color:var(--muted);font-size:10px">w=${fmt(s.weight)}</span></td>
       <td>m'(T)=${fmt(s.mT)}·${fmt(s.weight)}=<b>${fmt(s.mTDiscounted)}</b><br>m'(U)=${fmt(s.mU)}·${fmt(s.weight)}+(1−${fmt(s.weight)})=<b>${fmt(s.mUDiscounted)}</b><br>m'(F)=${fmt(s.mF)}·${fmt(s.weight)}=<b>${fmt(s.mFDiscounted)}</b></td></tr>`;
   }).join('') || `<tr><td colspan="4" style="color:var(--muted)">Нет активных источников</td></tr>`;
@@ -2232,7 +2230,7 @@ function buildL2SkillTrace(sk, nSkills, famHours, totalBetP, meta) {
       <tbody>${step1}</tbody>
     </table>
     <table class="itsk" style="${tStyle}">
-      <thead><tr><th colspan="3" style="${hStyle}">Шаг 2 — Расчёт BPA: κ = 1−e^(−λ·relevant/total), m(T)=κ·avgScore</th></tr></thead>
+      <thead><tr><th colspan="3" style="${hStyle}">Шаг 2 — BPA по профессиям и взвешенная сумма по долям УП</th></tr></thead>
       <tbody>${step2}</tbody>
     </table>
     <table class="itsk" style="${tStyle}">

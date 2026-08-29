@@ -3,9 +3,11 @@ package io.github.alexeyaleksandrov.jacademicsupport.controllers.rest.curriculum
 import io.github.alexeyaleksandrov.jacademicsupport.models.CurriculumProfession;
 import io.github.alexeyaleksandrov.jacademicsupport.repositories.CurriculumProfessionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -30,6 +32,10 @@ public class CurriculumProfessionController {
         String name   = (String) body.getOrDefault("professionName", code);
         double weight = body.containsKey("weight")
                         ? ((Number) body.get("weight")).doubleValue() : 1.0;
+        if (!Double.isFinite(weight) || weight < 0.0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Profession weight must be finite and non-negative");
+        }
 
         CurriculumProfession cp = repo.findByCurriculumIdAndProfessionCode(curriculumId, code)
                 .orElse(new CurriculumProfession(null, curriculumId, code, name, weight));

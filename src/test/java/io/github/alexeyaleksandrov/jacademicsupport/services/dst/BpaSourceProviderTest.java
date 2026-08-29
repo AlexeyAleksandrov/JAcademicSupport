@@ -5,6 +5,8 @@ import io.github.alexeyaleksandrov.jacademicsupport.services.dst.bpa.BpaSourcePr
 import io.github.alexeyaleksandrov.jacademicsupport.services.dst.bpa.DstContext;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -21,11 +23,12 @@ class BpaSourceProviderTest {
         };
 
         DstQueryService.BpaResult raw = new DstQueryService.BpaResult(
-                2, 8, 0.5, 0.7, 0.30, 0.50,
-                1, 0.8, 0.20);
+                2, 8, 0.5, 0.30 / 0.70, 0.7, 0.30, 0.50,
+                1, 0.25, 0.8, 0.20, 1.0, List.of());
         BpaResult result = provider.buildFromRaw(raw);
 
         assertTrue(result.isEnabled());
+        assertEquals(0.30 / 0.70, result.getKappa(), 1e-9);
         assertEquals(1, result.getNegativeCount());
         assertEquals(0.20, result.getMF(), 1e-9);
         assertEquals(0.12, result.getMFDiscounted(), 1e-9);

@@ -29,5 +29,13 @@ public class VacancyEntity {
     private String description;
 
     @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "vacancy_skills",
+            joinColumns = @JoinColumn(name = "vacancy_entity_id"),
+            inverseJoinColumns = @JoinColumn(name = "skills_id"),
+            indexes = {
+                    @Index(name = "idx_vacancy_skills_vacancy", columnList = "vacancy_entity_id"),
+                    @Index(name = "idx_vacancy_skills_skill", columnList = "skills_id")
+            })
     private List<WorkSkill> skills;
 }

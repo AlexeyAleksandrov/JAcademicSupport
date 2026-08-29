@@ -9,6 +9,60 @@ import java.util.List;
 
 public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEntity, Long> {
 
+    /**
+     * Explicit profession_code wins. For legacy/null codes, infer applicability
+     * from the most specific evidence object through vacancies classified into
+     * professions. EXISTS prevents one opinion from being multiplied by the
+     * number of matching vacancies.
+     */
+    String PROFESSION_SCOPE = """
+          AND (
+                :professionCode IS NULL
+                OR eo.profession_code = :professionCode
+                OR (
+                    COALESCE(eo.profession_code, '') = ''
+                    AND (
+                        (eo.canonical_id IS NOT NULL AND EXISTS (
+                            SELECT 1
+                            FROM work_skill_canonical rel_wsc
+                            JOIN vacancy_skills rel_vs     ON rel_vs.skills_id = rel_wsc.work_skill_id
+                            JOIN vacancy_profession rel_vp ON rel_vp.vacancy_id = rel_vs.vacancy_entity_id
+                            JOIN profession rel_p          ON rel_p.id = rel_vp.profession_id
+                            WHERE rel_wsc.canonical_id = eo.canonical_id AND rel_p.code = :professionCode
+                        ))
+                        OR (eo.canonical_id IS NULL AND eo.work_skill_id IS NOT NULL AND EXISTS (
+                            SELECT 1
+                            FROM vacancy_skills rel_vs
+                            JOIN vacancy_profession rel_vp ON rel_vp.vacancy_id = rel_vs.vacancy_entity_id
+                            JOIN profession rel_p          ON rel_p.id = rel_vp.profession_id
+                            WHERE rel_vs.skills_id = eo.work_skill_id AND rel_p.code = :professionCode
+                        ))
+                        OR (eo.canonical_id IS NULL AND eo.work_skill_id IS NULL
+                            AND eo.tech_family IS NOT NULL AND EXISTS (
+                            SELECT 1
+                            FROM skill_canonical rel_sc
+                            JOIN work_skill_canonical rel_wsc ON rel_wsc.canonical_id = rel_sc.id
+                            JOIN vacancy_skills rel_vs         ON rel_vs.skills_id = rel_wsc.work_skill_id
+                            JOIN vacancy_profession rel_vp     ON rel_vp.vacancy_id = rel_vs.vacancy_entity_id
+                            JOIN profession rel_p              ON rel_p.id = rel_vp.profession_id
+                            WHERE rel_sc.domain = eo.domain AND rel_sc.tech_family = eo.tech_family
+                              AND rel_p.code = :professionCode
+                        ))
+                        OR (eo.canonical_id IS NULL AND eo.work_skill_id IS NULL
+                            AND eo.tech_family IS NULL AND EXISTS (
+                            SELECT 1
+                            FROM skill_canonical rel_sc
+                            JOIN work_skill_canonical rel_wsc ON rel_wsc.canonical_id = rel_sc.id
+                            JOIN vacancy_skills rel_vs         ON rel_vs.skills_id = rel_wsc.work_skill_id
+                            JOIN vacancy_profession rel_vp     ON rel_vp.vacancy_id = rel_vs.vacancy_entity_id
+                            JOIN profession rel_p              ON rel_p.id = rel_vp.profession_id
+                            WHERE rel_sc.domain = eo.domain AND rel_p.code = :professionCode
+                        ))
+                    )
+                )
+          )
+        """;
+
     // ─── DST aggregation queries (L0/L1/L2) ───────────────────────────────────
 
     @Query(nativeQuery = true, value = """
@@ -18,8 +72,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         JOIN expert e ON e.id = eo.expert_id
         WHERE eo.domain = :domain
           AND eo.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateByDomain(@Param("domain") String domain,
                                     @Param("professionCode") String professionCode);
 
@@ -31,8 +84,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         WHERE eo.domain = :domain
           AND eo.tech_family = :techFamily
           AND eo.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateByDomainAndFamily(@Param("domain") String domain,
                                              @Param("techFamily") String techFamily,
                                              @Param("professionCode") String professionCode);
@@ -44,8 +96,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         JOIN expert e ON e.id = eo.expert_id
         WHERE eo.canonical_id = :canonicalId
           AND eo.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateByCanonical(@Param("canonicalId") Long canonicalId,
                                        @Param("professionCode") String professionCode);
 
@@ -57,8 +108,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         WHERE eo.canonical_id = :canonicalId
           AND eo.domain = :domain
           AND eo.direction = 'POSITIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateByCanonicalAndDomain(@Param("canonicalId")    Long canonicalId,
                                                  @Param("domain")         String domain,
                                                  @Param("professionCode") String professionCode);
@@ -74,8 +124,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         JOIN expert e ON e.id = eo.expert_id
         WHERE eo.domain = :domain
           AND eo.direction = 'NEGATIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateNegativeByDomain(@Param("domain") String domain,
                                              @Param("professionCode") String professionCode);
 
@@ -87,8 +136,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         WHERE eo.domain = :domain
           AND eo.tech_family = :techFamily
           AND eo.direction = 'NEGATIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateNegativeByDomainAndFamily(@Param("domain") String domain,
                                                       @Param("techFamily") String techFamily,
                                                       @Param("professionCode") String professionCode);
@@ -100,8 +148,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         JOIN expert e ON e.id = eo.expert_id
         WHERE eo.canonical_id = :canonicalId
           AND eo.direction = 'NEGATIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateNegativeByCanonical(@Param("canonicalId") Long canonicalId,
                                                 @Param("professionCode") String professionCode);
 
@@ -113,8 +160,7 @@ public interface ExpertOpinionRepository extends JpaRepository<ExpertOpinionEnti
         WHERE eo.canonical_id = :canonicalId
           AND eo.domain = :domain
           AND eo.direction = 'NEGATIVE'
-          AND (:professionCode IS NULL OR eo.profession_code = :professionCode OR COALESCE(eo.profession_code,'') = '')
-    """)
+    """ + PROFESSION_SCOPE)
     List<Object[]> aggregateNegativeByCanonicalAndDomain(@Param("canonicalId")    Long canonicalId,
                                                          @Param("domain")         String domain,
                                                          @Param("professionCode") String professionCode);
